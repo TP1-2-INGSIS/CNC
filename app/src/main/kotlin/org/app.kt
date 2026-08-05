@@ -1,15 +1,9 @@
 package org
 
-import org.lexer.create_lexer
-
-class App {
-    val greeting: String
-        get() {
-            return "Hello World!"
-        }
-}
+import org.lexer.Lexer
+import org.lexer.StdFormater
+import org.lexer.StdAnalizer
 
 fun main() {
-    create_lexer();
-    println(App().greeting);
+  print(Lexer(StdFormater(), StdAnalizer()).getTokens("hola"));
 }
