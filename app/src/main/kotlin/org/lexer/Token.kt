@@ -14,6 +14,6 @@ enum class TokenType {
 
 data class Token(
   val type: TokenType,
-  val pos: Position,
+  val pos: Position, // no guardo la position final, porque tenemos el size del texto
   val text: String
 );

@@ -1,9 +1,15 @@
 package org
 
-import org.lexer.Lexer
+import org.lexer.LexerBuilder
 import org.lexer.StdFormater
-import org.lexer.StdAnalizer
+import org.lexer.StdAnalyzer
+import org.lexer.StrContent
 
 fun main() {
-  print(Lexer(StdFormater(), StdAnalizer()).getTokens("hola"));
+  val lexer = LexerBuilder()
+    .setFormater(StdFormater())
+    .setAnalyzer(StdAnalyzer())
+    .setContent(StrContent("hola"))
+    .build()
+  print(lexer.getTokens());
 }
