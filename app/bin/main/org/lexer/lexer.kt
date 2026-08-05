@@ -11,7 +11,7 @@ class Lexer (
 ) {
   fun getTokens() : List<Token> {
     var tokens = mutableListOf<Token>()
-    while(content.allRead()) {
+    while(!content.allRead()) {
       val formated : List<String> = formater.format(content.getNextLine()) // va cargando una linea a la vez en memoria
       tokens.addAll(analyzer.analyze(formated))
     }

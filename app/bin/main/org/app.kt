@@ -9,7 +9,11 @@ fun main() {
   val lexer = LexerBuilder()
     .setFormater(StdFormater())
     .setAnalyzer(StdAnalyzer())
-    .setContent(StrContent("let hola"))
+    .setContent(StrContent(
+    """
+    let name: String = "John";
+    """
+    ))
     .build()
   print(lexer.getTokens());
 }

@@ -6,7 +6,7 @@ interface Analyzer {
 
 class StdAnalyzer : Analyzer {
   override fun analyze(content: List<String>) : List<Token> {
-    print(content)
+    print(content + "\n")
     TODO("Not finished!")
   }
 }

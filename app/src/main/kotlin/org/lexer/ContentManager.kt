@@ -32,7 +32,7 @@ class StrContent(
   var content: String
 ) : ContentManager {
 
-  override fun getNextLine() : String {
+override fun getNextLine() : String {
     val result = content;
     content = ""
     return result
