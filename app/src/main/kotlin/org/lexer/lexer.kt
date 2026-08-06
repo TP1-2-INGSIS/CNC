@@ -2,12 +2,14 @@ package org.lexer
 
 import org.utils.Position
 import org.utils.Result
+import org.config.Token
+import org.config.TokenIdentifier
 
 // necesito el content porque asi puedo saber donde quede la ultima vez
 // que saque un token.
 class Lexer {
-  val splitter: Splitter = RegexSplitter()
-  fun getTokens(content: ContentManager) : List<Token> {
+  val splitter: Splitter = RegexSplitter() // no hace falta exponerlo al cliente
+  fun getTokens(content: ContentManager) : Sequence<Token> {
     return content
       .getLines()
       .withIndex()
@@ -21,6 +23,5 @@ class Lexer {
           )
         }
       }
-      .toList();
   }
 };

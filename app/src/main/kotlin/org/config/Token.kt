@@ -1,4 +1,4 @@
-package org.lexer
+package org.config
 
 import org.utils.Position
 
