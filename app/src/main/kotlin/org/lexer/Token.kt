@@ -27,22 +27,19 @@ data class TokenRule(
 )
 
 object TokenIdentifier {
-
+  
+  // como recorro la lista, el orden importa.
   val rules = listOf(
-    TokenRule(TokenType.LET) {it == "let"},
-    TokenRule(TokenType.ASSIGN) {it == "="},
-    TokenRule(TokenType.SEMICOLON) {it == ";"},
-    TokenRule(TokenType.COLON) {it == ":"},
-    TokenRule(TokenType.OPERATOR) { setOf("+","-", "/", "*").contains(it) },
-    TokenRule(TokenType.TYPE) {setOf("number", "string").contains(it)},
-    TokenRule(TokenType.IDENTIFIER) {it.matches(Regex("[a-zA-Z_][a-zA-Z0-9_]*"))},
-    TokenRule(TokenType.LITERAL) {it.matches(Regex("\\d+"))},
-    TokenRule(TokenType.STRING) {it.matches(Regex("\".*\""))},
+    TokenRule(TokenType.LET)        { it == "let" },
+    TokenRule(TokenType.ASSIGN)     { it == "=" },
+    TokenRule(TokenType.SEMICOLON)  { it == ";" },
+    TokenRule(TokenType.COLON)      { it == ":" },
+    TokenRule(TokenType.OPERATOR)   { setOf("+","-", "/", "*").contains(it) },
+    TokenRule(TokenType.TYPE)       { setOf("number", "string").contains(it) },
+    TokenRule(TokenType.IDENTIFIER) { it.matches(Regex("[a-zA-Z_][a-zA-Z0-9_]*")) },
+    TokenRule(TokenType.LITERAL)    { it.matches(Regex("\\d+")) },
+    TokenRule(TokenType.STRING)     { it.matches(Regex("\".*\"")) },
   )
 
-  fun type(token: String): TokenType { 
-    for (rule in rules)
-      if (rule.eval(token)) return rule.type
-    return TokenType.INVALID
-  }
+  fun type(token: String): TokenType = rules.find { it.eval(token) }?.type ?: TokenType.INVALID 
 }
