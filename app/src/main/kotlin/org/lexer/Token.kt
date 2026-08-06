@@ -8,9 +8,10 @@ enum class TokenType {
   COLON,
   IDENTIFIER,
   OPERATOR,
-  TYPE,
+  TYPE, // subset of keywords
   ASSIGN,
   LITERAL,
+  STRING,
   INVALID
 };
 
@@ -33,8 +34,10 @@ object TokenIdentifier {
     TokenRule(TokenType.SEMICOLON) {it == ";"},
     TokenRule(TokenType.COLON) {it == ":"},
     TokenRule(TokenType.OPERATOR) { setOf("+","-", "/", "*").contains(it) },
+    TokenRule(TokenType.TYPE) {setOf("number", "string").contains(it)},
     TokenRule(TokenType.IDENTIFIER) {it.matches(Regex("[a-zA-Z_][a-zA-Z0-9_]*"))},
     TokenRule(TokenType.LITERAL) {it.matches(Regex("\\d+"))},
+    TokenRule(TokenType.STRING) {it.matches(Regex("\".*\""))},
   )
 
   fun type(token: String): TokenType { 

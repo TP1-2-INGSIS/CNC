@@ -5,6 +5,7 @@ import java.io.BufferedReader
 
 interface ContentManager {
   fun getNextLine() : String; // podria llegar a tener mas metodos
+  fun getLines() : Sequence<String>;
   fun allRead() : Boolean;
 }
 
@@ -25,6 +26,10 @@ class FileContent(
     return buffer.readLine();
   }
 
+  override fun getLines() : Sequence<String> {
+    return buffer.lineSequence()
+  }
+
   override fun allRead() = buffer.ready()
 }
 
@@ -32,10 +37,14 @@ class StrContent(
   var content: String
 ) : ContentManager {
 
-override fun getNextLine() : String {
+  override fun getNextLine() : String {
     val result = content;
     content = ""
     return result
+  }
+
+  override fun getLines() : Sequence<String> {
+    return listOf(getNextLine()).asSequence()
   }
 
   override fun allRead() = content.length == 0

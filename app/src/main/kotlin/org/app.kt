@@ -11,7 +11,7 @@ fun main() {
     .setAnalyzer(StdAnalyzer())
     .setContent(StrContent(
     """
-    let name: String = "John";
+    let name: string = "John";
     """
     ))
     .build()

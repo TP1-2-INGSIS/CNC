@@ -11,10 +11,16 @@ class Lexer (
   val content: ContentManager
 ) {
   fun getTokens() : List<Token> {
-    return formater.format(content.getNextLine())
-      .asSequence()
-      //.map {str -> Token(TokenType.INVALID, Position(0,0), str)}
-      .map {token -> analyzer.analyze(token) }
+    return content
+      .getLines()
+      .flatMap { line  -> formater.format(line) }
+      .map { match -> 
+        Token(
+          TokenIdentifier.type(match.value), 
+          Position(0,match.range.first), 
+          match.value
+        )
+      }
       .toList();
   }
 };
