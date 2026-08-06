@@ -5,15 +5,13 @@ import org.utils.Result
 
 // necesito el content porque asi puedo saber donde quede la ultima vez
 // que saque un token.
-class Lexer (
-  val formater: Formater, 
-  val content: ContentManager
-) {
-  fun getTokens() : List<Token> {
+class Lexer {
+  val splitter: Splitter = RegexSplitter()
+  fun getTokens(content: ContentManager) : List<Token> {
     return content
       .getLines()
       .withIndex()
-      .map { (index, line)  -> index to formater.format(line) }
+      .map { (index, line)  -> index to splitter.split(line) }
       .flatMap { (index, seq) -> 
         seq.map { match ->
           Token(
@@ -26,19 +24,3 @@ class Lexer (
       .toList();
   }
 };
-
-class LexerBuilder {
-
-  var formater: Formater = StdFormater()
-  var content: ContentManager? = null
-
-  fun setFormater(f: Formater) = apply { formater = f; }
-  fun setContent(c: ContentManager) = apply { content = c; }
-  fun build() : Lexer {
-    return Lexer(
-      formater, 
-      content?: error("content not set")
-      );
-  }
-
-}

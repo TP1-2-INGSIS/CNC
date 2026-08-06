@@ -1,12 +1,9 @@
 package org
 
-import org.lexer.LexerBuilder
-import org.lexer.StdFormater
 import org.lexer.StrContent
+import org.lexer.RegexSplitter
+import org.lexer.Lexer
 
 fun main() {
-  val lexer = LexerBuilder()
-    .setContent(StrContent("let name: string = \"John\";"))
-    .build()
-  print(lexer.getTokens());
+  print(Lexer().getTokens(StrContent("let name: string = \"John\";")));
 }
