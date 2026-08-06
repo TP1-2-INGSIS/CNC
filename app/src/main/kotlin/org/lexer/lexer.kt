@@ -1,6 +1,7 @@
 package org.lexer
 
 import org.utils.Position
+import org.utils.Result
 
 // necesito el content porque asi puedo saber donde quede la ultima vez
 // que saque un token.
@@ -10,12 +11,11 @@ class Lexer (
   val content: ContentManager
 ) {
   fun getTokens() : List<Token> {
-    var tokens = mutableListOf<Token>()
-    while(!content.allRead()) {
-      val formated : List<String> = formater.format(content.getNextLine()) // va cargando una linea a la vez en memoria
-      tokens.addAll(analyzer.analyze(formated))
-    }
-    return tokens
+    return formater.format(content.getNextLine())
+      .asSequence()
+      //.map {str -> Token(TokenType.INVALID, Position(0,0), str)}
+      .map {token -> analyzer.analyze(token) }
+      .toList();
   }
 };
 
