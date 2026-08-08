@@ -29,6 +29,18 @@ data class TokenRule(
 object TokenIdentifier {
   
   // como recorro la lista, el orden importa.
+  // TODO: Necesitamos separar mas las responsabilidades
+  // el TokenType.OPERATOR deberia estar definido en otro lado
+  // donde sea mas facil el mantenerlo a futuro. Ahora si el cliente
+  // quiere agregar un nuevo operador tiene que venir y cambiar esto.
+  // Malissimo.
+  //
+  // Deberia ser algo del estilo TokenRule(TokenType.OPERATOR) { OperatorDef.check(it) }
+  // entonces ahi podemos abstraer todas las definiciones a otro archivo separado y
+  // manejarlo de mejor manera.
+  //
+  // Actualmente el regex del splitter tiene una "def" de que es un IDENTIFIER
+  // que podria ser diferente a la que usamos aca.
   val rules = listOf(
     TokenRule(TokenType.LET)        { it == "let" },
     TokenRule(TokenType.ASSIGN)     { it == "=" },
