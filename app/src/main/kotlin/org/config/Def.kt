@@ -10,6 +10,13 @@ sealed class OperatorDef(val def: String)
 object Assign     : OperatorDef("=")
 object TypeAssign : OperatorDef(":")
 
+// Podemos poner el regex aca. No lo puse porque no se
+// que nos diran los profes al respecto. Asique por el momento
+// no lo pongo.
 sealed interface AtomicDef
 object Identifier : AtomicDef
 object Numerical  : AtomicDef
+
+sealed class SymbolDef(val def: String)
+object Colon : SymbolDef(":")
+object SemiColon : SymbolDef(":")
