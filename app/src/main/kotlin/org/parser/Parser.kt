@@ -1,7 +1,24 @@
 package org.parser
 
+import org.config.OperatorDef
+import org.config.BinaryOperatorDef
+import org.config.AtomicDef
 import org.config.Token
 import org.utils.Result
+import org.utils.Node
+
+interface Expression
+
+data class Operation(
+  val operator: BinaryOperatorDef,
+  val childs: Node<Expression>
+) : Expression
+
+data class Atomic(
+  val value: AtomicDef
+) : Expression
+
+class Declaration // TODO: not implemented yet
 
 object AST;
 
