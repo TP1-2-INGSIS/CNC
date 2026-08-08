@@ -1,9 +1,12 @@
 package org
 
+// TODO: Que el content este en lexer, no tiene sentido ajjaja
 import org.lexer.StrContent
-import org.lexer.RegexSplitter
 import org.lexer.Lexer
+import org.parser.Parser
 
 fun main() {
-  Lexer().getTokens(StrContent("let name: string = \"John\";")).forEach { print(it) };
+  val content = StrContent("let name: string = \"John\";");
+  val tokens = Lexer.getTokens(content);
+  Parser.parse(tokens);
 }
