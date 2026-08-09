@@ -7,7 +7,10 @@ import org.config.Token
 import org.utils.Result
 import org.utils.Node
 
-interface Expression
+interface Statement  // let a = 1, b = 2
+interface Expression // a + b
+
+// if ( condition ) { Statement } else { Statement }
 
 data class Operation(
   val operator: BinaryOperatorDef,

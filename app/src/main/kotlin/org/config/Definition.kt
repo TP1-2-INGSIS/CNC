@@ -11,12 +11,12 @@ object Assign     : OperatorDef("=")
 object TypeAssign : OperatorDef(":")
 
 // Podemos poner el regex aca. No lo puse porque no se
-// que nos diran los profes al respecto. Asique por el momento
-// no lo pongo.
-sealed interface AtomicDef
-object Identifier : AtomicDef
-object Numerical  : AtomicDef
+// que nos diran los profes al respecto. Asique por el 
+// momento no lo pongo.
+sealed class AtomicDef (val regex: String)
+object Identifier : AtomicDef("regex0")
+object Numerical  : AtomicDef("regex1")
 
 sealed class SymbolDef(val def: String)
-object Colon : SymbolDef(":")
-object SemiColon : SymbolDef(":")
+object Colon      : SymbolDef(":")
+object SemiColon  : SymbolDef(";")

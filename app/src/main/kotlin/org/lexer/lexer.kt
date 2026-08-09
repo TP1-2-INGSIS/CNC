@@ -22,13 +22,7 @@ object Lexer {
       .withIndex()
       .map { (index, line)  -> index to splitter.split(line) }
       .flatMap { (index, seq) -> 
-        seq.map { match ->
-          Token(
-            TokenIdentifier.type(match.value), 
-            Position(index+1, match.range.first), 
-            match.value
-          )
-        }
+        seq.map { match -> Token( TokenIdentifier.type(match.value), Position(index+1, match.range.first), match.value) }
       }
   }
 };
