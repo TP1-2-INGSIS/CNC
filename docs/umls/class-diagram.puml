@@ -1,0 +1,14 @@
+@startuml
+class Usuario {
+    - id: Long
+    - nombre: String
+    + getNombre(): String
+}
+
+class Pedido {
+    - id: Long
+    - fecha: Date
+    + calcularTotal(): Double
+}
+
+@enduml
