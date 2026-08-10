@@ -7,9 +7,7 @@ interface ContentManager {
   fun getLines() : Sequence<String>;
 }
 
-class FileContent(
-  val path: String
-) : ContentManager {
+class FileContent(val path: String) : ContentManager {
   val buffer : BufferedReader
 
   init { 
@@ -26,9 +24,7 @@ class FileContent(
 
 }
 
-class StrContent(
-  var content: String
-) : ContentManager {
+class StrContent(var content: String) : ContentManager {
 
   fun getNextLine() : String {
     val result = content;

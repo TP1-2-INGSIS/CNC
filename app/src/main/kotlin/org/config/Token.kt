@@ -12,7 +12,8 @@ enum class TokenType {
   ASSIGN,
   LITERAL,
   STRING,
-  INVALID
+  INVALID,
+  EQUAL
 };
 
 data class Token(
@@ -44,6 +45,7 @@ object TokenIdentifier {
   val rules = listOf(
     TokenRule(TokenType.LET)        { it == "let" },
     TokenRule(TokenType.ASSIGN)     { it == "=" },
+    TokenRule(TokenType.EQUAL)      {it == "=="},
     TokenRule(TokenType.SEMICOLON)  { it == ";" },
     TokenRule(TokenType.COLON)      { it == ":" },
     TokenRule(TokenType.OPERATOR)   { setOf("+","-", "/", "*").contains(it) },
