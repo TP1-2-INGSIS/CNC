@@ -1,22 +1,22 @@
 package org.config
 
-sealed class BinaryOperatorDef(val def: String, val priority: Number) 
-object PlusSign       : BinaryOperatorDef("+", 1)
-object MinusSign      : BinaryOperatorDef("-", 1)
-object DivisionSign   : BinaryOperatorDef("/", 2)
-object MultiplicationSign       : BinaryOperatorDef("*", 2)
+data class BinaryOperatorDef(val symbol: String) 
+val PlusSign       = BinaryOperatorDef("+")
+val MinusSign      = BinaryOperatorDef("-")
+val DivisionSign   = BinaryOperatorDef("/")
+val MultiplicationSign       = BinaryOperatorDef("*")
 
-sealed class OperatorDef(val def: String)
-object Assign     : OperatorDef("=")
-object TypeAssign : OperatorDef(":")
+data class OperatorDef(val symbol: String)
+val Assign     = OperatorDef("=")
+val TypeAssign = OperatorDef(":")
 
 // Podemos poner el regex aca. No lo puse porque no se
 // que nos diran los profes al respecto. Asique por el 
 // momento no lo pongo.
-sealed class AtomicDef (val regex: String)
-object Identifier : AtomicDef("regex0")
-object Numerical  : AtomicDef("regex1")
+data class AtomicDef (val chars: String) 
+val Identifier = AtomicDef("abcdefghijklmnopqrstuvwxyz_")
+val Numerical  = AtomicDef("0123456789")
 
-sealed class SymbolDef(val def: String)
-object Colon      : SymbolDef(":")
-object SemiColon  : SymbolDef(";")
+data class SymbolDef(val symbol: String)
+val Colon      = SymbolDef(":")
+val SemiColon  = SymbolDef(";")
