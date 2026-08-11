@@ -1,9 +1,7 @@
 package org.lexer
 
-import org.config.PlusSign
-import org.config.MinusSign
-import org.config.DivisionSign
-import org.config.MultiplicationSign
+import org.config.TokenDefinitionProvider
+import org.config.RegexTokenDef
 import org.utils.Position
 
 data class Coincidence(
@@ -19,12 +17,24 @@ interface Splitter {
 // pero no es nada escalable. Tener que definir todo con 
 // regex es muy poco escalable segun chat
 class RegexSplitter : Splitter {
-  private fun getRegex() : Regex {
-    
-  } 
+
+private fun getRegex(): Regex = TokenDefinitionProvider.getTypes()
+    .joinToString("|") { type ->
+        val group = TokenDefinitionProvider.getDefinitions(type)!!
+            .flatMap { def ->
+                def.symbols.map { symbol ->
+                    // Si es un RegexTokenDef, dejamos el patrón como está.
+                    // Si es un TokenDef común, escapamos los caracteres especiales (+, -, =, etc.)
+                    if (def is RegexTokenDef) symbol else Regex.escape(symbol)
+                }
+            }
+            .joinToString("|")
+        "($group)"
+    }.toRegex()
+
   // me deberia devolver el solo la siguiente porcion a analizar
   override fun split(content: String) : Sequence<Coincidence> {
-    return regex
+    return getRegex()
     .findAll(content)
     .map { match -> Coincidence(match.value, match.range.first) }
   }
@@ -32,13 +42,6 @@ class RegexSplitter : Splitter {
 
 class CharSplitter : Splitter {
   override fun split(content: String) : Sequence<Coincidence> {
-    val binaryOperators = setOf(
-      PlusSign,
-      MinusSign,
-      DivisionSign,
-      MultiplicationSign
-    )
-    
     TODO("not implemented yet!")
   }
 }

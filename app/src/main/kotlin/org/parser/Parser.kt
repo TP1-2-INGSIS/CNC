@@ -1,8 +1,5 @@
 package org.parser
 
-import org.config.OperatorDef
-import org.config.BinaryOperatorDef
-import org.config.AtomicDef
 import org.config.Token
 import org.utils.Result
 import org.utils.Node
@@ -13,6 +10,7 @@ sealed interface Expression // a + b
 
 // if ( condition ) { Statement } else { Statement }
 
+<<<<<<< HEAD
 // Parser --> Arma ASTs
 // AST: arbol con statements y expresiones
 // 
@@ -32,6 +30,9 @@ data class Atomic(
 ) : Expression
 
 
+=======
+class Declaration // TODO: not implemented yet
+>>>>>>> main
 
 object AST;
 
