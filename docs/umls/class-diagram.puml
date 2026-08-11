@@ -1,14 +1,51 @@
 @startuml
-class Usuario {
-    - id: Long
-    - nombre: String
-    + getNombre(): String
+
+package lexer {
+
+  interface Lexer {
+    + getTokens(ContentManager) : Stream<Token>
+  }
+
+  class Splitter { 
+  }
+
+  interface ContentManager {
+    + getLines() : Stream<String>;
+  }
 }
 
-class Pedido {
-    - id: Long
-    - fecha: Date
-    + calcularTotal(): Double
+package parser {
+  class Parser {
+    + getAST(Stream<Token>) : Node<Token> 
+  }
 }
+
+package config {
+  file Token {
+    class Token {}
+    class TokenRule {}
+    class TokenIdentifier {}
+    enum TokenType {}
+
+  }
+
+  class Definition {}
+}
+
+package utils {
+  class Node {}
+  class Position {}
+  
+  file Result {
+    interface Result {}
+    class Success {}
+    class Failure {}
+  }
+}
+
+class app {
+  + main()
+}
+
 
 @enduml
