@@ -7,10 +7,19 @@ import org.config.Token
 import org.utils.Result
 import org.utils.Node
 
-interface Statement  // let a = 1, b = 2
-interface Expression // a + b
+sealed interface Statement  // let a = 1, b = 2
+sealed interface Expression // a + b
 
 // if ( condition ) { Statement } else { Statement }
+
+// Parser --> Arma ASTs
+// AST: arbol con statements y expresiones
+// 
+//
+data class VariableDeclaration() {
+  val name: String,
+  val type: TokenType
+} : Statement
 
 data class Operation(
   val operator: BinaryOperatorDef,
