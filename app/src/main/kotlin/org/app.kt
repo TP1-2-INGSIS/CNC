@@ -7,5 +7,7 @@ import org.parser.Parser
 fun main() {
   val content = StrContent("let name: string = \"John\";")
   val tokens = Lexer.getTokens(content)
-  tokens.toList().forEach { print(it) }
+  val asts = Parser.getAST(tokens)
+
+  asts.toList().forEach { print(it) }
 }
