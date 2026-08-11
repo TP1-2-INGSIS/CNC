@@ -1,22 +1,28 @@
 package org.config
 
-data class BinaryOperatorDef(val symbol: String) 
-val PlusSign       = BinaryOperatorDef("+")
-val MinusSign      = BinaryOperatorDef("-")
-val DivisionSign   = BinaryOperatorDef("/")
-val MultiplicationSign       = BinaryOperatorDef("*")
+data class Definition(val tag: String, val symbol: String) 
+data class MultipleDef(val defs: Set<Definition>)
 
-data class OperatorDef(val symbol: String)
-val Assign     = OperatorDef("=")
-val TypeAssign = OperatorDef(":")
+val BinaryOperatorDef = MultipleDef(setOf(
+  Definition("PLUS"       ,"+"),
+  Definition("MINUS"      ,"-"), 
+  Definition("DIVISION"   ,"/"),
+  Definition("Multiplier" ,"*")
+))
 
-// Podemos poner el regex aca. No lo puse porque no se
-// que nos diran los profes al respecto. Asique por el 
-// momento no lo pongo.
-data class AtomicDef (val chars: String) 
-val Identifier = AtomicDef("abcdefghijklmnopqrstuvwxyz_")
-val Numerical  = AtomicDef("0123456789")
+val SymbolDef = MultipleDef(setOf(
+  Definition("ASSIGN"   , "="),
+  Definition("COLON"    , ":"),
+  Definition("SEMICOLON", ";")
+))
 
-data class SymbolDef(val symbol: String)
-val Colon      = SymbolDef(":")
-val SemiColon  = SymbolDef(";")
+val AtomicDef = MultipleDef(setOf(
+  Definition("IDENTIFIER" , "abcdefghijklmnopqrstuvwxyz_"),
+  Definition("LITERAL"    , "0123456789")
+))
+
+val KeyWordsDef = MultipleDef(setOf(
+  Definition("LET"    , "let"),
+  Definition("NUMBER" , "Number"),
+  Definition("STRING" , "String")
+))
