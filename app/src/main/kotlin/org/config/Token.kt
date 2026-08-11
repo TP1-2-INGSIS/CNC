@@ -25,7 +25,7 @@ interface TokenDefinition {
   fun match(value: String) : Boolean;
 } 
 
-data class TokenDef (
+data class SymbolTokenDef (
   override val type: TokenType,
   override val symbols: List<String>
 ) : TokenDefinition {
