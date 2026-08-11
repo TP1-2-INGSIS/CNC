@@ -3,17 +3,14 @@ package org.config
 import org.utils.Position
 
 enum class TokenType {
-  LET,
-  SEMICOLON,
-  COLON,
-  IDENTIFIER,
   OPERATOR,
-  TYPE, // subset of keywords
-  ASSIGN,
-  LITERAL,
+  SYMBOL,
+  INDENTIFIER,
   STRING,
-  INVALID,
-  EQUAL
+  NUMBER,
+  KEYWORD,
+  VARIABLE_TYPE,
+  INVALID
 };
 
 data class Token(
@@ -21,6 +18,7 @@ data class Token(
   val pos: Position, // no guardo la position final, porque tenemos el size del texto
   val text: String
 );
+<<<<<<< HEAD
 
 data class TokenRule(
   val type: TokenType,
@@ -56,3 +54,5 @@ object TokenIdentifier {
 
   fun type(token: String): TokenType = rules.find { it.eval(token) }?.type ?: TokenType.INVALID 
 }
+=======
+>>>>>>> 1-refactor-lexer
