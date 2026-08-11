@@ -19,7 +19,9 @@ interface Splitter {
 // pero no es nada escalable. Tener que definir todo con 
 // regex es muy poco escalable segun chat
 class RegexSplitter : Splitter {
-  val regex = """([a-zA-Z_][a-zA-Z0-9_]*)|(==|=|\+|-|\*|/|;|:)|([0-9]+)|(\".*\")""".toRegex()
+  private fun getRegex() : Regex {
+    
+  } 
   // me deberia devolver el solo la siguiente porcion a analizar
   override fun split(content: String) : Sequence<Coincidence> {
     return regex
