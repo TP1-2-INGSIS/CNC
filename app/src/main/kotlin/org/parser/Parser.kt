@@ -6,6 +6,7 @@ import org.config.AtomicDef
 import org.config.Token
 import org.utils.Result
 import org.utils.Node
+import org.config.TokenDef  
 
 sealed interface Statement  // let a = 1, b = 2
 sealed interface Expression // a + b
@@ -18,7 +19,7 @@ sealed interface Expression // a + b
 //
 data class VariableDeclaration() {
   val name: String,
-  val type: TokenType
+  val type: TokenDef
 } : Statement
 
 data class Operation(
@@ -30,7 +31,7 @@ data class Atomic(
   val value: AtomicDef
 ) : Expression
 
-class Declaration // TODO: not implemented yet
+
 
 object AST;
 

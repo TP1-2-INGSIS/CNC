@@ -18,7 +18,6 @@ data class Token(
   val pos: Position, // no guardo la position final, porque tenemos el size del texto
   val text: String
 );
-<<<<<<< HEAD
 
 data class TokenRule(
   val type: TokenType,
@@ -54,5 +53,3 @@ object TokenIdentifier {
 
   fun type(token: String): TokenType = rules.find { it.eval(token) }?.type ?: TokenType.INVALID 
 }
-=======
->>>>>>> 1-refactor-lexer
