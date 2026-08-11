@@ -2,7 +2,6 @@ package org.lexer
 
 import org.utils.Position
 import org.config.Token
-import org.config.TokenIdentifier
 import org.config.TokenType
 
 // necesito el content porque asi puedo saber donde quede la ultima vez
