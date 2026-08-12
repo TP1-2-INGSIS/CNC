@@ -5,9 +5,7 @@ import org.lexer.StrContent
 import org.parser.Parser
 
 fun main() {
-  generateSequence { readLine() }
-  .map { StrContent(it) }
-  .map { Lexer.getTokens(it) }
-  .flatMap { Parser.getAST(it) }
-  .forEach { println(it) }
+  val tokens = Lexer.getTokens(StrContent("let name: string = \"John\";"))
+  val ast = Parser.getAST(tokens)
+  ast.toList().forEach { print(it) }
 }
