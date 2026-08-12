@@ -22,20 +22,20 @@ package org.config
 //
 // TODO: TokenDef provider
 
-val PlusDefinition            = TokenDef(TokenType.OPERATOR, "+")
-val MinusDefinition           = TokenDef(TokenType.OPERATOR, "-")
-val DivisionDefinition        = TokenDef(TokenType.OPERATOR, "/")
-val MultiplicationDefinition  = TokenDef(TokenType.OPERATOR, "*")
-val EqualsDefinition          = TokenDef(TokenType.OPERATOR, "==")
+val PlusDefinition            = SymbolTokenDef(TokenType.OPERATOR, "+")
+val MinusDefinition           = SymbolTokenDef(TokenType.OPERATOR, "-")
+val DivisionDefinition        = SymbolTokenDef(TokenType.OPERATOR, "/")
+val MultiplicationDefinition  = SymbolTokenDef(TokenType.OPERATOR, "*")
+val EqualsDefinition          = SymbolTokenDef(TokenType.OPERATOR, "==")
 
-val TerminationDefinition   = TokenDef(TokenType.SYMBOL, ";")
-val TypeDefinition          = TokenDef(TokenType.SYMBOL, ":")
-val AssignDefinition        = TokenDef(TokenType.SYMBOL, "=")
+val TerminationDefinition   = SymbolTokenDef(TokenType.SYMBOL, ";")
+val TypeDefinition          = SymbolTokenDef(TokenType.SYMBOL, ":")
+val AssignDefinition        = SymbolTokenDef(TokenType.SYMBOL, "=")
 
-val VariableDefinition      = TokenDef(TokenType.KEYWORD, "let")
+val VariableDefinition      = SymbolTokenDef(TokenType.KEYWORD, "let")
 
-val StringTypeDefinition        = TokenDef(TokenType.VARIABLE_TYPE, "string")
-val NumberTypeDefinition        = TokenDef(TokenType.VARIABLE_TYPE, "number")
+val StringTypeDefinition        = SymbolTokenDef(TokenType.VARIABLE_TYPE, "string")
+val NumberTypeDefinition        = SymbolTokenDef(TokenType.VARIABLE_TYPE, "number")
 
 val IdentifierDefinition       = RegexTokenDef(TokenType.IDENTIFIER, "[a-zA-Z_][a-zA-Z0-9_]*")
 val NumberExpressionDefinition           = RegexTokenDef(TokenType.NUMBER, "[0-9]+")
