@@ -8,6 +8,12 @@ repositories {
     mavenCentral()
 }
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
 // lo copie del app build.gradle.kts
 dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test")
