@@ -29,6 +29,14 @@ dependencies {
 
     // This dependency is used by the application.
     implementation(libs.guava)
+
+    // las dependecias de los otros modulos
+    implementation(project(":lexer"))
+    implementation(project(":parser"))
+    implementation(project(":token"))
+
+    implementation(project(":ast")) // no se la verdad pero lo sumo para ver
+    implementation(project(":common")) // tampoco se si lo necesita
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
@@ -48,6 +56,6 @@ tasks.named<Test>("test") {
     useJUnitPlatform()
 }
 
-tasks.named<JavaExec>("run") {
+tasks.named<JavaExec>("run") { // .\gradlew run
     standardInput = System.`in`
 }

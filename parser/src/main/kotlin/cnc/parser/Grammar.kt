@@ -1,22 +1,32 @@
-package org.parser
+package cnc.parser
 
-import org.config.TokenDefinition
-import org.config.Token
-import org.config.VariableDefinition
-import org.config.IdentifierDefinition
-import org.config.AssignDefinition
-import org.config.NumberExpressionDefinition
-import org.config.StringExpressionDefinition
-import org.config.TerminationDefinition
-import org.config.TypeDefinition
-import org.config.TokenDefinitionProvider
-import org.config.TokenType
+import cnc.token.Token
+import cnc.token.TokenType
+import cnc.token.TokenDefinition
+
+// cosas que se settean por el dev que haga uso del parser
+// ES ACOPLAMIENTO.
+// TODO: generar que el parser reciba una config o ver como
+// podriamos mitigar el acoplamiento.
+import cnc.config.VariableDefinition
+import cnc.config.IdentifierDefinition
+import cnc.config.AssignDefinition
+import cnc.config.NumberExpressionDefinition
+import cnc.config.StringExpressionDefinition
+import cnc.config.TerminationDefinition
+import cnc.config.TypeDefinition
+import cnc.config.TokenDefinitionProvider
 
 
 interface GrammarStrategy {
   fun eval(token: Token): Boolean
 }
 
+// Definiciones especificas tambien son acoplamiento de conocimiento
+// especifico de lo que estamos haciendo, o capaz no, podria ser
+// que el parser o en realidad el grammar te de una suite de strats
+// por default pero vos puedas implementar la tuya propia.
+// TODO: Definirlo y plantearlo mejor
 class IsStrat(val definition: TokenDefinition) : GrammarStrategy {
   override fun eval(token: Token): Boolean = definition.match(token.text)
 }
@@ -70,8 +80,6 @@ val VariableDeclaration = Grammar(
 // - Token
 // - TokenDefinition
 // TODO: mover a una carpeta decente
-
-
 
 fun buildExpression(token: Token): Expression {
   return when {

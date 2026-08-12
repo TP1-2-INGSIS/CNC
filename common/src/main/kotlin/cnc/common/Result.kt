@@ -1,4 +1,4 @@
-package org.utils
+package cnc.common
 
 enum class ErrorType {
   LEXER,

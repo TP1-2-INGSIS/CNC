@@ -1,8 +1,8 @@
-package org
+package cnc
 
-import org.lexer.Lexer
-import org.lexer.StrContent
-import org.parser.Parser
+import cnc.Lexer
+import cnc.StrContent
+import cnc.Parser
 
 fun main() {
   val tokens = Lexer.getTokens(StrContent("let name: string = \"John\";"))

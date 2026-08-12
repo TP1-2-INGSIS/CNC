@@ -1,4 +1,4 @@
-package org.utils
+package cnc.common
 
 // TODO: Mejor hacerlo como lista.
 data class Node<T> (

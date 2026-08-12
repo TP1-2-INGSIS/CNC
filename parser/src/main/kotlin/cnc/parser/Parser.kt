@@ -1,32 +1,6 @@
-package org.parser
+package cnc.parser
 
-import org.config.Token
-import org.config.TerminationDefinition
-
-sealed interface Statement
-data class Declaration(
-    val name: String,
-    val type: String,
-    val value: Expression?
-) : Statement
-data class Assignment(
-    val target: String,
-    val value: Expression
-) : Statement
-data class Call(
-    val function: String,
-    val arguments: List<Expression>
-) : Statement
-
-sealed interface Expression
-data class NumberLiteral(val value: Double) : Expression
-data class StringLiteral(val value: String) : Expression
-data class Identifier(val name: String) : Expression
-data class BinaryExpression(
-    val left: Expression,
-    val operator: String,
-    val right: Expression
-) : Expression
+import cnc.token.Token
 
 //
 // Agrupar los tokens entre los termination tokens
@@ -50,6 +24,9 @@ object Parser {
 fun <T> Sequence<T>.splitAfter(predicate: (T) -> Boolean): Sequence<List<T>> = sequence {
   val current = mutableListOf<T>()
 
+  // TODO: esta curioso mas que nada esto
+  // no existe otra manera? porque estamos recorriendo devuelta
+  // el stream que nos llega desde el principio hasta el final, no?
   for (item in this@splitAfter) {
     current.add(item)
     if (!predicate(item)) continue

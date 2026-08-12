@@ -1,4 +1,4 @@
-package org.utils
+package cnc.common
 
 data class Position(
   val row: Int,

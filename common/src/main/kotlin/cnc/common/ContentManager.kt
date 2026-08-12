@@ -1,4 +1,4 @@
-package org.lexer
+package cnc.common
 
 import java.io.File
 import java.io.BufferedReader

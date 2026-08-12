@@ -1,8 +1,8 @@
-package org.lexer
+package cnc.lexer
 
-import org.utils.Position
-import org.config.Token
-import org.config.TokenType
+import cnc.common.Position
+import cnc.token.Token
+import cnc.token.TokenType
 
 // necesito el content porque asi puedo saber donde quede la ultima vez
 // que saque un token.
