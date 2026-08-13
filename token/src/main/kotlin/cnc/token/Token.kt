@@ -1,6 +1,7 @@
 package cnc.token
 
 import cnc.common.Position
+import cnc.common.Provider
 
 enum class TokenType {
   OPERATOR,
@@ -22,7 +23,7 @@ data class Token(
 interface TokenDefinition {
   val type: TokenType;
   val symbols: List<String>;
-  fun match(value: String) : Boolean;
+  fun match(str: String) : Boolean;
 } 
 
 data class SymbolTokenDef (
@@ -39,6 +40,14 @@ class RegexTokenDef(
   val regex: String
 ) : TokenDefinition {
   override val symbols: List<String> = listOf(regex)
-  override fun match(other: String): Boolean = regex.toRegex().matches(other)
+  override fun match(str: String): Boolean = regex.toRegex().matches(str)
 }
 
+interface TokenDefinitionProvider : Provider<TokenType, List<TokenDefinition>> { 
+
+  override fun getValue(type: TokenType) : List<TokenDefinition>?
+  override fun getTypes() : Set<TokenType>
+
+  fun type(str: String): TokenType
+
+}

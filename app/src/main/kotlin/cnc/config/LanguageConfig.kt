@@ -25,7 +25,7 @@ val NumberExpressionDefinition           = RegexTokenDef(TokenType.NUMBER, "[0-9
 val StringExpressionDefinition = RegexTokenDef(TokenType.STRING, "\".*?\"")
 
 // unica fuente de verdad
-object TokenDefinitionProvider {
+object tokenDefs : TokenDefinitionProvider {
   val definitions = mapOf(
     TokenType.OPERATOR to listOf(
       PlusDefinition,
@@ -47,11 +47,25 @@ object TokenDefinitionProvider {
     TokenType.IDENTIFIER  to listOf(IdentifierDefinition),
     TokenType.NUMBER      to listOf(NumberExpressionDefinition),
     TokenType.STRING      to listOf(StringExpressionDefinition)
-  )
+  );
 
-  fun getDefinitions(type: TokenType) : List<TokenDefinition>? = definitions[type]
+  override fun getValues(type: TokenType) : List<TokenDefinition>? = definitions[type]
 
-  fun getTypes() : Set<TokenType> = definitions.keys
+  override fun getTypes() : Set<TokenType> = definitions.keys
+
+  override fun type(str: String) : TokenType {
+        for (type in getTypes()) {
+            val definitions = getDefinitions(type)!!
+            
+            for (def in definitions) {
+                if (!def.match(value)) continue
+
+                return type 
+            }
+        }
+
+        return TokenType.INVALID
+  }
 }
 
 val expressionBuilder = ExpressionBuilder(mapOf(
