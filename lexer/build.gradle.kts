@@ -23,6 +23,10 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     implementation(libs.guava)
+
+    implementation(project(":common"))
+    implementation(project(":token"))
+    //implementation(project(":common"))
 }
 
 tasks.named<Test>("test") {

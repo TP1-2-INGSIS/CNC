@@ -1,8 +1,8 @@
-package org.lexer
+package cnc.lexer
 
-import org.config.TokenDefinitionProvider
-import org.config.RegexTokenDef
-import org.utils.Position
+import cnc.token.TokenDefinitionProvider
+import cnc.token.RegexTokenDef
+import cnc.common.Position
 
 data class Coincidence(
   val text: String,
@@ -16,11 +16,11 @@ interface Splitter {
 // habria que cambiarlo, por ahora funciona
 // pero no es nada escalable. Tener que definir todo con 
 // regex es muy poco escalable segun chat
-class RegexSplitter : Splitter {
+class RegexSplitter(val tokenDefs: TokenDefinitionProvider) : Splitter {
 
-private fun getRegex(): Regex = TokenDefinitionProvider.getTypes()
+private fun getRegex(): Regex = tokenDefs.getTypes()
     .joinToString("|") { type ->
-        val group = TokenDefinitionProvider.getDefinitions(type)!!
+        val group = tokenDefs.getValue(type)!!
             .flatMap { def ->
                 def.symbols.map { symbol ->
                     // Si es un RegexTokenDef, dejamos el patrón como está.

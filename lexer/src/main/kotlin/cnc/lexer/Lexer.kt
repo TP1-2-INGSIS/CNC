@@ -1,8 +1,10 @@
 package cnc.lexer
 
 import cnc.common.Position
+import cnc.common.ContentManager
 import cnc.token.Token
 import cnc.token.TokenType
+import cnc.token.TokenDefinitionProvider
 
 // necesito el content porque asi puedo saber donde quede la ultima vez
 // que saque un token.
@@ -13,8 +15,10 @@ import cnc.token.TokenType
 //
 // TODO: Deberiamos hacer una interfaz? interface Lexer y hacer una impl?
 // yo creo que no, pero la dejo picando
-object Lexer {
-  val splitter: Splitter = RegexSplitter()
+class Lexer(
+  val tokenDefs : TokenDefinitionProvider
+) {
+  val splitter: Splitter = RegexSplitter(tokenDefs)
   fun getTokens(content: ContentManager): Sequence<Token> {
     return content
       .getLines()
@@ -22,7 +26,7 @@ object Lexer {
       .flatMap { (row, line) ->
         splitter.split(line).map { (match, col) ->
           Token(
-            TokenIdentifier.type(match),
+            tokenDefs.type(match),
             Position(row, col),
             match
           )
