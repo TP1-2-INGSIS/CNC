@@ -2,7 +2,8 @@ package cnc.common
 
 enum class ErrorType {
   LEXER,
-  PARSER
+  PARSER,
+  CLI
 }
 
 interface Result<T> {
