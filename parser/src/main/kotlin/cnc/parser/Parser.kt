@@ -6,15 +6,19 @@ import cnc.token.Token
 // Agrupar los tokens entre los termination tokens
 // Armar el AST con esos tokens
 //
-object Parser {
+class Parser(
+  private val grammars: List<Grammar>,
+  private val terminator: TokenDefinition
+) {
   fun getAST(tokens: Sequence<Token>): Sequence<Statement> {
     return tokens
-      .splitAfter { TerminationDefinition.match(it.text) }
+      .splitAfter { terminator.match(it.text) }
       .map { parseStatement(it) }
   }
 
-  fun parseStatement(tokens: List<Token>): Statement {
-    val grammar = grammars.first { it.matches(tokens) }
+  private fun parseStatement(tokens: List<Token>): Statement {
+    val grammar = grammars.firstOrNull { it.matches(tokens) }
+      ?: error("No grammar matches tokens: ${tokens.map { it.text }}")
     return grammar.build(tokens)
   }
 }

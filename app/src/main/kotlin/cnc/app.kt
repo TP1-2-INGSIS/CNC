@@ -3,13 +3,15 @@ package cnc
 import cnc.config.TokenDef
 
 import cnc.lexer.Lexer
+import cnc.lexer.Parser
+
 import cnc.common.StrContent
 import cnc.common.ContentManager
 
 
 data class Config (
   val lexer: Lexer = Lexer(TokenDef)
-  // val parser = Parser(config...),
+  val parser = Parser(),
   // val interpreter = Interpreter(config...)
 )
 
