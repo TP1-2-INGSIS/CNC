@@ -5,43 +5,48 @@ import cnc.common.Success
 import cnc.common.Failure
 import cnc.common.ErrorType
 
-data class CommandSystem(
-  val io: IOManager,
+import cnc.cli.command.Command
+import cnc.cli.args.ArgsManager
 
+data class CommandSystem(
+  val cmds: Map<String, Command>,
+  val io: IOManager = StdIO()
 ) {
     private fun readCommandFromInput() : Result<String> {
-      ioManager.write("-> $ ");
-      val input: String = ioManager.read();
-      return Success<>("Red input correctly", input);
+      io.write("-> $ ");
+      val input: String = io.read();
+      return Success("Red input correctly", input);
     }
 
-    fun run() {
-        String input = "";
-        while(running) {
+    fun run() : Result<Unit> {
+        var input: String = "";
+
+        while(true) {
 
             when (val result = readCommandFromInput()) {
-                is Success -> input = resutl.data()
-                is Failure -> Failure(ErrorType.CLI, "There was an unexpected error! \n\t" + result.msg())
+                is Success -> input = result.data
+                is Failure -> Failure<Unit>("There was an unexpected error! \n\t" + result.msg, ErrorType.CLI)
             }
 
             if (input.equals("exit")) break;
 
-            Command cmd = handleOperationResult(CommandParser.getCommand(input));
+            if (input !in cmds.keys) {
+              io.write("The command provided is not registered!");
+              continue;
+            }
 
-            if (cmd == null) return new OperationError("The command provided was not expected", 101);
+            val cmd = cmds[input]!!;
+            val args = ArgsManager.getArgsContainer(input.split(" "))
 
-            commandContext = new CommandContext(
-                    ArgsManager.getArgsContainer(input.split(" ")),
-                    "user",
-                    pwd,
-                    root
-            );
-
-            when (val result = cmd.execute(commandContext)) {
-                is Success -> ioManager.write(s.msg() + "\n")
-                is Failure -> ioManager.write("command failed with msg: \n\t" + result.msg() + "\n");
+            // Lo saque pero, cada comando podria tener un contexto
+            // lo cual nos permitira hacer que le podamos pasar
+            // args al programa compilado, tales como hace cpp
+            when (val result = cmd.execute(args)) {
+                is Success -> io.write(result.msg + "\n")
+                is Failure -> io.write("Command failed with msg: \n\t" + result.msg + "\n");
             }
         }
-        return new OperationSuccess<>("Command system finished correctly!", null);
+
+        return Success("Command system finished correctly!", Unit);
     }
 }

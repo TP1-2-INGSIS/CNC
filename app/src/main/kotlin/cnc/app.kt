@@ -1,11 +1,14 @@
 package cnc
 
-import cnc.Lexer
-import cnc.StrContent
-import cnc.Parser
+import cnc.cli.CommandSystem
+import cnc.cli.command.Command
+import cnc.cli.StdIO
+import cnc.cli.command.CommandProvider
+import cnc.cli.command.GccCommand
 
 fun main() {
-  val tokens = Lexer.getTokens(StrContent("let name: string = \"John\";"))
-  val ast = Parser.getAST(tokens)
-  ast.toList().forEach { print(it) }
+  val sys = CommandSystem(mapOf<String, Command>(
+      "gcc" to GccCommand
+    ), StdIO())
+  sys.run()
 }

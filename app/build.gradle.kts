@@ -32,7 +32,7 @@ dependencies {
 
     // las dependecias de los otros modulos
     implementation(project(":lexer"))
-    implementation(project(":parser"))
+    implementation(project(":cli"))
     implementation(project(":token"))
 
     implementation(project(":ast")) // no se la verdad pero lo sumo para ver
@@ -48,7 +48,7 @@ java {
 
 application {
     // Define the main class for the application.
-    mainClass = "org.AppKt"
+    mainClass = "cnc.AppKt"
 }
 
 tasks.named<Test>("test") {

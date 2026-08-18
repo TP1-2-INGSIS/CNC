@@ -11,8 +11,8 @@ interface Result<T> {
 }
 
 data class Success<T>(
-  val data: T,
-  val msg: String
+  val msg: String,
+  val data: T
 ) : Result<T> {
   override fun isOk() : Boolean = true
 }

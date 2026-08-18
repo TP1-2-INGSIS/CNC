@@ -7,6 +7,5 @@ interface IOManager {
 
 class StdIO : IOManager {
     override fun read() : String = readln()
-
-    override fun write(message: String) { print(message) }
+    override fun write(toWrite: String) { print(toWrite) }
 }

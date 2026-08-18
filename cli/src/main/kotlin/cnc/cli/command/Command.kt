@@ -1,11 +1,12 @@
 package cnc.cli.command
 
-// vamos a usar la notacion de -- para los nombres
-// porque? porque esta facha
-data class Param (
-  val name: String,
-  val description: String
-)
+import cnc.cli.args.ArgsContainer
+import cnc.cli.args.Param
+import cnc.cli.args.ParamType
+
+import cnc.common.Result
+import cnc.common.Success
+import cnc.common.Failure
 
 // como el dominio de mis comandos va a ser
 // muy chico, porque solo quiero que funcionen
@@ -13,15 +14,27 @@ data class Param (
 // reciba ningun tipo de contexto
 interface Command {
   val tag: String
-  val params: List<Param>
-  fun execute() : Result<Unit>
+  fun execute(params: ArgsContainer) : Result<Unit>
 }
 
+// gcc man.cnc -> man.exe -> interpreter man.cnc -> execute
+// gcc man.cnc -> execute
 object GccCommand : Command { 
-  override val tag = "gcc";
-  override val params = listOf(
-    Param("--file", "file/path to be compiled"),
-    Param("--out", "binary file compiled name")
-  )
-  override val execute() : Result<Unit> = TODO("not implemented yet!")
+  override val tag = "gcnc";
+
+  // lo hago optional para saber que ruta es
+  // gcnc --file=/home/main.cnc
+  val params = object {
+    val flags = setOf(
+      Param("--out",      "binary file compiled name", ParamType.FLAG),
+      Param("--check",    "check if the file is type safe", ParamType.FLAG),
+      Param("--verbose",  "Display all the process messages", ParamType.FLAG)
+    )
+    val optional = listOf(
+      Param("--file",     "file/path to be compiled", ParamType.OPTIONAL),
+    )
+    val positional = listOf<Param>()
+  }
+
+  override fun execute(params: ArgsContainer) : Result<Unit> = TODO("not implemented yet!")
 }

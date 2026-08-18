@@ -1,71 +1,29 @@
-package edu.austral.ingsis.clifford.command.args;
+package cnc.cli.args
 
-import java.util.*;
+enum class ParamType {
+  POSITIONAL,
+  OPTIONAL,
+  FLAG
+}
 
-public class ArgsContainer {
-    private Set<String> flags; // --recursive
-    private List<String> options; // --ord=asd
-    private List<String> positional; // /home/usr
+data class Param (
+  val name: String,
+  val description: String,
+  val type: ParamType
+)
 
-    public ArgsContainer() {
-        flags = new HashSet<String>();
-        options = new ArrayList<String>();
-        positional = new LinkedList<String>();
-    }
+class ArgsContainer(
+  val flags     :MutableSet<String> = mutableSetOf(),
+  val options   :MutableList<String> = mutableListOf(),
+  val positional:MutableList<String> = mutableListOf()
+) {
 
-    public void addFlag(String flag) {
-        this.flags.add(flag);
-    }
+    fun addFlag(flag : String) = this.flags.add(flag)
+    fun addOption(option : String) = this.options.add(option)
+    fun addPositional(positional : String) = this.positional.add(positional)
 
-    public void addOption(String option) {
-        this.options.add(option);
-    }
-
-    public void addPositional(String positional) {
-        this.positional.add(positional);
-    }
-
-    public void setFlags(final Set<String> flags) {
-        this.flags = flags;
-    }
-
-    public void setOptions(final List<String> options) {
-        this.options = options;
-    }
-
-    public void setPositional(final List<String> positional) {
-        this.positional = positional;
-    }
-
-    public boolean hasFlag(String flag) {
-        return flags.contains(flag);
-    }
-
-    public boolean hasOption(String option) {
-        return options.contains(option);
-    }
-
-    public boolean hasAtLeastPositional(Integer many) {
-        return positional.size() >= many;
-    }
-
-    public boolean hasNPositional(Integer n) {
-        return positional.size() == n;
-    }
-
-    public String getPositionalAt(final int position) {
-        return positional.get(position);
-    }
-
-    public Set<String> getFlags() {
-        return flags;
-    }
-
-    public List<String> getOptions() {
-        return options;
-    }
-
-    public List<String> getPositional() {
-        return positional;
-    }
+    fun hasAtLeastPositional(many : Int) : Boolean  = positional.size >= many
+    fun hasFlag(flag : String)    : Boolean = flag in flags
+    fun hasOption(option: String) : Boolean = option in options
+    fun hasNPositional(n: Int)    : Boolean = positional.size == n
 }

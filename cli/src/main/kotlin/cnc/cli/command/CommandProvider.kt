@@ -1,17 +1,20 @@
 package cnc.cli.command
 
+import cnc.common.Result
+import cnc.common.Success
+import cnc.common.Failure
+import cnc.common.ErrorType
+
 class CommandProvider {
-    val commandTypes = mapOf(
+    val commands = mapOf<String, Command>(
       "gcc" to GccCommand
     );
 
-    fun getCommands() : Set<String> = commandTypes.keys
-
-    private fun validateCommand(cmd: String) : Boolean = cmd in getCommands()
+    fun getCommandsName() : Set<String> = commands.keys
 
     fun getCommand(command: String) : Result<Command> {
-        if (!validateCommand(command)) return Failure(ErrorType.CLI, "The command provided is not registered!");
+        if (command !in getCommandsName()) return Failure("The command provided is not registered!", ErrorType.CLI);
         // no es lo mejor esto, pero bueno, por ahora solo quiero que ande
-        return Success(commandTypes[command], "The command was found!");
+        return Success("The command was found!", commands[command]!!);
     }
 }
