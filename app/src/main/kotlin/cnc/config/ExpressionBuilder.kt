@@ -1,4 +1,4 @@
-package org.config
+package cnc.config
 
 import cnc.ast.ExpressionBuilder
 import cnc.ast.NumberLiteral

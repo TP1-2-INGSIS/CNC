@@ -3,6 +3,9 @@ package cnc.parser
 import cnc.token.Token
 import cnc.token.TokenType
 import cnc.token.TokenDefinition
+import cnc.token.TokenDefinitionProvider 
+
+import cnc.ast.Statement
 
 interface GrammarStrategy {
   fun eval(token: Token): Boolean
@@ -20,9 +23,10 @@ class IsStrat(val definition: TokenDefinition) : GrammarStrategy {
 class AnyStrat(val strats: List<GrammarStrategy>) : GrammarStrategy {
   override fun eval(token: Token): Boolean = strats.any { it.eval(token) }
 }
-
-class AnyTypeVariableStrat : GrammarStrategy {
-  override fun eval(token: Token): Boolean = TokenDefinitionProvider.getDefinitions(TokenType.VARIABLE_TYPE)!!.any { it.match(token.text) }
+class AnyTypeVariableStrat(
+  val tokenDefProvider: TokenDefinitionProvider 
+) : GrammarStrategy {
+  override fun eval(token: Token): Boolean = tokenDefProvider.getValue(TokenType.VARIABLE_TYPE)!!.any { it.match(token.text) }
 }
 
 data class Grammar(
@@ -36,26 +40,3 @@ data class Grammar(
   }
 }
 
-// gramatica es el formato que tiene que cumplir el token para pertenecer al statement planteado (rule set)
-// val VariableDeclaration = Grammar(
-//   tag = "VariableDeclaration",
-//   sequence = listOf(
-//     IsStrat(VariableDefinition),
-//     IsStrat(IdentifierDefinition),
-//     IsStrat(TypeDefinition),
-//     AnyTypeVariableStrat(),
-//     IsStrat(AssignDefinition),
-//     AnyStrat(listOf(
-//       IsStrat(NumberExpressionDefinition),
-//       IsStrat(StringExpressionDefinition)
-//     )),
-//     IsStrat(TerminationDefinition)
-//   ),
-//   build = { tokens ->
-//     Declaration(
-//       name = tokens[1].text,
-//       type = tokens[3].text,
-//       value = expressionBuilder.build(tokens[5])
-//     )
-//   }
-// )

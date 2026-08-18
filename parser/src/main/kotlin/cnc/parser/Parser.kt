@@ -1,7 +1,8 @@
 package cnc.parser
 
 import cnc.token.Token
-
+import cnc.token.TokenDefinition
+import cnc.ast.Statement
 //
 // Agrupar los tokens entre los termination tokens
 // Armar el AST con esos tokens
@@ -10,7 +11,7 @@ class Parser(
   private val grammars: List<Grammar>,
   private val terminator: TokenDefinition
 ) {
-  fun getAST(tokens: Sequence<Token>): Sequence<Statement> {
+  fun getASTs(tokens: Sequence<Token>): Sequence<Statement> {
     return tokens
       .splitAfter { terminator.match(it.text) }
       .map { parseStatement(it) }
