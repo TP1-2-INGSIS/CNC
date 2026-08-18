@@ -39,10 +39,7 @@ class ExpressionBuilder (
   }
 
   fun build(tokens: List<Token>) : Expression {
-    val (_, builder) = recipes.entries.first { (definition, _) -> 
-      definition.match(token.text)
-    } 
-    return builder(token)
+    return build(tokens.first())
   }
 }
 

@@ -23,55 +23,36 @@ import cnc.parser.AnyOfTypeStrat
 // PRINTSCRIPT LANGUAGE CONFIGURATIONS
 
 // TOKEN DEFINITIONS ================================================================
-val PlusDefinition            = SymbolTokenDef("plus", "+")
-val MinusDefinition           = SymbolTokenDef("minus", "-")
-val DivisionDefinition        = SymbolTokenDef("division", "/")
-val MultiplicationDefinition  = SymbolTokenDef("multiplication", "*")
-val EqualsDefinition          = SymbolTokenDef("equals", "==")
-
-val TerminationDefinition     = SymbolTokenDef("semicolon", ";")
-val TypeDefinition            = SymbolTokenDef("colon", ":")
-val AssignDefinition          = SymbolTokenDef("assign", "=")
-
-val VariableDefinition        = SymbolTokenDef("let", "let")
-
-val StringTypeDefinition      = SymbolTokenDef("string_type", "string")
-val NumberTypeDefinition      = SymbolTokenDef("number_type", "number")
-
-val IdentifierDefinition       = RegexTokenDef("identifier", "[a-zA-Z_][a-zA-Z0-9_]*")
-val NumberExpressionDefinition = RegexTokenDef("number_exp", "[0-9]+")
-val StringExpressionDefinition = RegexTokenDef("string_exp", "\".*?\"")
-
-// TOKEN DEFINITIONS PROVIDER
+// --> PROVIDER
 object PrintScriptTokenDefProvider: TokenDefinitionProvider {
   val definitions = mapOf<TokenType, List<TokenDefinition>> (
     TokenType.OPERATOR      to listOf(
-      PlusDefinition,
-      MinusDefinition,
-      DivisionDefinition,
-      MultiplicationDefinition,
-      EqualsDefinition
+      SymbolTokenDef("plus", "+"),
+      SymbolTokenDef("minus", "-"),
+      SymbolTokenDef("division", "/"),
+      SymbolTokenDef("multiplication", "*"),
+      SymbolTokenDef("equals", "==")
     ),
     TokenType.SYMBOL        to listOf(
-      TerminationDefinition,
-      TypeDefinition,
-      AssignDefinition
+      SymbolTokenDef("semicolon", ";"),
+      SymbolTokenDef("colon", ":"),
+      SymbolTokenDef("assign", "=")
     ),
     TokenType.VARIABLE_TYPE to listOf(
-      StringTypeDefinition,
-      NumberTypeDefinition
+      SymbolTokenDef("string_type", "string"),
+      SymbolTokenDef("number_type", "number")
     ),
     TokenType.KEYWORD       to listOf(
-      VariableDefinition
+      SymbolTokenDef("let", "let")
     ),
     TokenType.IDENTIFIER    to listOf(
-      IdentifierDefinition
+      RegexTokenDef("identifier", "[a-zA-Z_][a-zA-Z0-9_]*")
     ),
     TokenType.NUMBER        to listOf(
-      NumberExpressionDefinition
+      RegexTokenDef("number_exp", "[0-9]+")
     ),
     TokenType.STRING        to listOf(
-      StringExpressionDefinition
+      RegexTokenDef("string_exp", "\".*?\"")
     )
   );
 
