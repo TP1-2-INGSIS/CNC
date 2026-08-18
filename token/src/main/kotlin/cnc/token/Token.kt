@@ -49,6 +49,7 @@ interface TokenDefinitionProvider : Provider<TokenType, List<TokenDefinition>> {
   override fun getValue(type: TokenType) : List<TokenDefinition>?
   override fun getTypes() : Set<TokenType>
   
+  fun getDefinition(alias: String) : TokenDefinition
   fun type(str: String): TokenType
   fun getExpressionTokens(): List<TokenDefinition>
 }

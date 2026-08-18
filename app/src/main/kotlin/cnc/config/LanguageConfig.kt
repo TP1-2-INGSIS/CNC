@@ -59,46 +59,53 @@ object PrintScriptTokenDefProvider: TokenDefinitionProvider {
   override fun getValue(type: TokenType) : List<TokenDefinition>? = definitions[type]
 
   override fun getTypes() : Set<TokenType> = definitions.keys
+  
+  override fun getDefinition(alias: String): TokenDefinition {
+    return definitions.values.flatten().first { it.alias == alias }
+  } 
 
   override fun type(str: String) : TokenType {
-        for (type in getTypes()) {
-            val definitions = getValue(type)!!
-            
-            for (def in definitions) {
-                if (!def.match(str)) continue
+    for (type in getTypes()) {
+        val definitions = getValue(type)!!
+        
+        for (def in definitions) {
+            if (!def.match(str)) continue
 
-                return type 
-            }
+            return type 
         }
+    }
 
-        return TokenType.INVALID
+    return TokenType.INVALID
   }
 
   override fun getExpressionTokens() : List<TokenDefinition> {
     return listOf(
-      NumberExpressionDefinition,
-      StringExpressionDefinition,
-      IdentifierDefinition,
-      PlusDefinition,
-      MinusDefinition,
-      MultiplicationDefinition,
-      DivisionDefinition
+      getDefinition("number_exp"),
+      getDefinition("string_exp"),
+      getDefinition("identifier"),
+      getDefinition("plus"),
+      getDefinition("minus"),
+      getDefinition("multiplication"),
+      getDefinition("division")
     )
   }
 
 }
 
 // GRAMMAR AND STATEMENTS =======================================================
+
+// TODO: Crear una clase Provider de las gramaticas  
+
 val VariableDeclaration = Grammar(
   tag = "VariableDeclaration",
   sequence = listOf(
-    IsStrat(VariableDefinition),       // segments[0] = [let]
-    IsStrat(IdentifierDefinition),     // segments[1] = [x]
-    IsStrat(TypeDefinition),           // segments[2] = [:]
+    IsStrat(PrintScriptTokenDefProvider.getDefinition("let")),       // segments[0] = [let]
+    IsStrat(PrintScriptTokenDefProvider.getDefinition("identifier")),     // segments[1] = [x]
+    IsStrat(PrintScriptTokenDefProvider.getDefinition("colon")),           // segments[2] = [:]
     AnyOfTypeStrat(PrintScriptTokenDefProvider.getValue(TokenType.VARIABLE_TYPE)!!),    // segments[3] = [number]
-    IsStrat(AssignDefinition),         // segments[4] = [=]
+    IsStrat(PrintScriptTokenDefProvider.getDefinition("assign")),         // segments[4] = [=]
     ExpressionStrat(PrintScriptTokenDefProvider.getExpressionTokens()), // segments[5] = [2, *, (, x, +, 3, )]
-    IsStrat(TerminationDefinition)     // segments[6] = [;]
+    IsStrat(PrintScriptTokenDefProvider.getDefinition("semicolon"))     // segments[6] = [;]
   ),
   build = { segments ->
     Declaration(
@@ -112,10 +119,10 @@ val VariableDeclaration = Grammar(
 val VariableAssignment = Grammar(
   tag = "VariableAssignment",
   sequence = listOf(
-    IsStrat(IdentifierDefinition),     // segments[0] = [x]
-    IsStrat(AssignDefinition),         // segments[1] = [=]
+    IsStrat(PrintScriptTokenDefProvider.getDefinition("identifier")),     // segments[0] = [x]
+    IsStrat(PrintScriptTokenDefProvider.getDefinition("assign")),         // segments[1] = [=]
     ExpressionStrat(PrintScriptTokenDefProvider.getExpressionTokens()), // segments[2] = [2, *, (, x, +, 3, )]
-    IsStrat(TerminationDefinition)     // segments[3] = [;]
+    IsStrat(PrintScriptTokenDefProvider.getDefinition("semicolon"))     // segments[3] = [;]
   ),
   build = { segments ->
     Assignment(
@@ -126,10 +133,9 @@ val VariableAssignment = Grammar(
 )
 
 
-// TODO: Crear una clase Provider de las gramaticas  
 
 val terminators: List<TokenDefinition> = listOf(
-  TerminationDefinition
+  PrintScriptTokenDefProvider.getDefinition("semicolon")
 )
 
 val grammars = listOf(
@@ -140,7 +146,7 @@ val grammars = listOf(
 
 // EXPRESSIONS BUILDER ==========================================================
 val expressionBuilder = ExpressionBuilder(mapOf(
-  NumberExpressionDefinition to { token: Token -> NumberLiteral(token.text.toDouble()) },
-  StringExpressionDefinition to { token: Token -> StringLiteral(token.text.removeSurrounding("\"")) },
-  IdentifierDefinition to { token -> Identifier(token.text) }
+  PrintScriptTokenDefProvider.getDefinition("number_exp") to { token: Token -> NumberLiteral(token.text.toDouble()) },
+  PrintScriptTokenDefProvider.getDefinition("string_exp") to { token: Token -> StringLiteral(token.text.removeSurrounding("\"")) },
+  PrintScriptTokenDefProvider.getDefinition("identifier") to { token -> Identifier(token.text) }
 ))
