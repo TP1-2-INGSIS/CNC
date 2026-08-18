@@ -32,7 +32,7 @@ dependencies {
 
     // las dependecias de los otros modulos
     implementation(project(":lexer"))
-    //implementation(project(":parser"))
+    implementation(project(":parser"))
     implementation(project(":token"))
     implementation(project(":common"))
     implementation(project(":ast"))

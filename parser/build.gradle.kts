@@ -25,6 +25,7 @@ dependencies {
     // 
     implementation(project(":token"))
     implementation(project(":ast"))
+    implementation(project(":common"))
 }
 
 tasks.named<Test>("test") {

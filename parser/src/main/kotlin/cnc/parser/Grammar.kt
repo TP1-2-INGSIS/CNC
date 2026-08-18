@@ -3,93 +3,83 @@ package cnc.parser
 import cnc.token.Token
 import cnc.token.TokenType
 import cnc.token.TokenDefinition
+import cnc.token.TokenDefinitionProvider 
 
-// cosas que se settean por el dev que haga uso del parser
-// ES ACOPLAMIENTO.
-// TODO: generar que el parser reciba una config o ver como
-// podriamos mitigar el acoplamiento.
-import cnc.config.VariableDefinition
-import cnc.config.IdentifierDefinition
-import cnc.config.AssignDefinition
-import cnc.config.NumberExpressionDefinition
-import cnc.config.StringExpressionDefinition
-import cnc.config.TerminationDefinition
-import cnc.config.TypeDefinition
-import cnc.config.TokenDefinitionProvider
-
+import cnc.ast.Statement
 
 interface GrammarStrategy {
-  fun eval(token: Token): Boolean
+  // Dado la lista de tokens y un offset, retorna cuántos tokens consumió.
+  // Retorna 0 si no matchea.
+  fun consume(tokens: List<Token>, offset: Int): Int
 }
 
-// Definiciones especificas tambien son acoplamiento de conocimiento
-// especifico de lo que estamos haciendo, o capaz no, podria ser
-// que el parser o en realidad el grammar te de una suite de strats
-// por default pero vos puedas implementar la tuya propia.
-// TODO: Definirlo y plantearlo mejor
 class IsStrat(val definition: TokenDefinition) : GrammarStrategy {
-  override fun eval(token: Token): Boolean = definition.match(token.text)
+  override fun consume(tokens: List<Token>, offset: Int): Int {
+    if (offset >= tokens.size) return 0
+    return if (definition.match(tokens[offset].text)) 1 else 0
+  }
 }
 
 class AnyStrat(val strats: List<GrammarStrategy>) : GrammarStrategy {
-  override fun eval(token: Token): Boolean = strats.any { it.eval(token) }
+  override fun consume(tokens: List<Token>, offset: Int): Int {
+    return strats.firstNotNullOfOrNull { strat ->
+      strat.consume(tokens, offset).takeIf { it > 0 }
+    } ?: 0
+  }
 }
 
-class AnyTypeVariableStrat : GrammarStrategy {
-  override fun eval(token: Token): Boolean = TokenDefinitionProvider.getDefinitions(TokenType.VARIABLE_TYPE)!!.any { it.match(token.text) }
+class AnyTypeVariableStrat(
+  val tokenDefProvider: TokenDefinitionProvider
+) : GrammarStrategy {
+  override fun consume(tokens: List<Token>, offset: Int): Int {
+    if (offset >= tokens.size) return 0
+    val matches = tokenDefProvider.getValue(TokenType.VARIABLE_TYPE)!!
+      .any { it.match(tokens[offset].text) }
+    return if (matches) 1 else 0
+  }
 }
 
+class ExpressionStrat(
+  val expressionTokens: List<TokenDefinition>  // tokens válidos dentro de una expresión
+) : GrammarStrategy {
+  override fun consume(tokens: List<Token>, offset: Int): Int {
+    var count = 0
+    var i = offset
+    while (i < tokens.size && expressionTokens.any { it.match(tokens[i].text)
+}) {
+      count++
+      i++
+    }
+    return count  // 0 si no consumió nada
+  }
+}
+
+// ====================
+// Strategies Consumer
+// ====================
 data class Grammar(
   val tag: String,
   val sequence: List<GrammarStrategy>,
-  val build: (List<Token>) -> Statement
+  val build: (List<List<Token>>) -> Statement  // ahora recibe segmentos
 ) {
   fun matches(tokens: List<Token>): Boolean {
-    if (tokens.size < sequence.size) return false
-    return sequence.zip(tokens).all { (strat, token) -> strat.eval(token) }
+    var offset = 0
+    for (strat in sequence) {
+      val consumed = strat.consume(tokens, offset)
+      if (consumed == 0) return false
+      offset += consumed
+    }
+    return offset == tokens.size
   }
+
+  fun segments(tokens: List<Token>): List<List<Token>> {
+    val result = mutableListOf<List<Token>>()
+    var offset = 0
+    for (strat in sequence) {
+      val consumed = strat.consume(tokens, offset)
+      result.add(tokens.subList(offset, offset + consumed))
+      offset += consumed
+    }
+    return result
+  } 
 }
-
-// gramatica es el formato que tiene que cumplir el token para pertenecer al statement planteado (rule set)
-val VariableDeclaration = Grammar(
-  tag = "VariableDeclaration",
-  sequence = listOf(
-    IsStrat(VariableDefinition),
-    IsStrat(IdentifierDefinition),
-    IsStrat(TypeDefinition),
-    AnyTypeVariableStrat(),
-    IsStrat(AssignDefinition),
-    AnyStrat(listOf(
-      IsStrat(NumberExpressionDefinition),
-      IsStrat(StringExpressionDefinition)
-    )),
-    IsStrat(TerminationDefinition)
-  ),
-  build = { tokens ->
-    Declaration(
-      name = tokens[1].text,
-      type = tokens[3].text,
-      value = expressionBuilder.build(tokens[5])
-    )
-  }
-)
-
-// =======================================================================================
-// ExpressionBuilder 
-// -> clase que se encargue de construir las expressiones a partir de:
-// - Token
-// - TokenDefinition
-// TODO: mover a una carpeta decente
-
-fun buildExpression(token: Token): Expression {
-  return when {
-    NumberExpressionDefinition.match(token.text) -> NumberLiteral(token.text.toDouble())
-    StringExpressionDefinition.match(token.text) -> StringLiteral(token.text.removeSurrounding("\""))
-    IdentifierDefinition.match(token.text) -> Identifier(token.text)
-    else -> error("Unknown expression: ${token.text}")
-  }
-}
-
-val grammars: List<Grammar> = listOf(
-  VariableDeclaration
-)

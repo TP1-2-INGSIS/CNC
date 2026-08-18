@@ -4,7 +4,7 @@ import cnc.token.TokenType
 import cnc.token.SymbolTokenDef
 import cnc.token.RegexTokenDef
 
-val PlusDefinition            = SymbolTokenDef(TokenType.OPERATOR, "+")
+val PlusDefinition            = SymbolTokenDef(TokenType.OPERATOR, "+", "plus")
 val MinusDefinition           = SymbolTokenDef(TokenType.OPERATOR, "-")
 val DivisionDefinition        = SymbolTokenDef(TokenType.OPERATOR, "/")
 val MultiplicationDefinition  = SymbolTokenDef(TokenType.OPERATOR, "*")
@@ -22,3 +22,12 @@ val NumberTypeDefinition      = SymbolTokenDef(TokenType.VARIABLE_TYPE, "number"
 val IdentifierDefinition       = RegexTokenDef(TokenType.IDENTIFIER, "[a-zA-Z_][a-zA-Z0-9_]*")
 val NumberExpressionDefinition = RegexTokenDef(TokenType.NUMBER, "[0-9]+")
 val StringExpressionDefinition = RegexTokenDef(TokenType.STRING, "\".*?\"")
+
+// val expressionTokens          = ListOf(
+//   PlusDefinition,
+//   MinusDefinition,
+//   DivisionDefinition,
+//   MultiplicationDefinition,
+//   NumberTypeDefinition,
+//   IdentifierDefinition
+// )
