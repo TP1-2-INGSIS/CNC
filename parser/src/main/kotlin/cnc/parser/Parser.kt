@@ -20,7 +20,7 @@ class Parser(
   private fun parseStatement(tokens: List<Token>): Statement {
     val grammar = grammars.firstOrNull { it.matches(tokens) }
       ?: error("No grammar matches tokens: ${tokens.map { it.text }}")
-    return grammar.build(tokens)
+    return grammar.build(grammar.segments(tokens))
   }
 }
 

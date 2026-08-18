@@ -1,6 +1,7 @@
 package cnc.definition
 
 import cnc.parser.Grammar
+import cnc.parser.ExpressionStrat
 import cnc.parser.IsStrat
 import cnc.parser.AnyStrat
 import cnc.parser.AnyTypeVariableStrat
@@ -13,22 +14,19 @@ import cnc.token.TokenDefinition
 val VariableDeclaration = Grammar(
   tag = "VariableDeclaration",
   sequence = listOf(
-    IsStrat(VariableDefinition),
-    IsStrat(IdentifierDefinition),
-    IsStrat(TypeDefinition),
-    AnyTypeVariableStrat(TokenDef),
-    IsStrat(AssignDefinition),
-    AnyStrat(listOf(
-      IsStrat(NumberExpressionDefinition),
-      IsStrat(StringExpressionDefinition)
-    )),
-    IsStrat(TerminationDefinition)
+    IsStrat(VariableDefinition),       // segments[0] = [let]
+    IsStrat(IdentifierDefinition),     // segments[1] = [x]
+    IsStrat(TypeDefinition),           // segments[2] = [:]
+    AnyTypeVariableStrat(TokenDef),    // segments[3] = [number]
+    IsStrat(AssignDefinition),         // segments[4] = [=]
+    ExpressionStrat(expressionTokens), // segments[5] = [2, *, (, x, +, 3, )]
+    IsStrat(TerminationDefinition)     // segments[6] = [;]
   ),
-  build = { tokens ->
+  build = { segments ->
     Declaration(
-      name = tokens[1].text,
-      type = tokens[3].text,
-      value = expressionBuilder.build(tokens[5])
+      name = segments[1].first().text,
+      type = segments[3].first().text,
+      value = expressionBuilder.build(segments[5])
     )
   }
 )
@@ -36,20 +34,16 @@ val VariableDeclaration = Grammar(
 val VariableAssignment = Grammar(
   tag = "VariableAssignment",
   sequence = listOf(
-    IsStrat(IdentifierDefinition),
-    IsStrat(AssignDefinition),
-    AnyStrat(listOf(
-      IsStrat(NumberExpressionDefinition),
-      IsStrat(StringExpressionDefinition)
-    )),
-    IsStrat(TerminationDefinition)
+    IsStrat(IdentifierDefinition),     // segments[0] = [x]
+    IsStrat(AssignDefinition),         // segments[1] = [=]
+    ExpressionStrat(expressionTokens), // segments[2] = [2, *, (, x, +, 3, )]
+    IsStrat(TerminationDefinition)     // segments[3] = [;]
   ),
-  build = { tokens ->
+  build = { segments ->
     Assignment(
-      target = tokens[0].text,
-      value = expressionBuilder.build(tokens[2])
+      target = segments[0].first().text,
+      value = expressionBuilder.build(segments[2])
     )
-    
   }
 )
 
