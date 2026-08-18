@@ -19,18 +19,13 @@ class Lexer(
   val tokenDefs : TokenDefinitionProvider
 ) {
   val splitter: Splitter = RegexSplitter(tokenDefs)
-  fun getTokens(content: ContentManager): Sequence<Token> {
-    return content
-      .getLines()
-      .withIndex()
-      .flatMap { (row, line) ->
-        splitter.split(line).map { (match, col) ->
+  fun getTokens(line: String, row: Int): Sequence<Token> {
+    return splitter.split(line).map { (match, col) ->
           Token(
             tokenDefs.type(match),
             Position(row, col),
             match
           )
         }
-      }
   }
 }

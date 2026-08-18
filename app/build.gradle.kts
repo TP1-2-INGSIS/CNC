@@ -32,11 +32,10 @@ dependencies {
 
     // las dependecias de los otros modulos
     implementation(project(":lexer"))
-    implementation(project(":parser"))
+    //implementation(project(":parser"))
     implementation(project(":token"))
-
-    implementation(project(":ast")) // no se la verdad pero lo sumo para ver
-    implementation(project(":common")) // tampoco se si lo necesita
+    implementation(project(":common"))
+    implementation(project(":ast"))
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
@@ -48,7 +47,7 @@ java {
 
 application {
     // Define the main class for the application.
-    mainClass = "org.AppKt"
+    mainClass = "cnc.AppKt"
 }
 
 tasks.named<Test>("test") {

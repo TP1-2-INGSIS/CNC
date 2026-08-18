@@ -11,4 +11,4 @@ plugins {
 }
 
 rootProject.name = "CNC"
-include("app", "common", "lexer", "ast", "parser", "interpreter", "token")
+include("app", "common", "lexer", "ast", "interpreter", "token")
