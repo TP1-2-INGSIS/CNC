@@ -25,13 +25,15 @@ import cnc.parser.AnyOfTypeStrat
 // TOKEN DEFINITIONS ================================================================
 // --> PROVIDER
 object PrintScriptTokenDefProvider: TokenDefinitionProvider {
+  
   val definitions = mapOf<TokenType, List<TokenDefinition>> (
     TokenType.OPERATOR      to listOf(
       SymbolTokenDef("plus", "+"),
       SymbolTokenDef("minus", "-"),
       SymbolTokenDef("division", "/"),
       SymbolTokenDef("multiplication", "*"),
-      SymbolTokenDef("equals", "==")
+      SymbolTokenDef("equals", "=="),
+      SymbolTokenDef("exponent", "**")
     ),
     TokenType.SYMBOL        to listOf(
       SymbolTokenDef("semicolon", ";"),
@@ -78,18 +80,6 @@ object PrintScriptTokenDefProvider: TokenDefinitionProvider {
     return TokenType.INVALID
   }
 
-  override fun getExpressionTokens() : List<TokenDefinition> {
-    return listOf(
-      getDefinition("number_exp"),
-      getDefinition("string_exp"),
-      getDefinition("identifier"),
-      getDefinition("plus"),
-      getDefinition("minus"),
-      getDefinition("multiplication"),
-      getDefinition("division")
-    )
-  }
-
 }
 
 // GRAMMAR AND STATEMENTS =======================================================
@@ -104,7 +94,15 @@ val VariableDeclaration = Grammar(
     IsStrat(PrintScriptTokenDefProvider.getDefinition("colon")),           // segments[2] = [:]
     AnyOfTypeStrat(PrintScriptTokenDefProvider.getValue(TokenType.VARIABLE_TYPE)!!),    // segments[3] = [number]
     IsStrat(PrintScriptTokenDefProvider.getDefinition("assign")),         // segments[4] = [=]
-    ExpressionStrat(PrintScriptTokenDefProvider.getExpressionTokens()), // segments[5] = [2, *, (, x, +, 3, )]
+    ExpressionStrat(listOf(
+    PrintScriptTokenDefProvider.getDefinition("number_exp"),
+    PrintScriptTokenDefProvider.getDefinition("string_exp"),
+    PrintScriptTokenDefProvider.getDefinition("identifier"),
+    PrintScriptTokenDefProvider.getDefinition("plus"),
+    PrintScriptTokenDefProvider.getDefinition("minus"),
+    PrintScriptTokenDefProvider.getDefinition("multiplication"),
+    PrintScriptTokenDefProvider.getDefinition("division")
+    )), // segments[5] = [2, *, (, x, +, 3, )]
     IsStrat(PrintScriptTokenDefProvider.getDefinition("semicolon"))     // segments[6] = [;]
   ),
   build = { segments ->
@@ -121,7 +119,15 @@ val VariableAssignment = Grammar(
   sequence = listOf(
     IsStrat(PrintScriptTokenDefProvider.getDefinition("identifier")),     // segments[0] = [x]
     IsStrat(PrintScriptTokenDefProvider.getDefinition("assign")),         // segments[1] = [=]
-    ExpressionStrat(PrintScriptTokenDefProvider.getExpressionTokens()), // segments[2] = [2, *, (, x, +, 3, )]
+    ExpressionStrat(listOf(
+    PrintScriptTokenDefProvider.getDefinition("number_exp"),
+    PrintScriptTokenDefProvider.getDefinition("string_exp"),
+    PrintScriptTokenDefProvider.getDefinition("identifier"),
+    PrintScriptTokenDefProvider.getDefinition("plus"),
+    PrintScriptTokenDefProvider.getDefinition("minus"),
+    PrintScriptTokenDefProvider.getDefinition("multiplication"),
+    PrintScriptTokenDefProvider.getDefinition("division")
+    )), // segments[2] = [2, *, (, x, +, 3, )]
     IsStrat(PrintScriptTokenDefProvider.getDefinition("semicolon"))     // segments[3] = [;]
   ),
   build = { segments ->
@@ -133,7 +139,6 @@ val VariableAssignment = Grammar(
 )
 
 
-
 val terminators: List<TokenDefinition> = listOf(
   PrintScriptTokenDefProvider.getDefinition("semicolon")
 )
@@ -142,7 +147,6 @@ val grammars = listOf(
   VariableDeclaration,
   VariableAssignment
 )
-
 
 // EXPRESSIONS BUILDER ==========================================================
 val expressionBuilder = ExpressionBuilder(mapOf(

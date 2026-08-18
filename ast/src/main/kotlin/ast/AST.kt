@@ -3,6 +3,11 @@ package cnc.ast
 import cnc.token.Token
 import cnc.token.TokenDefinition
 
+// TODO: Crear evaluators para cada statement
+// el Parser puede crear los AST conociendolos
+// y como comparte con el Interpreter no hay problema 
+// mientras tengamos los Evaluators de cada statement.
+
 sealed interface Statement
 data class Declaration(
     val name: String,

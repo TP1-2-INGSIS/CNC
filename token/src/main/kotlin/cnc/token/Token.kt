@@ -51,5 +51,4 @@ interface TokenDefinitionProvider : Provider<TokenType, List<TokenDefinition>> {
   
   fun getDefinition(alias: String) : TokenDefinition
   fun type(str: String): TokenType
-  fun getExpressionTokens(): List<TokenDefinition>
 }
