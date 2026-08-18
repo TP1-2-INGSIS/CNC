@@ -13,6 +13,7 @@ val EqualsDefinition          = SymbolTokenDef(TokenType.OPERATOR, "==")
 val TerminationDefinition     = SymbolTokenDef(TokenType.SYMBOL, ";")
 val TypeDefinition            = SymbolTokenDef(TokenType.SYMBOL, ":")
 val AssignDefinition          = SymbolTokenDef(TokenType.SYMBOL, "=")
+val WrapDefinition            = SymbolTokenDef(TokenType.SYMBOL, "")
 
 val VariableDefinition        = SymbolTokenDef(TokenType.KEYWORD, "let")
 

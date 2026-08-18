@@ -5,8 +5,10 @@ import cnc.parser.IsStrat
 import cnc.parser.AnyStrat
 import cnc.parser.AnyTypeVariableStrat
 import cnc.ast.Declaration
+import cnc.ast.Assignment
 import cnc.config.expressionBuilder
 import cnc.config.TokenDef
+import cnc.token.TokenDefinition
 
 val VariableDeclaration = Grammar(
   tag = "VariableDeclaration",
@@ -31,8 +33,31 @@ val VariableDeclaration = Grammar(
   }
 )
 
-val terminator = TerminationDefinition
+val VariableAssignment = Grammar(
+  tag = "VariableAssignment",
+  sequence = listOf(
+    IsStrat(IdentifierDefinition),
+    IsStrat(AssignDefinition),
+    AnyStrat(listOf(
+      IsStrat(NumberExpressionDefinition),
+      IsStrat(StringExpressionDefinition)
+    )),
+    IsStrat(TerminationDefinition)
+  ),
+  build = { tokens ->
+    Assignment(
+      target = tokens[0].text,
+      value = expressionBuilder.build(tokens[2])
+    )
+    
+  }
+)
+
+val terminators: List<TokenDefinition> = listOf(
+  TerminationDefinition
+)
 
 val grammars = listOf(
-  VariableDeclaration
+  VariableDeclaration,
+  VariableAssignment
 )

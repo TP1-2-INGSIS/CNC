@@ -10,12 +10,12 @@ import cnc.common.ContentManager
 // Como hicimos con el Lexer vamos a importar las definiciones necesarias
 import cnc.parser.Parser
 import cnc.definition.grammars
-import cnc.definition.terminator
+import cnc.definition.terminators
 
 
 data class Config (
   val lexer: Lexer = Lexer(TokenDef),
-  val parser: Parser = Parser(grammars, terminator),
+  val parser: Parser = Parser(grammars, terminators),
   // val interpreter = Interpreter(config...)
 )
 
@@ -39,5 +39,5 @@ data class Compiler (
 
 fun main() {
   val compiler = Compiler(Config())
-  compiler.compile(StrContent("let var: number = 10;"))
+  compiler.compile(StrContent("let var: number = 10;\nvar = 4;"))
 }

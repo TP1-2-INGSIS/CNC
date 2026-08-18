@@ -9,11 +9,11 @@ import cnc.ast.Statement
 //
 class Parser(
   private val grammars: List<Grammar>,
-  private val terminator: TokenDefinition
+  private val terminators: List<TokenDefinition>
 ) {
   fun getASTs(tokens: Sequence<Token>): Sequence<Statement> {
     return tokens
-      .splitAfter { terminator.match(it.text) }
+      .splitAfter { terminators.any { t -> t.match(it.text) } }
       .map { parseStatement(it) }
   }
 

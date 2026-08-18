@@ -25,10 +25,18 @@ object TokenDef : TokenDefinitionProvider {
       StringTypeDefinition,
       NumberTypeDefinition
     ),
-    TokenType.KEYWORD to listOf(VariableDefinition),
-    TokenType.IDENTIFIER  to listOf(IdentifierDefinition),
-    TokenType.NUMBER      to listOf(NumberExpressionDefinition),
-    TokenType.STRING      to listOf(StringExpressionDefinition)
+    TokenType.KEYWORD to listOf(
+      VariableDefinition
+    ),
+    TokenType.IDENTIFIER  to listOf(
+      IdentifierDefinition
+    ),
+    TokenType.NUMBER      to listOf(
+      NumberExpressionDefinition
+    ),
+    TokenType.STRING      to listOf(
+      StringExpressionDefinition
+    )
   );
 
   override fun getValue(type: TokenType) : List<TokenDefinition>? = definitions[type]
