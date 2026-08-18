@@ -1,8 +1,11 @@
 package cnc.config
 
-import cnc.token.TokenDefinitionProvider
+import cnc.token.Token
 import cnc.token.TokenType
+import cnc.token.RegexTokenDef
+import cnc.token.SymbolTokenDef
 import cnc.token.TokenDefinition
+import cnc.token.TokenDefinitionProvider
 
 import cnc.ast.ExpressionBuilder
 import cnc.ast.NumberLiteral
@@ -15,9 +18,7 @@ import cnc.parser.Grammar
 import cnc.parser.ExpressionStrat
 import cnc.parser.IsStrat
 import cnc.parser.AnyStrat
-import cnc.parser.AnyTypeVariableStrat
-
-
+import cnc.parser.AnyOfTypeStrat
 
 // PRINTSCRIPT LANGUAGE CONFIGURATIONS
 
@@ -113,9 +114,9 @@ val VariableDeclaration = Grammar(
     IsStrat(VariableDefinition),       // segments[0] = [let]
     IsStrat(IdentifierDefinition),     // segments[1] = [x]
     IsStrat(TypeDefinition),           // segments[2] = [:]
-    AnyTypeVariableStrat(PrintScriptTokenDefProvider),    // segments[3] = [number]
+    AnyOfTypeStrat(PrintScriptTokenDefProvider.getValue(TokenType.VARIABLE_TYPE)!!),    // segments[3] = [number]
     IsStrat(AssignDefinition),         // segments[4] = [=]
-    ExpressionStrat(expressionTokens), // segments[5] = [2, *, (, x, +, 3, )]
+    ExpressionStrat(PrintScriptTokenDefProvider.getExpressionTokens()), // segments[5] = [2, *, (, x, +, 3, )]
     IsStrat(TerminationDefinition)     // segments[6] = [;]
   ),
   build = { segments ->

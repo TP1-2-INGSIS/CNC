@@ -21,7 +21,7 @@ data class Token(
 )
 
 interface TokenDefinition {
-  val alias: String,
+  val alias: String;
   val symbols: List<String>;
   fun match(str: String) : Boolean;
 } 
@@ -31,7 +31,7 @@ data class SymbolTokenDef (
   override val symbols: List<String>
 
 ) : TokenDefinition {
-  constructor(alias: String, symbol: String) : this(type, listOf(symbol))
+  constructor(alias: String, symbol: String) : this(alias, listOf(symbol))
   override fun match(str: String) : Boolean = str in symbols
 }
 
