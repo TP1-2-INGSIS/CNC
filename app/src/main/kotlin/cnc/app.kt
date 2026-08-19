@@ -38,3 +38,4 @@ fun main() {
   val compiler = Compiler(Config())
   compiler.compile(StrContent("let var: number = 10;\nvar = 4;"))
 }
+
