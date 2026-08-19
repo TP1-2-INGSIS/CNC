@@ -1,35 +1,65 @@
 package cnc.cli.args
 
 object ArgsManager {
-    private fun setFlags(container : ArgsContainer, arg : String) {
-        if (!arg.startsWith("-") && !arg.startsWith("--")) return;
-        if (arg.contains("=")) return;
 
-        container.addFlag(arg);
-    }
+    fun tokenize(commandLine: String): List<String> {
+        val tokens = mutableListOf<String>()
+        val current = StringBuilder()
+        var insideQuotes = false
+        var quoteChar = ' '
 
-    private fun setOptions(container : ArgsContainer, arg : String) {
-        if (!(arg.startsWith("--") && arg.contains("="))) return;
-        container.addOption(arg);
-    }
+        for (c in commandLine) {
+            if ((c == '"' || c == '\'') && !insideQuotes) {
+                insideQuotes = true
+                quoteChar = c
+                continue
+            }
 
-    private fun setPositional(container : ArgsContainer, arg : String) {
-        if (container.flags.contains(arg)) return;
-        if (container.options.contains(arg)) return;
+            if (c == quoteChar && insideQuotes) {
+                insideQuotes = false
+                continue
+            }
 
-        container.addPositional(arg);
-    }
-    // gcnc --file=/home/main.cnc | ls --ord=dsc
-    // [gcnc, --file=/home/main.cnc, ...]
-    fun getArgsContainer(args : List<String>) : ArgsContainer {
-        var container = ArgsContainer();
+            if (c.isWhitespace() && !insideQuotes) {
+                if (current.isNotEmpty()) {
+                    tokens.add(current.toString())
+                    current.clear()
+                }
+                continue
+            }
 
-        args.forEach { arg ->
-            setFlags(container, arg);
-            setOptions(container, arg);
-            setPositional(container, arg);
+            current.append(c)
         }
 
-        return container;
+        if (current.isNotEmpty()) {
+            tokens.add(current.toString())
+        }
+
+        return tokens
+    }
+
+    fun getArgsContainer(args: List<String>): ArgsContainer {
+        val container = ArgsContainer()
+
+        for (arg in args) {
+            if (arg.startsWith("-") && arg.contains("=")) {
+                val equalIdx = arg.indexOf('=')
+                val key = arg.substring(0, equalIdx)
+                val rawValue = arg.substring(equalIdx + 1)
+                val cleanValue = rawValue.removeSurrounding("\"").removeSurrounding("'")
+                container.addOption(key, cleanValue)
+                continue
+            }
+
+            if (arg.startsWith("-")) {
+                container.addFlag(arg)
+                continue
+            }
+
+            val cleanArg = arg.removeSurrounding("\"").removeSurrounding("'")
+            container.addPositional(cleanArg)
+        }
+
+        return container
     }
 }

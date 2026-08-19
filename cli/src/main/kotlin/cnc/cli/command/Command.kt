@@ -1,40 +1,67 @@
 package cnc.cli.command
 
 import cnc.cli.args.ArgsContainer
-import cnc.cli.args.Param
-import cnc.cli.args.ParamType
-
+import cnc.common.ErrorType
+import cnc.common.Failure
 import cnc.common.Result
 import cnc.common.Success
-import cnc.common.Failure
 
-// como el dominio de mis comandos va a ser
-// muy chico, porque solo quiero que funcionen
-// el gcc y el run/exec, no hace falta que execute
-// reciba ningun tipo de contexto
 interface Command {
-  val tag: String
-  fun execute(params: ArgsContainer) : Result<Unit>
+    val tag: String
+    fun execute(params: ArgsContainer): Result<Unit>
 }
 
-// gcc man.cnc -> man.exe -> interpreter man.cnc -> execute
-// gcc man.cnc -> execute
-object GccCommand : Command { 
-  override val tag = "gcnc";
+interface WrappedCommand : Command {
+    val wrapped: Command
+    override val tag: String get() = wrapped.tag
+}
 
-  // lo hago optional para saber que ruta es
-  // gcnc --file=/home/main.cnc
-  val params = object {
-    val flags = setOf(
-      Param("--out",      "binary file compiled name", ParamType.FLAG),
-      Param("--check",    "check if the file is type safe", ParamType.FLAG),
-      Param("--verbose",  "Display all the process messages", ParamType.FLAG)
-    )
-    val optional = listOf(
-      Param("--file",     "file/path to be compiled", ParamType.OPTIONAL),
-    )
-    val positional = listOf<Param>()
-  }
+class HelpAttribute(
+    override val wrapped: Command,
+    val description: String,
+    val usage: String = wrapped.tag,
+    val paramHelp: Map<String, String> = emptyMap()
+) : WrappedCommand {
 
-  override fun execute(params: ArgsContainer) : Result<Unit> = TODO("not implemented yet!")
+    override fun execute(params: ArgsContainer): Result<Unit> {
+        if (params.hasFlag("help") || params.hasFlag("h")) {
+            return Success(getHelpText(), Unit)
+        }
+        return wrapped.execute(params)
+    }
+
+    fun getHelpText(): String {
+        val sb = StringBuilder()
+        sb.appendLine("Command: $tag")
+        sb.appendLine("Description: $description")
+        sb.appendLine("Usage: $usage")
+        if (paramHelp.isNotEmpty()) {
+            sb.appendLine("\nOptions & Flags:")
+            paramHelp.forEach { (param, desc) ->
+                sb.appendLine("  ${param.padEnd(20)} $desc")
+            }
+        }
+        return sb.toString().trimEnd()
+    }
+}
+
+object GccCommand : Command {
+    override val tag = "gcnc"
+
+    override fun execute(params: ArgsContainer): Result<Unit> {
+        val file = params.getOption("file") ?: params.getPositional(0)
+        if (file == null) {
+            return Failure("Missing required source file. Usage: gcnc --file=<path>", ErrorType.CLI)
+        }
+
+        val isVerbose = params.hasFlag("verbose")
+        val isCheck = params.hasFlag("check")
+
+        val details = buildString {
+            if (isVerbose) append(" (verbose)")
+            if (isCheck) append(" (check-only)")
+        }
+
+        return Success("Compiling '$file'$details...", Unit)
+    }
 }

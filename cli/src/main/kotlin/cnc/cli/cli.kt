@@ -1,52 +1,103 @@
 package cnc.cli
 
+import cnc.cli.args.ArgsManager
+import cnc.cli.command.Command
+import cnc.cli.command.HelpAttribute
+import cnc.common.ErrorType
+import cnc.common.Failure
 import cnc.common.Result
 import cnc.common.Success
-import cnc.common.Failure
-import cnc.common.ErrorType
-
-import cnc.cli.command.Command
-import cnc.cli.args.ArgsManager
+import cnc.common.flatMap
+import cnc.common.map
+import cnc.common.onFailure
+import cnc.common.onSuccess
 
 data class CommandSystem(
-  val cmds: Map<String, Command>,
-  val io: IOManager = StdIO()
+    val cmds: Map<String, Command>,
+    val io: IOManager = StdIO()
 ) {
-    private fun readCommandFromInput() : Result<String> {
-      io.write("-> $ ");
-      val input: String = io.read();
-      return Success("Red input correctly", input);
+    private fun readCommandFromInput(): Result<String> {
+        io.write("-> $ ")
+        return try {
+            Success("Read input correctly", io.read())
+        } catch (e: Exception) {
+            Failure("Failed to read input: ${e.message}", ErrorType.CLI)
+        }
     }
 
-    fun run() : Result<Unit> {
-        var input: String = "";
+    private fun getGlobalHelp(argTokens: List<String>): String {
+        if (argTokens.isNotEmpty()) {
+            val targetCmd = argTokens[0]
+            val cmd = cmds[targetCmd]
+                ?: return "Cannot show help for '$targetCmd': command not found."
 
-        while(true) {
-
-            when (val result = readCommandFromInput()) {
-                is Success -> input = result.data
-                is Failure -> Failure<Unit>("There was an unexpected error! \n\t" + result.msg, ErrorType.CLI)
+            if (cmd is HelpAttribute) {
+                return cmd.getHelpText()
             }
 
-            if (input.equals("exit")) break;
+            return "Command: ${cmd.tag}\nNo detailed documentation available."
+        }
 
-            if (input !in cmds.keys) {
-              io.write("The command provided is not registered!");
-              continue;
-            }
+        val sb = StringBuilder()
+        sb.appendLine("Available commands:")
+        sb.appendLine("  ${"help [command]".padEnd(20)} Display general help or help for a specific command")
+        sb.appendLine("  ${"exit / quit".padEnd(20)} Exit the CLI session")
 
-            val cmd = cmds[input]!!;
-            val args = ArgsManager.getArgsContainer(input.split(" "))
+        cmds.values.distinctBy { it.tag }.forEach { cmd ->
+            val description = if (cmd is HelpAttribute) cmd.description else "(no description)"
+            sb.appendLine("  ${cmd.tag.padEnd(20)} $description")
+        }
 
-            // Lo saque pero, cada comando podria tener un contexto
-            // lo cual nos permitira hacer que le podamos pasar
-            // args al programa compilado, tales como hace cpp
-            when (val result = cmd.execute(args)) {
-                is Success -> io.write(result.msg + "\n")
-                is Failure -> io.write("Command failed with msg: \n\t" + result.msg + "\n");
+        return sb.toString().trimEnd()
+    }
+
+    private fun executeLine(line: String): Result<Boolean> {
+        val trimmed = line.trim()
+        if (trimmed.isBlank()) {
+            return Success("Alert: No command provided. Type 'help' for available commands.", true)
+        }
+
+        val tokens = ArgsManager.tokenize(trimmed)
+        if (tokens.isEmpty()) {
+            return Success("Alert: No command entered.", true)
+        }
+
+        val commandTag = tokens[0]
+        val argTokens = tokens.drop(1)
+
+        if (commandTag == "exit" || commandTag == "quit") {
+            return Success("Exiting CLI session...", false)
+        }
+
+        if (commandTag == "help") {
+            return Success(getGlobalHelp(argTokens), true)
+        }
+
+        val cmd = cmds[commandTag]
+            ?: return Failure("Command '$commandTag' is not registered. Type 'help' for available commands.", ErrorType.CLI)
+
+        val args = ArgsManager.getArgsContainer(argTokens)
+        val result = cmd.execute(args)
+
+        return result.map { true }
+    }
+
+    fun run(): Result<Unit> {
+        while (true) {
+            val shouldContinue = readCommandFromInput()
+                .flatMap { line -> executeLine(line) }
+                .onSuccess { res ->
+                    if (res.msg.isNotBlank()) io.writeLine(res.msg)
+                }
+                .onFailure { err ->
+                    io.writeLine("Command error: ${err.msg}")
+                }
+
+            if (shouldContinue is Success && !shouldContinue.data) {
+                break
             }
         }
 
-        return Success("Command system finished correctly!", Unit);
+        return Success("Command system finished correctly!", Unit)
     }
 }
