@@ -1,6 +1,6 @@
 package cnc
 
-import cnc.config.TokenDef
+import cnc.config.*
 
 // Importamos el Lexer y las definiciones para el mismo
 import cnc.lexer.Lexer
@@ -9,12 +9,9 @@ import cnc.common.ContentManager
 
 // Como hicimos con el Lexer vamos a importar las definiciones necesarias
 import cnc.parser.Parser
-import cnc.definition.grammars
-import cnc.definition.terminators
-
 
 data class Config (
-  val lexer: Lexer = Lexer(TokenDef),
+  val lexer: Lexer = Lexer(PrintScriptTokenDefProvider),
   val parser: Parser = Parser(grammars, terminators),
   // val interpreter = Interpreter(config...)
 )

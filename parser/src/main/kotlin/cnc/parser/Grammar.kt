@@ -28,13 +28,12 @@ class AnyStrat(val strats: List<GrammarStrategy>) : GrammarStrategy {
   }
 }
 
-class AnyTypeVariableStrat(
-  val tokenDefProvider: TokenDefinitionProvider
+class AnyOfTypeStrat(
+  val acceptableTokens: List<TokenDefinition>
 ) : GrammarStrategy {
   override fun consume(tokens: List<Token>, offset: Int): Int {
     if (offset >= tokens.size) return 0
-    val matches = tokenDefProvider.getValue(TokenType.VARIABLE_TYPE)!!
-      .any { it.match(tokens[offset].text) }
+    val matches = acceptableTokens.any { it.match(tokens[offset].text) }
     return if (matches) 1 else 0
   }
 }

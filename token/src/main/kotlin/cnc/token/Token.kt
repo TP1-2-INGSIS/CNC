@@ -21,23 +21,24 @@ data class Token(
 )
 
 interface TokenDefinition {
-  val type: TokenType;
+  val alias: String;
   val symbols: List<String>;
   fun match(str: String) : Boolean;
 } 
 
 data class SymbolTokenDef (
-  override val type: TokenType,
+  override val alias: String,
   override val symbols: List<String>
-) : TokenDefinition {
 
-  constructor(type: TokenType, symbol: String) : this(type, listOf(symbol))
+) : TokenDefinition {
+  constructor(alias: String, symbol: String) : this(alias, listOf(symbol))
   override fun match(str: String) : Boolean = str in symbols
 }
 
 class RegexTokenDef(
-  override val type: TokenType,
+  override val alias: String,
   val regex: String
+
 ) : TokenDefinition {
   override val symbols: List<String> = listOf(regex)
   override fun match(str: String): Boolean = regex.toRegex().matches(str)
@@ -47,7 +48,7 @@ interface TokenDefinitionProvider : Provider<TokenType, List<TokenDefinition>> {
 
   override fun getValue(type: TokenType) : List<TokenDefinition>?
   override fun getTypes() : Set<TokenType>
-
+  
+  fun getDefinition(alias: String) : TokenDefinition
   fun type(str: String): TokenType
-
 }
