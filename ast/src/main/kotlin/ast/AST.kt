@@ -1,5 +1,6 @@
 package cnc.ast
 
+import ast.StatementVisitor
 import cnc.token.Token
 import cnc.token.TokenDefinition
 
@@ -8,20 +9,22 @@ import cnc.token.TokenDefinition
 // y como comparte con el Interpreter no hay problema 
 // mientras tengamos los Evaluators de cada statement.
 
-sealed interface Statement
+sealed interface Statement {
+    fun <R> accept(visitor: StatementVisitor<R>): R;
+}
 data class Declaration(
     val name: String,
     val type: String,
     val value: Expression?
-) : Statement
+) : Statement { override fun <R> accept(visitor: StatementVisitor<R>) = visitor.visit(this); }
 data class Assignment(
     val target: String,
     val value: Expression
-) : Statement
+) : Statement {override fun <R> accept(visitor: StatementVisitor<R>) = visitor.visit(this);}
 data class Call(
     val function: String,
     val arguments: List<Expression>
-) : Statement
+) : Statement {override fun <R> accept(visitor: StatementVisitor<R>) = visitor.visit(this);}
 
 sealed interface Expression
 data class NumberLiteral(val value: Double) : Expression
