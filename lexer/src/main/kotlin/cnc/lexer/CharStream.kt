@@ -1,6 +1,7 @@
 package cnc.lexer
 
 import cnc.common.Position
+import cnc.common.advance
 import java.io.Reader
 
 class CharStream(private val reader: Reader) {
