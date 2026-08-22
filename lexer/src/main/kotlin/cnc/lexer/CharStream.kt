@@ -15,32 +15,22 @@ class CharStream(private val reader: Reader) {
 
     fun peek(offset: Int = 0): Char? {
         while (buffer.size <= offset) {
-            val charCode = reader.read()
-            if (charCode == -1) return null
+            val charCode = reader.read().takeIf { it != -1 } ?: return null
             buffer.add(charCode.toChar())
         }
         return buffer[offset]
     }
 
     fun advance(): Char? {
-        val char = if (buffer.isNotEmpty()) {
-            buffer.removeAt(0)
-        } else {
-            val charCode = reader.read()
-            if (charCode == -1) return null
-            charCode.toChar()
-        }
-
+        val char = peek() ?: return null
+        buffer.removeFirst()
         _position = _position.advance(char)
         return char
     }
 
-    fun consume(count: Int): String {
-        val builder = StringBuilder(count)
+    fun consume(count: Int): String = buildString(count) {
         repeat(count) {
-            val char = advance() ?: return builder.toString()
-            builder.append(char)
+            append(advance() ?: return@buildString)
         }
-        return builder.toString()
     }
 }

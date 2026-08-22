@@ -6,7 +6,6 @@ import java.io.StringReader
 
 interface ContentManager {
   fun getReader(): Reader
-  fun getLines(): Sequence<String> = getReader().buffered().lineSequence()
 }
 
 class FileContent(val path: String) : ContentManager {
