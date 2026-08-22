@@ -15,30 +15,31 @@ private object TestProvider : TokenDefinitionProvider {
 
     private val definitions = mapOf(
         TokenType.OPERATOR to listOf(
-            SymbolTokenDef(TokenType.OPERATOR, listOf("+", "-", "*", "/", "==")),
+            SymbolTokenDef("operator", listOf("+", "-", "*", "/", "==")),
         ),
         TokenType.SYMBOL to listOf(
-            SymbolTokenDef(TokenType.SYMBOL, listOf(";", ":", "=")),
+            SymbolTokenDef("symbol", listOf(";", ":", "=")),
         ),
         TokenType.KEYWORD to listOf(
-            SymbolTokenDef(TokenType.KEYWORD, "let"),
+            SymbolTokenDef("keyword", "let"),
         ),
         TokenType.VARIABLE_TYPE to listOf(
-            SymbolTokenDef(TokenType.VARIABLE_TYPE, listOf("string", "number")),
+            SymbolTokenDef("variable_type", listOf("string", "number")),
         ),
         TokenType.IDENTIFIER to listOf(
-            RegexTokenDef(TokenType.IDENTIFIER, "[a-zA-Z_][a-zA-Z0-9_]*"),
+            RegexTokenDef("identifier", "[a-zA-Z_][a-zA-Z0-9_]*"),
         ),
         TokenType.NUMBER to listOf(
-            RegexTokenDef(TokenType.NUMBER, "[0-9]+"),
+            RegexTokenDef("number", "[0-9]+"),
         ),
         TokenType.STRING to listOf(
-            RegexTokenDef(TokenType.STRING, "\".*?\""),
+            RegexTokenDef("string", "\".*?\""),
         ),
     )
 
     override fun getValue(type: TokenType): List<TokenDefinition>? = definitions[type]
     override fun getTypes(): Set<TokenType> = definitions.keys
+    override fun getDefinition(alias: String): TokenDefinition = definitions.values.flatten().first { it.alias == alias }
 
     override fun type(str: String): TokenType {
         for (type in getTypes()) {
@@ -116,7 +117,7 @@ class TokenTest {
 
         @Test
         fun `match returns true for a symbol in the list`() {
-            val def = SymbolTokenDef(TokenType.OPERATOR, listOf("+", "-", "*"))
+            val def = SymbolTokenDef("OPERATOR", listOf("+", "-", "*"))
 
             assertTrue(def.match("+"))
             assertTrue(def.match("-"))
@@ -125,7 +126,7 @@ class TokenTest {
 
         @Test
         fun `match returns false for a symbol not in the list`() {
-            val def = SymbolTokenDef(TokenType.OPERATOR, listOf("+", "-"))
+            val def = SymbolTokenDef("OPERATOR", listOf("+", "-"))
 
             assertFalse(def.match("/"))
             assertFalse(def.match(""))
@@ -133,7 +134,7 @@ class TokenTest {
 
         @Test
         fun `single-symbol convenience constructor works`() {
-            val def = SymbolTokenDef(TokenType.KEYWORD, "let")
+            val def = SymbolTokenDef("KEYWORD", "let")
 
             assertTrue(def.match("let"))
             assertFalse(def.match("const"))
@@ -141,16 +142,16 @@ class TokenTest {
         }
 
         @Test
-        fun `type property is preserved`() {
-            val def = SymbolTokenDef(TokenType.SYMBOL, listOf(";", ":"))
+        fun `alias property is preserved`() {
+            val def = SymbolTokenDef("SYMBOL", listOf(";", ":"))
 
-            assertEquals(TokenType.SYMBOL, def.type)
+            assertEquals("SYMBOL", def.alias)
         }
 
         @Test
         fun `symbols list is accessible`() {
             val symbols = listOf(";", ":", "=")
-            val def = SymbolTokenDef(TokenType.SYMBOL, symbols)
+            val def = SymbolTokenDef("SYMBOL", symbols)
 
             assertEquals(symbols, def.symbols)
         }
@@ -164,7 +165,7 @@ class TokenTest {
 
         @Test
         fun `match returns true for a valid integer`() {
-            val def = RegexTokenDef(TokenType.NUMBER, "[0-9]+")
+            val def = RegexTokenDef("NUMBER", "[0-9]+")
 
             assertTrue(def.match("0"))
             assertTrue(def.match("42"))
@@ -173,7 +174,7 @@ class TokenTest {
 
         @Test
         fun `match returns false for a non-numeric string`() {
-            val def = RegexTokenDef(TokenType.NUMBER, "[0-9]+")
+            val def = RegexTokenDef("NUMBER", "[0-9]+")
 
             assertFalse(def.match("abc"))
             assertFalse(def.match(""))
@@ -182,7 +183,7 @@ class TokenTest {
 
         @Test
         fun `match works for identifier pattern`() {
-            val def = RegexTokenDef(TokenType.IDENTIFIER, "[a-zA-Z_][a-zA-Z0-9_]*")
+            val def = RegexTokenDef("IDENTIFIER", "[a-zA-Z_][a-zA-Z0-9_]*")
 
             assertTrue(def.match("myVar"))
             assertTrue(def.match("_private"))
@@ -193,7 +194,7 @@ class TokenTest {
 
         @Test
         fun `match works for quoted string pattern`() {
-            val def = RegexTokenDef(TokenType.STRING, "\".*?\"")
+            val def = RegexTokenDef("STRING", "\".*?\"")
 
             assertTrue(def.match("\"hello world\""))
             assertTrue(def.match("\"\""))
@@ -204,16 +205,16 @@ class TokenTest {
         @Test
         fun `symbols list contains the regex pattern`() {
             val pattern = "[0-9]+"
-            val def = RegexTokenDef(TokenType.NUMBER, pattern)
+            val def = RegexTokenDef("NUMBER", pattern)
 
             assertEquals(listOf(pattern), def.symbols)
         }
 
         @Test
-        fun `type property is preserved`() {
-            val def = RegexTokenDef(TokenType.IDENTIFIER, "[a-zA-Z_][a-zA-Z0-9_]*")
+        fun `alias property is preserved`() {
+            val def = RegexTokenDef("IDENTIFIER", "[a-zA-Z_][a-zA-Z0-9_]*")
 
-            assertEquals(TokenType.IDENTIFIER, def.type)
+            assertEquals("IDENTIFIER", def.alias)
         }
     }
 
