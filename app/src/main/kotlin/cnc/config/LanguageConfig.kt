@@ -20,9 +20,51 @@ import cnc.parser.IsStrat
 import cnc.parser.AnyStrat
 import cnc.parser.AnyOfTypeStrat
 
-// PRINTSCRIPT LANGUAGE CONFIGURATIONS
+import cnc.lexer.Lexer
+import cnc.lexer.rules.StandardRules
+import cnc.lexer.rules.TrieRule
 
-// TOKEN DEFINITIONS ================================================================
+// PRINTSCRIPT DOMAIN DEFINITIONS ====================================================
+
+object PrintScriptKeywords {
+  const val LET = "let"
+  const val TYPE_STRING = "string"
+  const val TYPE_NUMBER = "number"
+
+  val all = mapOf(
+    LET to TokenType.KEYWORD,
+    TYPE_STRING to TokenType.VARIABLE_TYPE,
+    TYPE_NUMBER to TokenType.VARIABLE_TYPE
+  )
+}
+
+object PrintScriptSymbols {
+  val all = mapOf(
+    "+" to TokenType.OPERATOR,
+    "-" to TokenType.OPERATOR,
+    "/" to TokenType.OPERATOR,
+    "*" to TokenType.OPERATOR,
+    "==" to TokenType.OPERATOR,
+    "**" to TokenType.OPERATOR,
+    ";" to TokenType.SYMBOL,
+    ":" to TokenType.SYMBOL,
+    "=" to TokenType.SYMBOL
+  )
+}
+
+// LEXER CONFIGURATION ===============================================================
+
+val printScriptRules = listOf(
+  StandardRules.whitespace(),
+  StandardRules.doubleQuotedString(TokenType.STRING),
+  StandardRules.integerNumber(TokenType.NUMBER),
+  StandardRules.standardIdentifier(keywords = PrintScriptKeywords.all),
+  TrieRule(PrintScriptSymbols.all)
+)
+
+val printScriptLexer = Lexer(printScriptRules)
+
+// TOKEN DEFINITIONS (PARSER COMPATIBILITY) ==========================================
 // --> PROVIDER
 object PrintScriptTokenDefProvider: TokenDefinitionProvider {
   
@@ -84,8 +126,6 @@ object PrintScriptTokenDefProvider: TokenDefinitionProvider {
 
 // GRAMMAR AND STATEMENTS =======================================================
 
-// TODO: Crear una clase Provider de las gramaticas  
-
 val VariableDeclaration = Grammar(
   tag = "VariableDeclaration",
   sequence = listOf(
@@ -95,13 +135,13 @@ val VariableDeclaration = Grammar(
     AnyOfTypeStrat(PrintScriptTokenDefProvider.getValue(TokenType.VARIABLE_TYPE)!!),    // segments[3] = [number]
     IsStrat(PrintScriptTokenDefProvider.getDefinition("assign")),         // segments[4] = [=]
     ExpressionStrat(listOf(
-    PrintScriptTokenDefProvider.getDefinition("number_exp"),
-    PrintScriptTokenDefProvider.getDefinition("string_exp"),
-    PrintScriptTokenDefProvider.getDefinition("identifier"),
-    PrintScriptTokenDefProvider.getDefinition("plus"),
-    PrintScriptTokenDefProvider.getDefinition("minus"),
-    PrintScriptTokenDefProvider.getDefinition("multiplication"),
-    PrintScriptTokenDefProvider.getDefinition("division")
+      PrintScriptTokenDefProvider.getDefinition("number_exp"),
+      PrintScriptTokenDefProvider.getDefinition("string_exp"),
+      PrintScriptTokenDefProvider.getDefinition("identifier"),
+      PrintScriptTokenDefProvider.getDefinition("plus"),
+      PrintScriptTokenDefProvider.getDefinition("minus"),
+      PrintScriptTokenDefProvider.getDefinition("multiplication"),
+      PrintScriptTokenDefProvider.getDefinition("division")
     )), // segments[5] = [2, *, (, x, +, 3, )]
     IsStrat(PrintScriptTokenDefProvider.getDefinition("semicolon"))     // segments[6] = [;]
   ),
@@ -120,13 +160,13 @@ val VariableAssignment = Grammar(
     IsStrat(PrintScriptTokenDefProvider.getDefinition("identifier")),     // segments[0] = [x]
     IsStrat(PrintScriptTokenDefProvider.getDefinition("assign")),         // segments[1] = [=]
     ExpressionStrat(listOf(
-    PrintScriptTokenDefProvider.getDefinition("number_exp"),
-    PrintScriptTokenDefProvider.getDefinition("string_exp"),
-    PrintScriptTokenDefProvider.getDefinition("identifier"),
-    PrintScriptTokenDefProvider.getDefinition("plus"),
-    PrintScriptTokenDefProvider.getDefinition("minus"),
-    PrintScriptTokenDefProvider.getDefinition("multiplication"),
-    PrintScriptTokenDefProvider.getDefinition("division")
+      PrintScriptTokenDefProvider.getDefinition("number_exp"),
+      PrintScriptTokenDefProvider.getDefinition("string_exp"),
+      PrintScriptTokenDefProvider.getDefinition("identifier"),
+      PrintScriptTokenDefProvider.getDefinition("plus"),
+      PrintScriptTokenDefProvider.getDefinition("minus"),
+      PrintScriptTokenDefProvider.getDefinition("multiplication"),
+      PrintScriptTokenDefProvider.getDefinition("division")
     )), // segments[2] = [2, *, (, x, +, 3, )]
     IsStrat(PrintScriptTokenDefProvider.getDefinition("semicolon"))     // segments[3] = [;]
   ),
@@ -137,7 +177,6 @@ val VariableAssignment = Grammar(
     )
   }
 )
-
 
 val terminators: List<TokenDefinition> = listOf(
   PrintScriptTokenDefProvider.getDefinition("semicolon")
