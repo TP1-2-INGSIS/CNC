@@ -1,6 +1,7 @@
 package cnc.ast
 
 import ast.StatementVisitor
+import ast.ExpressionVisitor
 import cnc.token.Token
 import cnc.token.TokenDefinition
 
@@ -26,15 +27,25 @@ data class Call(
     val arguments: List<Expression>
 ) : Statement {override fun <R> accept(visitor: StatementVisitor<R>) = visitor.visit(this);}
 
-sealed interface Expression
-data class NumberLiteral(val value: Double) : Expression
-data class StringLiteral(val value: String) : Expression
-data class Identifier(val name: String) : Expression
+sealed interface Expression {
+    fun <R> accept(visitor: ExpressionVisitor<R>): R
+}
+data class NumberLiteral(val value: Double) : Expression {
+    override fun <R> accept(visitor: ExpressionVisitor<R>) = visitor.visit(this)
+}
+data class StringLiteral(val value: String) : Expression {
+    override fun <R> accept(visitor: ExpressionVisitor<R>) = visitor.visit(this)
+}
+data class Identifier(val name: String) : Expression {
+    override fun <R> accept(visitor: ExpressionVisitor<R>) = visitor.visit(this)
+}
 data class BinaryExpression(
     val left: Expression,
     val operator: String,
     val right: Expression
-) : Expression
+) : Expression {
+    override fun <R> accept(visitor: ExpressionVisitor<R>) = visitor.visit(this)
+}
 
 class ExpressionBuilder (
   private val recipes: Map<TokenDefinition, (Token) -> Expression>
