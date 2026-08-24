@@ -6,14 +6,12 @@ import cnc.token.RegexTokenDef
 import cnc.token.SymbolTokenDef
 import cnc.token.TokenDefinition
 import cnc.token.TokenDefinitionProvider
-
 import cnc.ast.ExpressionBuilder
 import cnc.ast.NumberLiteral
 import cnc.ast.StringLiteral
 import cnc.ast.Identifier
 import cnc.ast.Declaration
 import cnc.ast.Assignment
-
 import cnc.parser.Grammar
 import cnc.parser.ExpressionStrat
 import cnc.parser.IsStrat
@@ -95,13 +93,13 @@ val VariableDeclaration = Grammar(
     AnyOfTypeStrat(PrintScriptTokenDefProvider.getValue(TokenType.VARIABLE_TYPE)!!),    // segments[3] = [number]
     IsStrat(PrintScriptTokenDefProvider.getDefinition("assign")),         // segments[4] = [=]
     ExpressionStrat(listOf(
-    PrintScriptTokenDefProvider.getDefinition("number_exp"),
-    PrintScriptTokenDefProvider.getDefinition("string_exp"),
-    PrintScriptTokenDefProvider.getDefinition("identifier"),
-    PrintScriptTokenDefProvider.getDefinition("plus"),
-    PrintScriptTokenDefProvider.getDefinition("minus"),
-    PrintScriptTokenDefProvider.getDefinition("multiplication"),
-    PrintScriptTokenDefProvider.getDefinition("division")
+      PrintScriptTokenDefProvider.getDefinition("number_exp"),
+      PrintScriptTokenDefProvider.getDefinition("string_exp"),
+      PrintScriptTokenDefProvider.getDefinition("identifier"),
+      PrintScriptTokenDefProvider.getDefinition("plus"),
+      PrintScriptTokenDefProvider.getDefinition("minus"),
+      PrintScriptTokenDefProvider.getDefinition("multiplication"),
+      PrintScriptTokenDefProvider.getDefinition("division")
     )), // segments[5] = [2, *, (, x, +, 3, )]
     IsStrat(PrintScriptTokenDefProvider.getDefinition("semicolon"))     // segments[6] = [;]
   ),
@@ -120,13 +118,13 @@ val VariableAssignment = Grammar(
     IsStrat(PrintScriptTokenDefProvider.getDefinition("identifier")),     // segments[0] = [x]
     IsStrat(PrintScriptTokenDefProvider.getDefinition("assign")),         // segments[1] = [=]
     ExpressionStrat(listOf(
-    PrintScriptTokenDefProvider.getDefinition("number_exp"),
-    PrintScriptTokenDefProvider.getDefinition("string_exp"),
-    PrintScriptTokenDefProvider.getDefinition("identifier"),
-    PrintScriptTokenDefProvider.getDefinition("plus"),
-    PrintScriptTokenDefProvider.getDefinition("minus"),
-    PrintScriptTokenDefProvider.getDefinition("multiplication"),
-    PrintScriptTokenDefProvider.getDefinition("division")
+      PrintScriptTokenDefProvider.getDefinition("number_exp"),
+      PrintScriptTokenDefProvider.getDefinition("string_exp"),
+      PrintScriptTokenDefProvider.getDefinition("identifier"),
+      PrintScriptTokenDefProvider.getDefinition("plus"),
+      PrintScriptTokenDefProvider.getDefinition("minus"),
+      PrintScriptTokenDefProvider.getDefinition("multiplication"),
+      PrintScriptTokenDefProvider.getDefinition("division")
     )), // segments[2] = [2, *, (, x, +, 3, )]
     IsStrat(PrintScriptTokenDefProvider.getDefinition("semicolon"))     // segments[3] = [;]
   ),
