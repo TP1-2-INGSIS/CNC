@@ -1,34 +1,34 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
-    // !Importante no pongo el application, por lo que gradle va a interpretar
-    // este modulo como una lib
+  alias(libs.plugins.kotlin.jvm)
+  // !Importante no pongo el application, por lo que gradle va a interpretar
+  // este modulo como una lib
 }
 
 repositories {
-    mavenCentral()
+  mavenCentral()
 }
 
 java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(21)
+  }
 }
 
 // lo copie del app build.gradle.kts
 dependencies {
-    testImplementation("org.jetbrains.kotlin:kotlin-test")
+  testImplementation("org.jetbrains.kotlin:kotlin-test")
 
-    testImplementation(libs.junit.jupiter.engine)
+  testImplementation(libs.junit.jupiter.engine)
 
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
-    implementation(libs.guava)
+  implementation(libs.guava)
 
-    implementation(project(":common"))
-    implementation(project(":token"))
-    //implementation(project(":common"))
+  implementation(project(":common"))
+  implementation(project(":token"))
+  // implementation(project(":common"))
 }
 
 tasks.named<Test>("test") {
-    useJUnitPlatform()
+  useJUnitPlatform()
 }

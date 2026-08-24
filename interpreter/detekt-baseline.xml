@@ -1,0 +1,7 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>EmptyKotlinFile:Interpreter.kt:.Interpreter.kt</ID>
+  </CurrentIssues>
+</SmellBaseline>

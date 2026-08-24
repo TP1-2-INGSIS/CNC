@@ -1,0 +1,12 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LoopWithTooManyJumpStatements:ArgsManager.kt:ArgsManager$for</ID>
+    <ID>MatchingDeclarationName:cli.kt:CommandSystem</ID>
+    <ID>MaxLineLength:cli.kt:CommandSystem$?:</ID>
+    <ID>ReturnCount:cli.kt:CommandSystem$private fun executeLine: Result&lt;Boolean&gt;</ID>
+    <ID>ReturnCount:cli.kt:CommandSystem$private fun getGlobalHelp: String</ID>
+    <ID>TooGenericExceptionCaught:cli.kt:CommandSystem$e: Exception</ID>
+  </CurrentIssues>
+</SmellBaseline>

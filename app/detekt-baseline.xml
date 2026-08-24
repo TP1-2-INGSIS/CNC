@@ -1,0 +1,10 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ForbiddenComment:LanguageConfig.kt:// TODO: Crear una clase Provider de las gramaticas </ID>
+    <ID>MatchingDeclarationName:LanguageConfig.kt:PrintScriptTokenDefProvider : TokenDefinitionProvider</ID>
+    <ID>MaxLineLength:LanguageConfig.kt:PrintScriptTokenDefProvider.getDefinition("string_exp") to { token: Token -&gt; StringLiteral(token.text.removeSurrounding("\"")) }</ID>
+    <ID>WildcardImport:app.kt:import cnc.config.*</ID>
+  </CurrentIssues>
+</SmellBaseline>

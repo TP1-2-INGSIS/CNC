@@ -1,0 +1,7 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ForbiddenComment:Node.kt:Node$// TODO: Mejor hacerlo como lista.</ID>
+  </CurrentIssues>
+</SmellBaseline>

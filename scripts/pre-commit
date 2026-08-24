@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Pre-commit hook: runs ktlint check and detekt before committing.
+# Install with: ./scripts/install-hooks.sh
+
+set -e
+
+echo "🔍 Running pre-commit checks..."
+
+# Run ktlint check on staged Kotlin files
+STAGED_KT_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.kts?$' || true)
+
+if [ -n "$STAGED_KT_FILES" ]; then
+    echo "  ▶ ktlintCheck..."
+    ./gradlew ktlintCheck --daemon -q
+    echo "  ✓ ktlint passed"
+fi
+
+echo "  ▶ detekt..."
+./gradlew detekt --daemon -q
+echo "  ✓ detekt passed"
+
+echo "✅ All pre-commit checks passed!"

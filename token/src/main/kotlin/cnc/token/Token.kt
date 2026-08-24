@@ -11,44 +11,46 @@ enum class TokenType {
   NUMBER,
   KEYWORD,
   VARIABLE_TYPE,
-  INVALID
-};
+  INVALID,
+}
 
 data class Token(
   val type: TokenType,
   val pos: Position, // no guardo la position final, porque tenemos el size del texto
-  val text: String
+  val text: String,
 )
 
 interface TokenDefinition {
-  val alias: String;
-  val symbols: List<String>;
-  fun match(str: String) : Boolean;
-} 
+  val alias: String
+  val symbols: List<String>
 
-data class SymbolTokenDef (
+  fun match(str: String): Boolean
+}
+
+data class SymbolTokenDef(
   override val alias: String,
-  override val symbols: List<String>
-
+  override val symbols: List<String>,
 ) : TokenDefinition {
   constructor(alias: String, symbol: String) : this(alias, listOf(symbol))
-  override fun match(str: String) : Boolean = str in symbols
+
+  override fun match(str: String): Boolean = str in symbols
 }
 
 class RegexTokenDef(
   override val alias: String,
-  val regex: String
-
+  val regex: String,
 ) : TokenDefinition {
   override val symbols: List<String> = listOf(regex)
+
   override fun match(str: String): Boolean = regex.toRegex().matches(str)
 }
 
-interface TokenDefinitionProvider : Provider<TokenType, List<TokenDefinition>> { 
+interface TokenDefinitionProvider : Provider<TokenType, List<TokenDefinition>> {
+  override fun getValue(type: TokenType): List<TokenDefinition>?
 
-  override fun getValue(type: TokenType) : List<TokenDefinition>?
-  override fun getTypes() : Set<TokenType>
-  
-  fun getDefinition(alias: String) : TokenDefinition
+  override fun getTypes(): Set<TokenType>
+
+  fun getDefinition(alias: String): TokenDefinition
+
   fun type(str: String): TokenType
 }

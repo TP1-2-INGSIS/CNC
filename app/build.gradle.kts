@@ -6,55 +6,56 @@
  */
 
 plugins {
-    // Apply the org.jetbrains.kotlin.jvm Plugin to add support for Kotlin.
-    alias(libs.plugins.kotlin.jvm)
+  // Apply the org.jetbrains.kotlin.jvm Plugin to add support for Kotlin.
+  alias(libs.plugins.kotlin.jvm)
 
-    // Apply the application plugin to add support for building a CLI application in Java.
-    application
+  // Apply the application plugin to add support for building a CLI application in Java.
+  application
 }
 
 repositories {
-    // Use Maven Central for resolving dependencies.
-    mavenCentral()
+  // Use Maven Central for resolving dependencies.
+  mavenCentral()
 }
 
 dependencies {
-    // Use the Kotlin Test integration.
-    testImplementation("org.jetbrains.kotlin:kotlin-test")
+  // Use the Kotlin Test integration.
+  testImplementation("org.jetbrains.kotlin:kotlin-test")
 
-    // Use the JUnit 5 integration.
-    testImplementation(libs.junit.jupiter.engine)
+  // Use the JUnit 5 integration.
+  testImplementation(libs.junit.jupiter.engine)
 
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
-    // This dependency is used by the application.
-    implementation(libs.guava)
+  // This dependency is used by the application.
+  implementation(libs.guava)
 
-    // las dependecias de los otros modulos
-    implementation(project(":lexer"))
-    implementation(project(":parser"))
-    implementation(project(":token"))
-    implementation(project(":common"))
-    implementation(project(":ast"))
+  // las dependecias de los otros modulos
+  implementation(project(":lexer"))
+  implementation(project(":parser"))
+  implementation(project(":token"))
+  implementation(project(":common"))
+  implementation(project(":ast"))
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
 java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(21)
+  }
 }
 
 application {
-    // Define the main class for the application.
-    mainClass = "cnc.AppKt"
+  // Define the main class for the application.
+  mainClass = "cnc.AppKt"
 }
 
 tasks.named<Test>("test") {
-    // Use JUnit Platform for unit tests.
-    useJUnitPlatform()
+  // Use JUnit Platform for unit tests.
+  useJUnitPlatform()
 }
 
-tasks.named<JavaExec>("run") { // .\gradlew run
-    standardInput = System.`in`
+tasks.named<JavaExec>("run") {
+  // .\gradlew run
+  standardInput = System.`in`
 }

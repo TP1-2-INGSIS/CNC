@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ForbiddenComment:Parser.kt:// TODO: esta curioso mas que nada esto</ID>
+    <ID>WildcardImport:ParserTest.kt:import cnc.ast.*</ID>
+  </CurrentIssues>
+</SmellBaseline>
