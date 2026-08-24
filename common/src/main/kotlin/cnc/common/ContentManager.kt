@@ -1,38 +1,25 @@
 package cnc.common
 
 import java.io.File
-import java.io.BufferedReader
+import java.io.Reader
+import java.io.StringReader
 
 interface ContentManager {
-  fun getLines() : Sequence<String>;
+  fun getReader(): Reader
 }
 
 class FileContent(val path: String) : ContentManager {
-  val buffer : BufferedReader
-
-  init { 
+  init {
     val file = File(path)
-    require(file.exists()) {"The path provided does not exists."}
-    require(file.isFile()) {"The path provided is not a file."}
-    require(file.canRead()) {"The file provided is not available to read."}
-    buffer = File(path).bufferedReader()
+    require(file.exists()) { "The path provided does not exist." }
+    require(file.isFile()) { "The path provided is not a file." }
+    require(file.canRead()) { "The file provided is not available to read." }
   }
 
-  override fun getLines() : Sequence<String> {
-    return buffer.lineSequence()
-  }
-
+  override fun getReader(): Reader = File(path).reader()
 }
 
-class StrContent(var content: String) : ContentManager {
-
-  fun getNextLine() : String {
-    val result = content;
-    content = ""
-    return result
-  }
-
-  override fun getLines() : Sequence<String> {
-    return listOf(getNextLine()).asSequence()
-  }
+class StrContent(val content: String) : ContentManager {
+  override fun getReader(): Reader = StringReader(content)
 }
+

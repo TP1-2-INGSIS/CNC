@@ -17,23 +17,24 @@ import org.junit.jupiter.api.assertThrows
 // ---------------------------------------------------------------------------
 // Definitions de prueba — sin depender del módulo :app
 // ---------------------------------------------------------------------------
-private val TestTermination    = SymbolTokenDef(TokenType.SYMBOL, ";")
-private val TestAssign         = SymbolTokenDef(TokenType.SYMBOL, "=")
-private val TestColon          = SymbolTokenDef(TokenType.SYMBOL, ":")
-private val TestLet            = SymbolTokenDef(TokenType.KEYWORD, "let")
-private val TestIdentifier     = RegexTokenDef(TokenType.IDENTIFIER, "[a-zA-Z_][a-zA-Z0-9_]*")
-private val TestNumber         = RegexTokenDef(TokenType.NUMBER, "[0-9]+")
-private val TestString         = RegexTokenDef(TokenType.STRING, "\".*?\"")
-private val TestNumberType     = SymbolTokenDef(TokenType.VARIABLE_TYPE, "number")
-private val TestStringType     = SymbolTokenDef(TokenType.VARIABLE_TYPE, "string")
+private val TestTermination    = SymbolTokenDef("semicolon", ";")
+private val TestAssign         = SymbolTokenDef("assign", "=")
+private val TestColon          = SymbolTokenDef("colon", ":")
+private val TestLet            = SymbolTokenDef("let", "let")
+private val TestIdentifier     = RegexTokenDef("identifier", "[a-zA-Z_][a-zA-Z0-9_]*")
+private val TestNumber         = RegexTokenDef("number", "[0-9]+")
+private val TestString         = RegexTokenDef("string", "\".*?\"")
+private val TestNumberType     = SymbolTokenDef("number_type", "number")
+private val TestStringType     = SymbolTokenDef("string_type", "string")
 
 private object TestTokenDefs : TokenDefinitionProvider {
-    private val definitions = mapOf(
+    private val definitions = mapOf<TokenType, List<TokenDefinition>>(
         TokenType.VARIABLE_TYPE to listOf(TestNumberType, TestStringType)
     )
 
     override fun getValue(type: TokenType): List<TokenDefinition>? = definitions[type]
     override fun getTypes(): Set<TokenType> = definitions.keys
+    override fun getDefinition(alias: String): TokenDefinition = definitions.values.flatten().first { it.alias == alias }
     override fun type(str: String): TokenType = TokenType.INVALID
 }
 
@@ -55,16 +56,16 @@ private val TestVariableDeclaration = Grammar(
         IsStrat(TestLet),
         IsStrat(TestIdentifier),
         IsStrat(TestColon),
-        AnyTypeVariableStrat(TestTokenDefs),
+        AnyOfTypeStrat(TestTokenDefs.getValue(TokenType.VARIABLE_TYPE)!!),
         IsStrat(TestAssign),
         AnyStrat(listOf(IsStrat(TestNumber), IsStrat(TestString))),
         IsStrat(TestTermination)
     ),
-    build = { tokens ->
+    build = { segments ->
         Declaration(
-            name = tokens[1].text,
-            type = tokens[3].text,
-            value = testExprBuilder.build(tokens[5])
+            name = segments[1].first().text,
+            type = segments[3].first().text,
+            value = testExprBuilder.build(segments[5])
         )
     }
 )
@@ -81,7 +82,7 @@ private fun tok(type: TokenType, text: String) = Token(type, Position(0, 0), tex
 // ---------------------------------------------------------------------------
 class ParserTest {
 
-    private val parser = Parser(testGrammars, TestTermination)
+    private val parser = Parser(testGrammars, listOf(TestTermination))
 
     // -------------------------------------------------------------------------
     // Declaraciones de variable
