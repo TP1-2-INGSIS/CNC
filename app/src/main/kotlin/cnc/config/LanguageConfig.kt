@@ -8,6 +8,8 @@ import cnc.token.TokenDefinition
 import cnc.token.TokenDefinitionProvider
 
 import cnc.ast.ExpressionBuilder
+import cnc.ast.OperatorDef
+import cnc.ast.Associativity
 import cnc.ast.NumberLiteral
 import cnc.ast.StringLiteral
 import cnc.ast.Identifier
@@ -149,8 +151,17 @@ val grammars = listOf(
 )
 
 // EXPRESSIONS BUILDER ==========================================================
-val expressionBuilder = ExpressionBuilder(mapOf(
-  PrintScriptTokenDefProvider.getDefinition("number_exp") to { token: Token -> NumberLiteral(token.text.toDouble()) },
-  PrintScriptTokenDefProvider.getDefinition("string_exp") to { token: Token -> StringLiteral(token.text.removeSurrounding("\"")) },
-  PrintScriptTokenDefProvider.getDefinition("identifier") to { token -> Identifier(token.text) }
-))
+val expressionBuilder = ExpressionBuilder(
+  recipes = mapOf(
+    PrintScriptTokenDefProvider.getDefinition("number_exp") to { token: Token -> NumberLiteral(token.text.toDouble()) },
+    PrintScriptTokenDefProvider.getDefinition("string_exp") to { token: Token -> StringLiteral(token.text.removeSurrounding("\"")) },
+    PrintScriptTokenDefProvider.getDefinition("identifier") to { token -> Identifier(token.text) }
+  ),
+  operators = listOf(
+    OperatorDef(PrintScriptTokenDefProvider.getDefinition("plus"), precedence = 1),
+    OperatorDef(PrintScriptTokenDefProvider.getDefinition("minus"), precedence = 1),
+    OperatorDef(PrintScriptTokenDefProvider.getDefinition("multiplication"), precedence = 2),
+    OperatorDef(PrintScriptTokenDefProvider.getDefinition("division"), precedence = 2),
+    OperatorDef(PrintScriptTokenDefProvider.getDefinition("exponent"), precedence = 3, associativity = Associativity.RIGHT)
+  )
+)
