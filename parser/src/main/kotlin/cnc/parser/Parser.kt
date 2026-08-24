@@ -3,6 +3,15 @@ package cnc.parser
 import cnc.token.Token
 import cnc.token.TokenDefinition
 import cnc.ast.Statement
+
+/**
+ * Error de parsing con información de posición y contexto.
+ */
+class ParseException(
+  message: String,
+  val token: Token? = null
+) : RuntimeException(message)
+
 //
 // Agrupar los tokens entre los termination tokens
 // Armar el AST con esos tokens
@@ -19,8 +28,39 @@ class Parser(
 
   private fun parseStatement(tokens: List<Token>): Statement {
     val grammar = grammars.firstOrNull { it.matches(tokens) }
-      ?: error("No grammar matches tokens: ${tokens.map { it.text }}")
-    return grammar.build(grammar.segments(tokens))
+    if (grammar != null) {
+      return grammar.build(grammar.segments(tokens))
+    }
+
+    // Buscar la gramática que más avanzó para dar mejor error
+    val bestAttempt = grammars
+      .map { g -> g to g.matchProgress(tokens) }
+      .maxByOrNull { (_, progress) -> progress.strategiesMatched }
+
+    val errorToken = if (bestAttempt != null) {
+      val (_, progress) = bestAttempt
+      tokens.getOrNull(progress.tokensConsumed)
+    } else null
+
+    val position = errorToken?.pos
+    val posStr = if (position != null) " at row ${position.row}, col ${position.col}" else ""
+    val foundStr = if (errorToken != null) ", found '${errorToken.text}'" else ""
+
+    val bestGrammar = bestAttempt?.first
+    val progress = bestAttempt?.second
+
+    val message = buildString {
+      append("Syntax error$posStr")
+      if (bestGrammar != null && progress != null && progress.strategiesMatched > 0) {
+        append(": parsing ${bestGrammar.tag}")
+        append(", matched ${progress.strategiesMatched}/${bestGrammar.sequence.size} parts")
+        append(foundStr)
+      } else {
+        append(": no grammar matches [${tokens.joinToString(" ") { it.text }}]")
+      }
+    }
+
+    throw ParseException(message, errorToken)
   }
 }
 

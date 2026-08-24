@@ -40,7 +40,9 @@ object PrintScriptTokenDefProvider: TokenDefinitionProvider {
     TokenType.SYMBOL        to listOf(
       SymbolTokenDef("semicolon", ";"),
       SymbolTokenDef("colon", ":"),
-      SymbolTokenDef("assign", "=")
+      SymbolTokenDef("assign", "="),
+      SymbolTokenDef("open_paren", "("),
+      SymbolTokenDef("close_paren", ")")
     ),
     TokenType.VARIABLE_TYPE to listOf(
       SymbolTokenDef("string_type", "string"),
@@ -103,7 +105,9 @@ val VariableDeclaration = Grammar(
     PrintScriptTokenDefProvider.getDefinition("plus"),
     PrintScriptTokenDefProvider.getDefinition("minus"),
     PrintScriptTokenDefProvider.getDefinition("multiplication"),
-    PrintScriptTokenDefProvider.getDefinition("division")
+    PrintScriptTokenDefProvider.getDefinition("division"),
+    PrintScriptTokenDefProvider.getDefinition("open_paren"),
+    PrintScriptTokenDefProvider.getDefinition("close_paren")
     )), // segments[5] = [2, *, (, x, +, 3, )]
     IsStrat(PrintScriptTokenDefProvider.getDefinition("semicolon"))     // segments[6] = [;]
   ),
@@ -128,7 +132,9 @@ val VariableAssignment = Grammar(
     PrintScriptTokenDefProvider.getDefinition("plus"),
     PrintScriptTokenDefProvider.getDefinition("minus"),
     PrintScriptTokenDefProvider.getDefinition("multiplication"),
-    PrintScriptTokenDefProvider.getDefinition("division")
+    PrintScriptTokenDefProvider.getDefinition("division"),
+    PrintScriptTokenDefProvider.getDefinition("open_paren"),
+    PrintScriptTokenDefProvider.getDefinition("close_paren")
     )), // segments[2] = [2, *, (, x, +, 3, )]
     IsStrat(PrintScriptTokenDefProvider.getDefinition("semicolon"))     // segments[3] = [;]
   ),
@@ -163,5 +169,7 @@ val expressionBuilder = ExpressionBuilder(
     OperatorDef(PrintScriptTokenDefProvider.getDefinition("multiplication"), precedence = 2),
     OperatorDef(PrintScriptTokenDefProvider.getDefinition("division"), precedence = 2),
     OperatorDef(PrintScriptTokenDefProvider.getDefinition("exponent"), precedence = 3, associativity = Associativity.RIGHT)
-  )
+  ),
+  groupOpen = PrintScriptTokenDefProvider.getDefinition("open_paren"),
+  groupClose = PrintScriptTokenDefProvider.getDefinition("close_paren")
 )

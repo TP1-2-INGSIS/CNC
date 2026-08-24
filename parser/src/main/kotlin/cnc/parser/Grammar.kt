@@ -71,6 +71,26 @@ data class Grammar(
     return offset == tokens.size
   }
 
+  /**
+   * Retorna cuántas estrategias de la secuencia se cumplieron antes de fallar,
+   * y el offset en tokens donde se detuvo.
+   */
+  fun matchProgress(tokens: List<Token>): MatchProgress {
+    var offset = 0
+    for ((index, strat) in sequence.withIndex()) {
+      val consumed = strat.consume(tokens, offset)
+      if (consumed == 0) return MatchProgress(index, offset)
+      offset += consumed
+    }
+    // Si consumió todo, matcheó completa
+    return if (offset == tokens.size) {
+      MatchProgress(sequence.size, offset, complete = true)
+    } else {
+      // Consumió todas las strategies pero sobraron tokens
+      MatchProgress(sequence.size, offset, extraTokens = true)
+    }
+  }
+
   fun segments(tokens: List<Token>): List<List<Token>> {
     val result = mutableListOf<List<Token>>()
     var offset = 0
@@ -82,3 +102,13 @@ data class Grammar(
     return result
   } 
 }
+
+/**
+ * Progreso de matching de una gramática contra una lista de tokens.
+ */
+data class MatchProgress(
+  val strategiesMatched: Int,
+  val tokensConsumed: Int,
+  val complete: Boolean = false,
+  val extraTokens: Boolean = false
+)

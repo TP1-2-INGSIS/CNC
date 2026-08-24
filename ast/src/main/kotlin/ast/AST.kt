@@ -32,6 +32,10 @@ data class BinaryExpression(
     val operator: String,
     val right: Expression
 ) : Expression
+data class UnaryExpression(
+    val operator: String,
+    val operand: Expression
+) : Expression
 
 /**
  * Asociatividad de un operador binario.
@@ -48,14 +52,28 @@ data class OperatorDef(
 )
 
 /**
+ * Definición de un operador unario (prefix): su token definition y precedencia.
+ */
+data class PrefixOperatorDef(
+    val definition: TokenDefinition,
+    val precedence: Int
+)
+
+/**
  * Construye expresiones a partir de una lista de tokens usando un Pratt parser.
  *
- * @param recipes    mapa de TokenDefinition → builder para átomos (literales, identificadores)
- * @param operators  lista de operadores binarios con precedencia y asociatividad
+ * @param recipes         mapa de TokenDefinition → builder para átomos (literales, identificadores)
+ * @param operators       lista de operadores binarios con precedencia y asociatividad
+ * @param prefixOperators lista de operadores unarios prefix (ej: negación)
+ * @param groupOpen       token definition para paréntesis de apertura (opcional)
+ * @param groupClose      token definition para paréntesis de cierre (opcional)
  */
 class ExpressionBuilder(
     private val recipes: Map<TokenDefinition, (Token) -> Expression>,
-    private val operators: List<OperatorDef> = emptyList()
+    private val operators: List<OperatorDef> = emptyList(),
+    private val prefixOperators: List<PrefixOperatorDef> = emptyList(),
+    private val groupOpen: TokenDefinition? = null,
+    private val groupClose: TokenDefinition? = null
 ) {
 
     /**
@@ -78,7 +96,11 @@ class ExpressionBuilder(
             return build(tokens.first())
         }
         val stream = TokenStream(tokens)
-        return parseExpression(stream, 0)
+        val result = parseExpression(stream, 0)
+        if (stream.hasNext()) {
+            error("Unexpected token '${stream.peek().text}' after expression")
+        }
+        return result
     }
 
     // -------------------------------------------------------------------------
@@ -112,12 +134,38 @@ class ExpressionBuilder(
         if (!stream.hasNext()) {
             error("Unexpected end of expression, expected a value")
         }
-        val token = stream.advance()
+
+        val token = stream.peek()
+
+        // Manejo de operadores unarios prefix: -expr, !expr
+        val prefixOp = findPrefixOperator(token)
+        if (prefixOp != null) {
+            stream.advance() // consumir el operador prefix
+            val operand = parseExpression(stream, prefixOp.precedence)
+            return UnaryExpression(token.text, operand)
+        }
+
+        // Manejo de paréntesis: ( expr )
+        if (groupOpen != null && groupOpen.match(token.text)) {
+            stream.advance() // consumir '('
+            val expr = parseExpression(stream, 0)
+            if (!stream.hasNext() || groupClose == null || !groupClose.match(stream.peek().text)) {
+                error("Expected closing '${groupClose?.symbols?.first() ?: ")"}' after grouped expression")
+            }
+            stream.advance() // consumir ')'
+            return expr
+        }
+
+        stream.advance()
         return build(token)
     }
 
     private fun findOperator(token: Token): OperatorDef? {
         return operators.firstOrNull { it.definition.match(token.text) }
+    }
+
+    private fun findPrefixOperator(token: Token): PrefixOperatorDef? {
+        return prefixOperators.firstOrNull { it.definition.match(token.text) }
     }
 
     // -------------------------------------------------------------------------
