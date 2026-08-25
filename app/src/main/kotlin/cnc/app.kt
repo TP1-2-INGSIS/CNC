@@ -1,14 +1,9 @@
 package cnc
 
 import cnc.config.*
-
-// Importamos el Lexer y las definiciones para el mismo
 import cnc.lexer.Lexer
 import cnc.common.StrContent
 import cnc.common.ContentManager
-import cnc.common.Success
-
-// Como hicimos con el Lexer vamos a importar las definiciones necesarias
 import cnc.parser.Parser
 import cnc.semantic.SemanticAnalyzer
 import cnc.semantic.SemanticVisitor
@@ -33,7 +28,6 @@ data class Compiler (
   }
 }
 
-
 fun main() {
   val compiler = Compiler(Config())
   compiler.compile(StrContent(
@@ -43,4 +37,3 @@ fun main() {
     "println(x);"
   ))
 }
-

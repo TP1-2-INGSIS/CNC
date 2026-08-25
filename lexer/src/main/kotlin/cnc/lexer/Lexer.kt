@@ -1,31 +1,33 @@
 package cnc.lexer
 
-import cnc.common.Position
 import cnc.common.ContentManager
+import cnc.common.StrContent
+import cnc.lexer.rules.LexResult
+import cnc.lexer.rules.LexerRule
 import cnc.token.Token
 import cnc.token.TokenType
-import cnc.token.TokenDefinitionProvider
 
-// necesito el content porque asi puedo saber donde quede la ultima vez
-// que saque un token.
-//
-// Lo hice object porque es indiferente tener una clase si solo vamos a
-// tener un lexer en todo el compiler. De paso nos ahorramos de hacer
-// un Lexer() y tener que ponerle esos parentesis feos.
-//
-// TODO: Deberiamos hacer una interfaz? interface Lexer y hacer una impl?
-// yo creo que no, pero la dejo picando
 class Lexer(
-  val tokenDefs : TokenDefinitionProvider
+    private val rules: List<LexerRule>
 ) {
-  val splitter: Splitter = RegexSplitter(tokenDefs)
-  fun getTokens(line: String, row: Int): Sequence<Token> {
-    return splitter.split(line).map { (match, col) ->
-          Token(
-            tokenDefs.type(match),
-            Position(row, col),
-            match
-          )
+
+    constructor(vararg rules: LexerRule) : this(rules.toList())
+
+    fun tokenize(content: ContentManager): Sequence<Token> = sequence {
+        val stream = CharStream(content.getReader())
+        while (stream.hasMore()) {
+            when (val step = nextStep(stream)) {
+                is LexResult.Matched -> yield(step.token)
+                is LexResult.Skipped -> Unit
+            }
         }
-  }
+    }
+
+    fun getTokens(content: ContentManager): Sequence<Token> = tokenize(content)
+
+    fun getTokens(line: String, row: Int = 0): Sequence<Token> = tokenize(StrContent(line))
+
+    private fun nextStep(stream: CharStream): LexResult =
+        rules.firstNotNullOfOrNull { it.tryMatch(stream) }
+            ?: LexResult.Matched(Token(TokenType.INVALID, stream.position, stream.advance().toString()))
 }
