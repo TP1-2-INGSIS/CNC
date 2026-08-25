@@ -22,6 +22,7 @@ dependencies {
 
     implementation(libs.guava)
     implementation(project(":token"))
+    implementation(project(":common"))
 }
 
 tasks.named<Test>("test") {

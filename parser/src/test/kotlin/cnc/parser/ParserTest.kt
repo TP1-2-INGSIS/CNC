@@ -2,10 +2,10 @@ package cnc.parser
 
 import cnc.ast.*
 import cnc.common.Position
+import cnc.common.Success
 import cnc.token.Token
 import cnc.token.TokenType
 import cnc.token.TokenDefinition
-import cnc.token.TokenDefinitionProvider
 import cnc.token.SymbolTokenDef
 import cnc.token.RegexTokenDef
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 // ---------------------------------------------------------------------------
-// Definitions de prueba — sin depender del módulo :app
+// Definitions de prueba
 // ---------------------------------------------------------------------------
 private val TestTermination    = SymbolTokenDef("semicolon", ";")
 private val TestAssign         = SymbolTokenDef("assign", "=")
@@ -34,27 +34,8 @@ private val TestString         = RegexTokenDef("string", "\".*?\"")
 private val TestNumberType     = SymbolTokenDef("number_type", "number")
 private val TestStringType     = SymbolTokenDef("string_type", "string")
 
-private object TestTokenDefs : TokenDefinitionProvider {
-    private val allDefs = listOf(
-        TestTermination, TestAssign, TestColon, TestLet,
-        TestPlus, TestMinus, TestMul, TestDiv, TestPow,
-        TestOpenParen, TestCloseParen,
-        TestIdentifier, TestNumber, TestString, TestNumberType, TestStringType
-    )
-
-
-    private val definitions = mapOf<TokenType, List<TokenDefinition>>(
-        TokenType.VARIABLE_TYPE to listOf(TestNumberType, TestStringType)
-    )
-
-    override fun getValue(type: TokenType): List<TokenDefinition>? = definitions[type]
-    override fun getTypes(): Set<TokenType> = definitions.keys
-    override fun getDefinition(alias: String): TokenDefinition = allDefs.first { it.alias == alias }
-    override fun type(str: String): TokenType = TokenType.INVALID
-}
-
 // ---------------------------------------------------------------------------
-// ExpressionBuilder de prueba — con soporte para operadores y paréntesis
+// ExpressionBuilder de prueba
 // ---------------------------------------------------------------------------
 private val testExprBuilder = ExpressionBuilder(
     recipes = mapOf(
@@ -70,33 +51,41 @@ private val testExprBuilder = ExpressionBuilder(
         OperatorDef(TestPow, precedence = 3, associativity = Associativity.RIGHT)
     ),
     prefixOperators = listOf(
-        PrefixOperatorDef(TestMinus, precedence = 4)  // mayor precedencia que binarios
+        PrefixOperatorDef(TestMinus, precedence = 4)
     ),
     groupOpen = TestOpenParen,
     groupClose = TestCloseParen
 )
 
 // ---------------------------------------------------------------------------
-// Gramática de prueba: VariableDeclaration
+// StatementDef de prueba
+// ---------------------------------------------------------------------------
+private val TestDeclarationDef = StatementDef(
+    tag = "VariableDeclaration",
+    fields = mapOf(
+        "name" to FieldType.TEXT,
+        "type" to FieldType.TEXT,
+        "value" to FieldType.EXPRESSION
+    ),
+    semanticCheck = { _, _ -> Success("ok", Unit) }
+)
+
+// ---------------------------------------------------------------------------
+// Gramática de prueba: VariableDeclaration con Steps etiquetados
 // ---------------------------------------------------------------------------
 private val TestVariableDeclaration = Grammar(
     tag = "VariableDeclaration",
-    sequence = listOf(
-        IsStrat(TestLet),
-        IsStrat(TestIdentifier),
-        IsStrat(TestColon),
-        AnyOfTypeStrat(listOf(TestNumberType, TestStringType)),
-        IsStrat(TestAssign),
-        ExpressionStrat(listOf(TestNumber, TestString, TestIdentifier, TestPlus, TestMinus, TestMul, TestDiv, TestPow, TestOpenParen, TestCloseParen)),
-        IsStrat(TestTermination)
+    steps = listOf(
+        Step(IsStrat(TestLet)),
+        Step(IsStrat(TestIdentifier), label = "name"),
+        Step(IsStrat(TestColon)),
+        Step(AnyOfTypeStrat(listOf(TestNumberType, TestStringType)), label = "type"),
+        Step(IsStrat(TestAssign)),
+        Step(ExpressionStrat(listOf(TestNumber, TestString, TestIdentifier, TestPlus, TestMinus, TestMul, TestDiv, TestPow, TestOpenParen, TestCloseParen)), label = "value"),
+        Step(IsStrat(TestTermination))
     ),
-    build = { segments ->
-        Declaration(
-            name = segments[1].first().text,
-            type = segments[3].first().text,
-            value = testExprBuilder.build(segments[5])
-        )
-    }
+    statementDef = TestDeclarationDef,
+    expressionBuilder = testExprBuilder
 )
 
 private val testGrammars = listOf(TestVariableDeclaration)
@@ -132,10 +121,11 @@ class ParserTest {
             )
             val result = parser.getASTs(tokens).toList()
             assertEquals(1, result.size)
-            val decl = result[0] as Declaration
-            assertEquals("x", decl.name)
-            assertEquals("number", decl.type)
-            assertEquals(NumberLiteral(42.0), decl.value)
+            val stmt = result[0]
+            assertEquals("VariableDeclaration", stmt.tag)
+            assertEquals("x", stmt.fields.text("name"))
+            assertEquals("number", stmt.fields.text("type"))
+            assertEquals(NumberLiteral(42.0), stmt.fields.expression("value"))
         }
 
         @Test fun `declaracion de string`() {
@@ -150,10 +140,11 @@ class ParserTest {
             )
             val result = parser.getASTs(tokens).toList()
             assertEquals(1, result.size)
-            val decl = result[0] as Declaration
-            assertEquals("name", decl.name)
-            assertEquals("string", decl.type)
-            assertEquals(StringLiteral("hello"), decl.value)
+            val stmt = result[0]
+            assertEquals("VariableDeclaration", stmt.tag)
+            assertEquals("name", stmt.fields.text("name"))
+            assertEquals("string", stmt.fields.text("type"))
+            assertEquals(StringLiteral("hello"), stmt.fields.expression("value"))
         }
 
         @Test fun `multiples declaraciones`() {
@@ -175,8 +166,8 @@ class ParserTest {
             )
             val result = parser.getASTs(tokens).toList()
             assertEquals(2, result.size)
-            assertEquals("a", (result[0] as Declaration).name)
-            assertEquals("b", (result[1] as Declaration).name)
+            assertEquals("a", result[0].fields.text("name"))
+            assertEquals("b", result[1].fields.text("name"))
         }
     }
 
@@ -207,7 +198,6 @@ class ParserTest {
             val ex = assertThrows<ParseException> {
                 parser.getASTs(tokens).toList()
             }
-            // Debería indicar que el mejor intento fue VariableDeclaration y cuánto avanzó
             assertTrue(ex.message!!.contains("VariableDeclaration"))
             assertTrue(ex.message!!.contains("matched"))
         }
@@ -233,7 +223,6 @@ class ParserTest {
             val ex = assertThrows<ParseException> {
                 parser.getASTs(tokens).toList()
             }
-            // Después de let x, esperaba : pero encontró ;
             assertTrue(ex.message!!.contains("';'"))
         }
     }
@@ -288,7 +277,6 @@ class ParserTest {
         }
 
         @Test fun `suma simple`() {
-            // 2 + 3 → BinaryExpression(2, "+", 3)
             val tokens = listOf(
                 tok(TokenType.NUMBER, "2"),
                 tok(TokenType.OPERATOR, "+"),
@@ -302,7 +290,6 @@ class ParserTest {
         }
 
         @Test fun `multiplicacion tiene mayor precedencia que suma`() {
-            // 2 + 3 * 4 → BinaryExpression(2, "+", BinaryExpression(3, "*", 4))
             val tokens = listOf(
                 tok(TokenType.NUMBER, "2"),
                 tok(TokenType.OPERATOR, "+"),
@@ -322,7 +309,6 @@ class ParserTest {
         }
 
         @Test fun `suma es asociativa a izquierda`() {
-            // 1 + 2 + 3 → BinaryExpression(BinaryExpression(1, "+", 2), "+", 3)
             val tokens = listOf(
                 tok(TokenType.NUMBER, "1"),
                 tok(TokenType.OPERATOR, "+"),
@@ -342,7 +328,6 @@ class ParserTest {
         }
 
         @Test fun `exponente es asociativo a derecha`() {
-            // 2 ** 3 ** 4 → BinaryExpression(2, "**", BinaryExpression(3, "**", 4))
             val tokens = listOf(
                 tok(TokenType.NUMBER, "2"),
                 tok(TokenType.OPERATOR, "**"),
@@ -362,7 +347,6 @@ class ParserTest {
         }
 
         @Test fun `expresion compleja con multiples niveles de precedencia`() {
-            // 1 + 2 * 3 + 4 → ((1 + (2 * 3)) + 4)
             val tokens = listOf(
                 tok(TokenType.NUMBER, "1"),
                 tok(TokenType.OPERATOR, "+"),
@@ -388,7 +372,6 @@ class ParserTest {
         }
 
         @Test fun `expresion con identificadores`() {
-            // x + y * z → BinaryExpression(x, "+", BinaryExpression(y, "*", z))
             val tokens = listOf(
                 tok(TokenType.IDENTIFIER, "x"),
                 tok(TokenType.OPERATOR, "+"),
@@ -408,7 +391,6 @@ class ParserTest {
         }
 
         @Test fun `declaracion con expresion binaria`() {
-            // let x: number = 2 + 3;
             val tokens = sequenceOf(
                 tok(TokenType.KEYWORD, "let"),
                 tok(TokenType.IDENTIFIER, "x"),
@@ -422,11 +404,11 @@ class ParserTest {
             )
             val result = parser.getASTs(tokens).toList()
             assertEquals(1, result.size)
-            val decl = result[0] as Declaration
-            assertEquals("x", decl.name)
+            val stmt = result[0]
+            assertEquals("x", stmt.fields.text("name"))
             assertEquals(
                 BinaryExpression(NumberLiteral(2.0), "+", NumberLiteral(3.0)),
-                decl.value
+                stmt.fields.expression("value")
             )
         }
     }
@@ -439,7 +421,6 @@ class ParserTest {
     inner class Parentheses {
 
         @Test fun `parentesis simple agrupa subexpresion`() {
-            // (2 + 3) * 4 → BinaryExpression(BinaryExpression(2, "+", 3), "*", 4)
             val tokens = listOf(
                 tok(TokenType.SYMBOL, "("),
                 tok(TokenType.NUMBER, "2"),
@@ -461,7 +442,6 @@ class ParserTest {
         }
 
         @Test fun `parentesis anidados`() {
-            // ((1 + 2)) * 3 → BinaryExpression(BinaryExpression(1, "+", 2), "*", 3)
             val tokens = listOf(
                 tok(TokenType.SYMBOL, "("),
                 tok(TokenType.SYMBOL, "("),
@@ -485,7 +465,6 @@ class ParserTest {
         }
 
         @Test fun `parentesis a la derecha`() {
-            // 4 * (2 + 3) → BinaryExpression(4, "*", BinaryExpression(2, "+", 3))
             val tokens = listOf(
                 tok(TokenType.NUMBER, "4"),
                 tok(TokenType.OPERATOR, "*"),
@@ -507,7 +486,6 @@ class ParserTest {
         }
 
         @Test fun `parentesis sin cerrar lanza error`() {
-            // (2 + 3
             val tokens = listOf(
                 tok(TokenType.SYMBOL, "("),
                 tok(TokenType.NUMBER, "2"),
@@ -520,7 +498,6 @@ class ParserTest {
         }
 
         @Test fun `parentesis en declaracion`() {
-            // let x: number = (2 + 3) * 4;
             val tokens = sequenceOf(
                 tok(TokenType.KEYWORD, "let"),
                 tok(TokenType.IDENTIFIER, "x"),
@@ -538,15 +515,15 @@ class ParserTest {
             )
             val result = parser.getASTs(tokens).toList()
             assertEquals(1, result.size)
-            val decl = result[0] as Declaration
-            assertEquals("x", decl.name)
+            val stmt = result[0]
+            assertEquals("x", stmt.fields.text("name"))
             assertEquals(
                 BinaryExpression(
                     BinaryExpression(NumberLiteral(2.0), "+", NumberLiteral(3.0)),
                     "*",
                     NumberLiteral(4.0)
                 ),
-                decl.value
+                stmt.fields.expression("value")
             )
         }
     }
@@ -559,7 +536,6 @@ class ParserTest {
     inner class UnaryOperators {
 
         @Test fun `negacion de literal`() {
-            // -5 → UnaryExpression("-", 5)
             val tokens = listOf(
                 tok(TokenType.OPERATOR, "-"),
                 tok(TokenType.NUMBER, "5")
@@ -569,7 +545,6 @@ class ParserTest {
         }
 
         @Test fun `negacion de identificador`() {
-            // -x → UnaryExpression("-", Identifier("x"))
             val tokens = listOf(
                 tok(TokenType.OPERATOR, "-"),
                 tok(TokenType.IDENTIFIER, "x")
@@ -579,7 +554,6 @@ class ParserTest {
         }
 
         @Test fun `negacion tiene mayor precedencia que suma`() {
-            // -2 + 3 → BinaryExpression(UnaryExpression("-", 2), "+", 3)
             val tokens = listOf(
                 tok(TokenType.OPERATOR, "-"),
                 tok(TokenType.NUMBER, "2"),
@@ -598,7 +572,6 @@ class ParserTest {
         }
 
         @Test fun `negacion tiene mayor precedencia que multiplicacion`() {
-            // -2 * 3 → BinaryExpression(UnaryExpression("-", 2), "*", 3)
             val tokens = listOf(
                 tok(TokenType.OPERATOR, "-"),
                 tok(TokenType.NUMBER, "2"),
@@ -617,7 +590,6 @@ class ParserTest {
         }
 
         @Test fun `doble negacion`() {
-            // --5 → UnaryExpression("-", UnaryExpression("-", 5))
             val tokens = listOf(
                 tok(TokenType.OPERATOR, "-"),
                 tok(TokenType.OPERATOR, "-"),
@@ -631,7 +603,6 @@ class ParserTest {
         }
 
         @Test fun `negacion con parentesis`() {
-            // -(2 + 3) → UnaryExpression("-", BinaryExpression(2, "+", 3))
             val tokens = listOf(
                 tok(TokenType.OPERATOR, "-"),
                 tok(TokenType.SYMBOL, "("),

@@ -6,17 +6,11 @@ import cnc.token.RegexTokenDef
 import cnc.token.SymbolTokenDef
 import cnc.token.TokenDefinition
 
-import cnc.ast.ExpressionBuilder
-import cnc.ast.OperatorDef
-import cnc.ast.Associativity
-import cnc.ast.NumberLiteral
-import cnc.ast.StringLiteral
-import cnc.ast.Identifier
-import cnc.ast.Declaration
-import cnc.ast.Assignment
-import cnc.ast.Call
+import cnc.ast.*
+import cnc.common.*
 
 import cnc.parser.Grammar
+import cnc.parser.Step
 import cnc.parser.ExpressionStrat
 import cnc.parser.IsStrat
 import cnc.parser.AnyStrat
@@ -25,12 +19,15 @@ import cnc.parser.AnyOfTypeStrat
 import cnc.semantic.BinaryOpResolver
 import cnc.semantic.TypeResolvers
 import cnc.semantic.SymbolTable
+import cnc.semantic.DefaultSemanticContext
 
 import cnc.lexer.Lexer
 import cnc.lexer.rules.StandardRules
 import cnc.lexer.rules.TrieRule
 
-// CNC DOMAIN DEFINITIONS ============================================================
+// =============================================================================
+// CNC DOMAIN DEFINITIONS
+// =============================================================================
 
 object CncKeywords {
   val LET = SymbolTokenDef("let", "let")
@@ -80,7 +77,9 @@ object CncPatterns {
   val STRING = RegexTokenDef("string_exp", "\".*?\"")
 }
 
-// LEXER CONFIGURATION ===============================================================
+// =============================================================================
+// LEXER CONFIGURATION
+// =============================================================================
 
 val printScriptRules = listOf(
   StandardRules.whitespace(),
@@ -92,100 +91,22 @@ val printScriptRules = listOf(
 
 val printScriptLexer = Lexer(printScriptRules)
 
-// GRAMMAR AND STATEMENTS =======================================================
+// =============================================================================
+// EXPRESSIONS
+// =============================================================================
 
-val VariableDeclaration = Grammar(
-  tag = "VariableDeclaration",
-  sequence = listOf(
-    IsStrat(CncKeywords.LET),              // segments[0] = [let]
-    IsStrat(CncPatterns.IDENTIFIER),       // segments[1] = [x]
-    IsStrat(CncSymbols.COLON),             // segments[2] = [:]
-    AnyOfTypeStrat(CncKeywords.types),     // segments[3] = [number]
-    IsStrat(CncSymbols.ASSIGN),            // segments[4] = [=]
-    ExpressionStrat(listOf(
-      CncPatterns.NUMBER,
-      CncPatterns.STRING,
-      CncPatterns.IDENTIFIER,
-      CncSymbols.PLUS,
-      CncSymbols.MINUS,
-      CncSymbols.MULTIPLICATION,
-      CncSymbols.DIVISION,
-      CncSymbols.OPEN_PAREN,
-      CncSymbols.CLOSE_PAREN
-    )),                                    // segments[5] = [2, *, (, x, +, 3, )]
-    IsStrat(CncSymbols.SEMICOLON)          // segments[6] = [;]
-  ),
-  build = { segments ->
-    Declaration(
-      name = segments[1].first().text,
-      type = segments[3].first().text,
-      value = expressionBuilder.build(segments[5])
-    )
-  }
+val expressionTokens = listOf(
+  CncPatterns.NUMBER,
+  CncPatterns.STRING,
+  CncPatterns.IDENTIFIER,
+  CncSymbols.PLUS,
+  CncSymbols.MINUS,
+  CncSymbols.MULTIPLICATION,
+  CncSymbols.DIVISION,
+  CncSymbols.OPEN_PAREN,
+  CncSymbols.CLOSE_PAREN
 )
 
-val VariableAssignment = Grammar(
-  tag = "VariableAssignment",
-  sequence = listOf(
-    IsStrat(CncPatterns.IDENTIFIER),       // segments[0] = [x]
-    IsStrat(CncSymbols.ASSIGN),            // segments[1] = [=]
-    ExpressionStrat(listOf(
-      CncPatterns.NUMBER,
-      CncPatterns.STRING,
-      CncPatterns.IDENTIFIER,
-      CncSymbols.PLUS,
-      CncSymbols.MINUS,
-      CncSymbols.MULTIPLICATION,
-      CncSymbols.DIVISION,
-      CncSymbols.OPEN_PAREN,
-      CncSymbols.CLOSE_PAREN
-    )),                                    // segments[2] = [2, *, (, x, +, 3, )]
-    IsStrat(CncSymbols.SEMICOLON)          // segments[3] = [;]
-  ),
-  build = { segments ->
-    Assignment(
-      target = segments[0].first().text,
-      value = expressionBuilder.build(segments[2])
-    )
-  }
-)
-
-val FunctionCall = Grammar(
-  tag = "FunctionCall",
-  sequence = listOf(
-    IsStrat(CncPatterns.IDENTIFIER),       // segments[0] = [println]
-    IsStrat(CncSymbols.OPEN_PAREN),        // segments[1] = [(]
-    ExpressionStrat(listOf(
-      CncPatterns.NUMBER,
-      CncPatterns.STRING,
-      CncPatterns.IDENTIFIER,
-      CncSymbols.PLUS,
-      CncSymbols.MINUS,
-      CncSymbols.MULTIPLICATION,
-      CncSymbols.DIVISION
-    )),                                    // segments[2] = [x] o [2, +, 3]
-    IsStrat(CncSymbols.CLOSE_PAREN),       // segments[3] = [)]
-    IsStrat(CncSymbols.SEMICOLON)          // segments[4] = [;]
-  ),
-  build = { segments ->
-    Call(
-      function = segments[0].first().text,
-      arguments = listOf(expressionBuilder.build(segments[2]))
-    )
-  }
-)
-
-val terminators: List<TokenDefinition> = listOf(
-  CncSymbols.SEMICOLON
-)
-
-val grammars = listOf(
-  VariableDeclaration,
-  FunctionCall,
-  VariableAssignment
-)
-
-// EXPRESSIONS BUILDER ==========================================================
 val expressionBuilder = ExpressionBuilder(
   recipes = mapOf(
     CncPatterns.NUMBER to { token: Token -> NumberLiteral(token.text.toDouble()) },
@@ -202,7 +123,164 @@ val expressionBuilder = ExpressionBuilder(
   groupOpen = CncSymbols.OPEN_PAREN,
   groupClose = CncSymbols.CLOSE_PAREN
 )
-// BINARY TYPE RULES ============================================================
+
+// =============================================================================
+// STATEMENT DEFINITIONS
+// =============================================================================
+
+val DeclarationDef = StatementDef(
+  tag = "Declaration",
+  fields = mapOf(
+    "name" to FieldType.TEXT,
+    "type" to FieldType.TEXT,
+    "value" to FieldType.EXPRESSION
+  ),
+  semanticCheck = { fields, ctx ->
+    val name = fields.text("name")
+    val type = fields.text("type")
+    val value = fields.expression("value")
+
+    when {
+      ctx.isDeclared(name) ->
+        Failure("Variable '$name' ya fue declarada", ErrorType.SEMANTIC)
+      !ctx.isValidType(type) ->
+        Failure("Tipo '$type' no reconocido", ErrorType.SEMANTIC)
+      else -> {
+        val exprType = ctx.resolveExpressionType(value)
+        when (exprType) {
+          is Failure -> Failure(exprType.msg, exprType.type)
+          is Success -> {
+            if (exprType.data != type) {
+              Failure("Se esperaba '$type' pero se obtuvo '${exprType.data}'", ErrorType.SEMANTIC)
+            } else {
+              ctx.declare(name, type)
+              Success("ok", Unit)
+            }
+          }
+        }
+      }
+    }
+  }
+)
+
+val AssignmentDef = StatementDef(
+  tag = "Assignment",
+  fields = mapOf(
+    "target" to FieldType.TEXT,
+    "value" to FieldType.EXPRESSION
+  ),
+  semanticCheck = { fields, ctx ->
+    val target = fields.text("target")
+    val value = fields.expression("value")
+
+    val targetType = ctx.typeOf(target)
+    if (targetType == null) {
+      Failure("Variable '$target' no declarada", ErrorType.SEMANTIC)
+    } else {
+      val exprType = ctx.resolveExpressionType(value)
+      when (exprType) {
+        is Failure -> Failure(exprType.msg, exprType.type)
+        is Success -> {
+          if (exprType.data != targetType) {
+            Failure("No se puede asignar '${exprType.data}' a '$target' de tipo '$targetType'", ErrorType.SEMANTIC)
+          } else {
+            Success("ok", Unit)
+          }
+        }
+      }
+    }
+  }
+)
+
+val CallDef = StatementDef(
+  tag = "Call",
+  fields = mapOf(
+    "function" to FieldType.TEXT,
+    "arguments" to FieldType.EXPRESSIONS
+  ),
+  semanticCheck = { fields, ctx ->
+    val args = fields.expressions("arguments")
+    val errors = args.mapNotNull { arg ->
+      val result = ctx.resolveExpressionType(arg)
+      if (result is Failure) result.msg else null
+    }
+    if (errors.isNotEmpty()) {
+      Failure(errors.first(), ErrorType.SEMANTIC)
+    } else {
+      Success("ok", Unit)
+    }
+  }
+)
+
+// =============================================================================
+// GRAMMARS — con Steps etiquetados
+// =============================================================================
+
+val VariableDeclaration = Grammar(
+  tag = "Declaration",
+  steps = listOf(
+    Step(IsStrat(CncKeywords.LET)),
+    Step(IsStrat(CncPatterns.IDENTIFIER), label = "name"),
+    Step(IsStrat(CncSymbols.COLON)),
+    Step(AnyOfTypeStrat(CncKeywords.types), label = "type"),
+    Step(IsStrat(CncSymbols.ASSIGN)),
+    Step(ExpressionStrat(expressionTokens), label = "value"),
+    Step(IsStrat(CncSymbols.SEMICOLON))
+  ),
+  statementDef = DeclarationDef,
+  expressionBuilder = expressionBuilder
+)
+
+val VariableAssignment = Grammar(
+  tag = "Assignment",
+  steps = listOf(
+    Step(IsStrat(CncPatterns.IDENTIFIER), label = "target"),
+    Step(IsStrat(CncSymbols.ASSIGN)),
+    Step(ExpressionStrat(expressionTokens), label = "value"),
+    Step(IsStrat(CncSymbols.SEMICOLON))
+  ),
+  statementDef = AssignmentDef,
+  expressionBuilder = expressionBuilder
+)
+
+val FunctionCall = Grammar(
+  tag = "Call",
+  steps = listOf(
+    Step(IsStrat(CncPatterns.IDENTIFIER), label = "function"),
+    Step(IsStrat(CncSymbols.OPEN_PAREN)),
+    Step(ExpressionStrat(listOf(
+      CncPatterns.NUMBER,
+      CncPatterns.STRING,
+      CncPatterns.IDENTIFIER,
+      CncSymbols.PLUS,
+      CncSymbols.MINUS,
+      CncSymbols.MULTIPLICATION,
+      CncSymbols.DIVISION
+    )), label = "arguments"),
+    Step(IsStrat(CncSymbols.CLOSE_PAREN)),
+    Step(IsStrat(CncSymbols.SEMICOLON))
+  ),
+  statementDef = CallDef,
+  expressionBuilder = expressionBuilder
+)
+
+// =============================================================================
+// PARSER CONFIGURATION
+// =============================================================================
+
+val terminators: List<TokenDefinition> = listOf(
+  CncSymbols.SEMICOLON
+)
+
+val grammars = listOf(
+  VariableDeclaration,
+  FunctionCall,
+  VariableAssignment
+)
+
+// =============================================================================
+// SEMANTIC CONFIGURATION
+// =============================================================================
 
 val binaryTypeRules: Map<String, BinaryOpResolver> = mapOf(
   "+"  to TypeResolvers.additionOrConcat,
@@ -211,6 +289,6 @@ val binaryTypeRules: Map<String, BinaryOpResolver> = mapOf(
   "/"  to TypeResolvers.numericOnly("/"),
 )
 
-// SYMBOL TABLE =================================================================
-
 val symbolTable = SymbolTable(validTypes = setOf("number", "string"))
+
+val semanticContext = DefaultSemanticContext(symbolTable, binaryTypeRules)
