@@ -2,70 +2,128 @@ package cnc.lexer
 
 import cnc.common.Position
 import cnc.common.StrContent
-import cnc.token.RegexTokenDef
-import cnc.token.SymbolTokenDef
-import cnc.token.TokenDefinition
-import cnc.token.TokenDefinitionProvider
+import cnc.lexer.rules.StandardRules
+import cnc.lexer.rules.TrieRule
 import cnc.token.TokenType
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.io.StringReader
 
-// ---------------------------------------------------------------------------
-// TokenDefinitionProvider de prueba — replica la config del lenguaje
-// sin depender del módulo :app
-// ---------------------------------------------------------------------------
-private object TestTokenDefs : TokenDefinitionProvider {
-
-    private val definitions = mapOf(
-        TokenType.OPERATOR to listOf(
-            SymbolTokenDef(TokenType.OPERATOR, listOf("+", "-", "/", "*", "==")),
-        ),
-        TokenType.SYMBOL to listOf(
-            SymbolTokenDef(TokenType.SYMBOL, listOf(";", ":", "=")),
-        ),
-        TokenType.VARIABLE_TYPE to listOf(
-            SymbolTokenDef(TokenType.VARIABLE_TYPE, listOf("string", "number")),
-        ),
-        TokenType.KEYWORD to listOf(
-            SymbolTokenDef(TokenType.KEYWORD, "let"),
-        ),
-        TokenType.IDENTIFIER to listOf(
-            RegexTokenDef(TokenType.IDENTIFIER, "[a-zA-Z_][a-zA-Z0-9_]*"),
-        ),
-        TokenType.NUMBER to listOf(
-            RegexTokenDef(TokenType.NUMBER, "[0-9]+"),
-        ),
-        TokenType.STRING to listOf(
-            RegexTokenDef(TokenType.STRING, "\".*?\""),
-        ),
-    )
-
-    override fun getValue(type: TokenType): List<TokenDefinition>? = definitions[type]
-    override fun getTypes(): Set<TokenType> = definitions.keys
-
-    override fun type(str: String): TokenType {
-        for (type in getTypes()) {
-            for (def in definitions[type]!!) {
-                if (def.match(str)) return type
-            }
-        }
-        return TokenType.INVALID
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Suite principal
-// ---------------------------------------------------------------------------
 class LexerTest {
 
-    private val lexer = Lexer(TestTokenDefs)
+    private val testKeywords = mapOf(
+        "let" to TokenType.KEYWORD,
+        "string" to TokenType.VARIABLE_TYPE,
+        "number" to TokenType.VARIABLE_TYPE
+    )
 
-    private fun lex(input: String) = lexer.getTokens(StrContent(input)).toList()
+    private val testSymbols = mapOf(
+        "==" to TokenType.OPERATOR,
+        "=" to TokenType.SYMBOL,
+        "+" to TokenType.OPERATOR,
+        "-" to TokenType.OPERATOR,
+        "*" to TokenType.OPERATOR,
+        "/" to TokenType.OPERATOR,
+        "**" to TokenType.OPERATOR,
+        ";" to TokenType.SYMBOL,
+        ":" to TokenType.SYMBOL
+    )
+
+    private val testRules = listOf(
+        StandardRules.whitespace(),
+        StandardRules.doubleQuotedString(TokenType.STRING),
+        StandardRules.integerNumber(TokenType.NUMBER),
+        StandardRules.standardIdentifier(keywords = testKeywords),
+        TrieRule(testSymbols)
+    )
+
+    private val lexer = Lexer(testRules)
+
+    private fun lex(input: String) = lexer.tokenize(StrContent(input)).toList()
 
     // -------------------------------------------------------------------------
-    // TokenType — cada token es reconocido con el tipo correcto
+    // Trie Unit Tests
+    // -------------------------------------------------------------------------
+
+    @Nested
+    inner class TrieTests {
+
+        @Test
+        fun `matchLongest selects longest prefix`() {
+            val trie = buildTrie(
+                mapOf(
+                    "=" to TokenType.SYMBOL,
+                    "==" to TokenType.OPERATOR,
+                    "*" to TokenType.OPERATOR,
+                    "**" to TokenType.OPERATOR
+                )
+            )
+
+            val streamEquals = CharStream(StringReader("=="))
+            val matchEquals = trie.matchLongest(streamEquals)
+            assertEquals(TokenType.OPERATOR to 2, matchEquals)
+
+            val streamSingle = CharStream(StringReader("= "))
+            val matchSingle = trie.matchLongest(streamSingle)
+            assertEquals(TokenType.SYMBOL to 1, matchSingle)
+
+            val streamExponent = CharStream(StringReader("**="))
+            val matchExponent = trie.matchLongest(streamExponent)
+            assertEquals(TokenType.OPERATOR to 2, matchExponent)
+        }
+
+        @Test
+        fun `matchExact returns value only for exact match`() {
+            val trie = buildTrie(testKeywords)
+            assertEquals(TokenType.KEYWORD, trie.matchExact("let"))
+            assertEquals(TokenType.VARIABLE_TYPE, trie.matchExact("string"))
+            assertNull(trie.matchExact("letter"))
+            assertNull(trie.matchExact("le"))
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // CharStream Unit Tests
+    // -------------------------------------------------------------------------
+
+    @Nested
+    inner class CharStreamTests {
+
+        @Test
+        fun `peek and advance track position correctly across newlines`() {
+            val stream = CharStream(StringReader("a\nbc"))
+            assertEquals(Position(0, 0), stream.position)
+            assertEquals('a', stream.peek())
+            assertEquals('a', stream.advance())
+
+            assertEquals(Position(0, 1), stream.position)
+            assertEquals('\n', stream.advance())
+
+            assertEquals(Position(1, 0), stream.position)
+            assertEquals('b', stream.advance())
+
+            assertEquals(Position(1, 1), stream.position)
+            assertEquals('c', stream.advance())
+
+            assertEquals(Position(1, 2), stream.position)
+            assertNull(stream.advance())
+            assertEquals(false, stream.hasMore())
+        }
+
+        @Test
+        fun `consume extracts exact number of characters`() {
+            val stream = CharStream(StringReader("hello world"))
+            assertEquals("hello", stream.consume(5))
+            assertEquals(Position(0, 5), stream.position)
+            assertEquals(' ', stream.peek())
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // TokenType Tests
     // -------------------------------------------------------------------------
 
     @Nested
@@ -143,7 +201,7 @@ class LexerTest {
     }
 
     // -------------------------------------------------------------------------
-    // Texto del token — el texto original se preserva tal cual
+    // Token Text Tests
     // -------------------------------------------------------------------------
 
     @Nested
@@ -171,7 +229,7 @@ class LexerTest {
     }
 
     // -------------------------------------------------------------------------
-    // Posiciones — row y col son 0-indexed según el Lexer
+    // Positions Tests
     // -------------------------------------------------------------------------
 
     @Nested
@@ -187,14 +245,11 @@ class LexerTest {
         }
 
         @Test fun `columna refleja el offset en la linea`() {
-            // "let x" → 'x' empieza en col 4
             val tokens = lex("let x")
             assertEquals(4, tokens[1].pos.col)
         }
 
         @Test fun `columnas correctas en declaracion completa`() {
-            // "let x : number ="
-            //  0   4   6  8
             val tokens = lex("let x : number =")
             assertEquals(0,  tokens[0].pos.col) // let
             assertEquals(4,  tokens[1].pos.col) // x
@@ -207,10 +262,18 @@ class LexerTest {
             val tokens = lex("let x : number = 42;")
             assertTrue(tokens.all { it.pos.row == 0 })
         }
+
+        @Test fun `tokens en multiples lineas actualizan row y col`() {
+            val tokens = lex("let x = 1;\nlet y = 2;")
+            assertEquals(Position(0, 0), tokens[0].pos) // let (line 0)
+            assertEquals(Position(0, 4), tokens[1].pos) // x
+            assertEquals(Position(1, 0), tokens[5].pos) // let (line 1)
+            assertEquals(Position(1, 4), tokens[6].pos) // y
+        }
     }
 
     // -------------------------------------------------------------------------
-    // Declaraciones completas — secuencia de tipos en orden correcto
+    // Full Statements Tests
     // -------------------------------------------------------------------------
 
     @Nested
@@ -280,38 +343,7 @@ class LexerTest {
     }
 
     // -------------------------------------------------------------------------
-    // Splitter — RegexSplitter de forma aislada
-    // -------------------------------------------------------------------------
-
-    @Nested
-    inner class SplitterTests {
-
-        private val splitter = RegexSplitter(TestTokenDefs)
-
-        @Test fun `split devuelve coincidencias en orden`() {
-            val matches = splitter.split("let x").map { it.text }.toList()
-            assertEquals(listOf("let", "x"), matches)
-        }
-
-        @Test fun `split de linea vacia no produce coincidencias`() {
-            assertEquals(0, splitter.split("").toList().size)
-        }
-
-        @Test fun `split captura indice correcto`() {
-            val matches = splitter.split("a + b").toList()
-            assertEquals(0, matches[0].index) // a
-            assertEquals(2, matches[1].index) // +
-            assertEquals(4, matches[2].index) // b
-        }
-
-        @Test fun `split ignora espacios entre tokens`() {
-            val texts = splitter.split("let   x").map { it.text }.toList()
-            assertEquals(listOf("let", "x"), texts)
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Casos borde
+    // Edge Cases
     // -------------------------------------------------------------------------
 
     @Nested
@@ -332,9 +364,23 @@ class LexerTest {
             assertEquals(TokenType.KEYWORD, lex("let")[0].type)
         }
 
+        @Test fun `letter es IDENTIFIER y no se parte con let`() {
+            val tokens = lex("letter")
+            assertEquals(1, tokens.size)
+            assertEquals(TokenType.IDENTIFIER, tokens[0].type)
+            assertEquals("letter", tokens[0].text)
+        }
+
         @Test fun `string y number son VARIABLE_TYPE, no IDENTIFIER`() {
             assertEquals(TokenType.VARIABLE_TYPE, lex("string")[0].type)
             assertEquals(TokenType.VARIABLE_TYPE, lex("number")[0].type)
+        }
+
+        @Test fun `stringVar es IDENTIFIER y no se confunde con el tipo string`() {
+            val tokens = lex("stringVar")
+            assertEquals(1, tokens.size)
+            assertEquals(TokenType.IDENTIFIER, tokens[0].type)
+            assertEquals("stringVar", tokens[0].text)
         }
 
         @Test fun `string literal vacio`() {
@@ -372,10 +418,24 @@ class LexerTest {
             assertEquals("==", tokens[0].text)
         }
 
+        @Test fun `operador ** no se confunde con *`() {
+            val tokens = lex("**")
+            assertEquals(1, tokens.size)
+            assertEquals(TokenType.OPERATOR, tokens[0].type)
+            assertEquals("**", tokens[0].text)
+        }
+
         @Test fun `identificador con numeros al final`() {
             val tokens = lex("var123")
             assertEquals(1, tokens.size)
             assertEquals(TokenType.IDENTIFIER, tokens[0].type)
+        }
+
+        @Test fun `caracteres invalidos emiten token INVALID`() {
+            val tokens = lex("@")
+            assertEquals(1, tokens.size)
+            assertEquals(TokenType.INVALID, tokens[0].type)
+            assertEquals("@", tokens[0].text)
         }
     }
 }

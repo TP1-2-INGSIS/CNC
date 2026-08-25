@@ -42,6 +42,7 @@ private object TestTokenDefs : TokenDefinitionProvider {
         TestIdentifier, TestNumber, TestString, TestNumberType, TestStringType
     )
 
+
     private val definitions = mapOf<TokenType, List<TokenDefinition>>(
         TokenType.VARIABLE_TYPE to listOf(TestNumberType, TestStringType)
     )
