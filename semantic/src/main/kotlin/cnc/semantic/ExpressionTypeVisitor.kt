@@ -2,6 +2,7 @@ package cnc.semantic
 
 import ast.ExpressionVisitor
 import cnc.ast.BinaryExpression
+import cnc.ast.UnaryExpression
 import cnc.ast.Identifier
 import cnc.ast.NumberLiteral
 import cnc.ast.StringLiteral
@@ -32,6 +33,16 @@ class ExpressionTypeVisitor(
             expr.right.accept(this).flatMap { rightType ->
                 binaryRules[expr.operator]?.resolve(leftType, rightType)
                     ?: Failure("Operador '${expr.operator}' no soportado", ErrorType.SEMANTIC)
+            }
+        }
+
+    override fun visit(expr: UnaryExpression): Result<String> =
+        expr.operand.accept(this).flatMap { operandType ->
+            // Por ahora solo soportamos negación numérica
+            if (expr.operator == "-" && operandType == "number") {
+                Success("ok", "number")
+            } else {
+                Failure("Operador unario '${expr.operator}' no soportado para tipo '$operandType'", ErrorType.SEMANTIC)
             }
         }
 }

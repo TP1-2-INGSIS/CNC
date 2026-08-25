@@ -5,14 +5,13 @@ import cnc.lexer.Lexer
 import cnc.common.StrContent
 import cnc.common.ContentManager
 import cnc.common.Success
-
-// Como hicimos con el Lexer vamos a importar las definiciones necesarias
+import cnc.common.Failure
 import cnc.parser.Parser
 import cnc.semantic.SemanticAnalyzer
 import cnc.semantic.SemanticVisitor
 
 data class Config (
-  val lexer: Lexer = Lexer(PrintScriptTokenDefProvider),
+  val lexer: Lexer = printScriptLexer,
   val parser: Parser = Parser(grammars, terminators),
   val semantic: SemanticAnalyzer = SemanticAnalyzer(SemanticVisitor(binaryTypeRules, symbolTable))
 )
@@ -21,13 +20,14 @@ data class Compiler (
   val config : Config
 ){
   fun compile(content: ContentManager) {
-    val tokens = content
-      .getLines()
-      .withIndex()
-      .flatMap { (row, line) -> config.lexer.getTokens(line, row) }
-
+    val tokens = config.lexer.tokenize(content)
     val statements = config.parser.getASTs(tokens)
-    config.semantic.analyze(statements)
+    config.semantic.analyze(statements).forEach { result ->
+      when (result) {
+        is Success -> println("OK: ${result.data}")
+        is Failure -> println("ERROR: ${result.msg}")
+      }
+    }
   }
 }
 

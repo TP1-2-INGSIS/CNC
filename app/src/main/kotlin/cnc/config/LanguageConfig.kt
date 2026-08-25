@@ -14,6 +14,7 @@ import cnc.ast.StringLiteral
 import cnc.ast.Identifier
 import cnc.ast.Declaration
 import cnc.ast.Assignment
+import cnc.ast.Call
 
 import cnc.parser.Grammar
 import cnc.parser.ExpressionStrat
@@ -149,12 +150,38 @@ val VariableAssignment = Grammar(
   }
 )
 
+val FunctionCall = Grammar(
+  tag = "FunctionCall",
+  sequence = listOf(
+    IsStrat(CncPatterns.IDENTIFIER),       // segments[0] = [println]
+    IsStrat(CncSymbols.OPEN_PAREN),        // segments[1] = [(]
+    ExpressionStrat(listOf(
+      CncPatterns.NUMBER,
+      CncPatterns.STRING,
+      CncPatterns.IDENTIFIER,
+      CncSymbols.PLUS,
+      CncSymbols.MINUS,
+      CncSymbols.MULTIPLICATION,
+      CncSymbols.DIVISION
+    )),                                    // segments[2] = [x] o [2, +, 3]
+    IsStrat(CncSymbols.CLOSE_PAREN),       // segments[3] = [)]
+    IsStrat(CncSymbols.SEMICOLON)          // segments[4] = [;]
+  ),
+  build = { segments ->
+    Call(
+      function = segments[0].first().text,
+      arguments = listOf(expressionBuilder.build(segments[2]))
+    )
+  }
+)
+
 val terminators: List<TokenDefinition> = listOf(
   CncSymbols.SEMICOLON
 )
 
 val grammars = listOf(
   VariableDeclaration,
+  FunctionCall,
   VariableAssignment
 )
 

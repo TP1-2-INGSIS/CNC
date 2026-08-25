@@ -43,11 +43,15 @@ data class BinaryExpression(
     val left: Expression,
     val operator: String,
     val right: Expression
-) : Expression
+) : Expression {
+    override fun <R> accept(visitor: ExpressionVisitor<R>) = visitor.visit(this)
+}
 data class UnaryExpression(
     val operator: String,
     val operand: Expression
-) : Expression
+) : Expression {
+    override fun <R> accept(visitor: ExpressionVisitor<R>) = visitor.visit(this)
+}
 
 /**
  * Asociatividad de un operador binario.
