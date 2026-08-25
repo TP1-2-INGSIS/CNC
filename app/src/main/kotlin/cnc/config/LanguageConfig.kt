@@ -21,6 +21,10 @@ import cnc.parser.IsStrat
 import cnc.parser.AnyStrat
 import cnc.parser.AnyOfTypeStrat
 
+import cnc.semantic.BinaryOpResolver
+import cnc.semantic.TypeResolvers
+import cnc.semantic.SymbolTable
+
 import cnc.lexer.Lexer
 import cnc.lexer.rules.StandardRules
 import cnc.lexer.rules.TrieRule
@@ -171,3 +175,15 @@ val expressionBuilder = ExpressionBuilder(
   groupOpen = CncSymbols.OPEN_PAREN,
   groupClose = CncSymbols.CLOSE_PAREN
 )
+// BINARY TYPE RULES ============================================================
+
+val binaryTypeRules: Map<String, BinaryOpResolver> = mapOf(
+  "+"  to TypeResolvers.additionOrConcat,
+  "-"  to TypeResolvers.numericOnly("-"),
+  "*"  to TypeResolvers.numericOnly("*"),
+  "/"  to TypeResolvers.numericOnly("/"),
+)
+
+// SYMBOL TABLE =================================================================
+
+val symbolTable = SymbolTable(validTypes = setOf("number", "string"))

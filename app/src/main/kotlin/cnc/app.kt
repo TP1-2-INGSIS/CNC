@@ -4,24 +4,39 @@ import cnc.config.*
 import cnc.lexer.Lexer
 import cnc.common.StrContent
 import cnc.common.ContentManager
+import cnc.common.Success
+
+// Como hicimos con el Lexer vamos a importar las definiciones necesarias
 import cnc.parser.Parser
+import cnc.semantic.SemanticAnalyzer
+import cnc.semantic.SemanticVisitor
 
 data class Config (
-  val lexer: Lexer = printScriptLexer,
-  val parser: Parser = Parser(grammars, terminators)
+  val lexer: Lexer = Lexer(PrintScriptTokenDefProvider),
+  val parser: Parser = Parser(grammars, terminators),
+  val semantic: SemanticAnalyzer = SemanticAnalyzer(SemanticVisitor(binaryTypeRules, symbolTable))
 )
 
 data class Compiler (
   val config : Config
 ){
   fun compile(content: ContentManager) {
-    config.lexer.tokenize(content)
-      .let { config.parser.getASTs(it) }
-      .forEach { println(it) }
+    val tokens = content
+      .getLines()
+      .withIndex()
+      .flatMap { (row, line) -> config.lexer.getTokens(line, row) }
+
+    val statements = config.parser.getASTs(tokens)
+    config.semantic.analyze(statements)
   }
 }
 
 fun main() {
   val compiler = Compiler(Config())
-  compiler.compile(StrContent("let var: number = 10;\nvar = 4;"))
+  compiler.compile(StrContent(
+    "let x: number = 10;\n" +
+    "let y: string = x;\n" +
+    "let x: number = 5;\n" +
+    "println(x);"
+  ))
 }
