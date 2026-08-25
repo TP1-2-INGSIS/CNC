@@ -12,12 +12,12 @@ plugins {
 
 rootProject.name = "CNC"
 include(
-  "app",
-  "ast",
-  "cli",
-  "lexer",
-  "token",
-  "parser",
-  "common",
-  "interpreter"
+    "app",
+    "ast",
+    "cli",
+    "lexer",
+    "token",
+    "parser",
+    "common",
+    "interpreter",
 )
