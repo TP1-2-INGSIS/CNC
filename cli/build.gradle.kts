@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     // !Importante no pongo el application, por lo que gradle va a interpretar
     // este modulo como una lib
+    id("jacoco-conventions")
 }
 
 repositories {
