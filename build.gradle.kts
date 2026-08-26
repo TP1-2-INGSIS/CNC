@@ -2,7 +2,7 @@ plugins {
     jacoco
 }
 
-subprojects {
+subprojects { // NO USAR SUBPROJECTS
     apply(plugin = "jacoco")
 
     tasks.withType<Test>().configureEach {
