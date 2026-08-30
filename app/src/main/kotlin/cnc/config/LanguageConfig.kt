@@ -25,6 +25,7 @@ import cnc.interpreter.IdentifierEvaluator
 import cnc.interpreter.BinaryExpressionEvaluator
 import cnc.interpreter.NumberOperations
 import cnc.interpreter.StandardBinaryOperations
+import cnc.interpreter.BinaryOperation
 
 import cnc.parser.Grammar
 import cnc.parser.ExpressionStrat
@@ -174,11 +175,11 @@ val printScriptStatementEvaluators = mapOf(
 
 
 
-val printScriptBinaryOperations: Map<String, (Any, Any) -> Any> = mapOf(
-  CncSymbols.PLUS.symbols.first() to StandardBinaryOperations::add,
-  CncSymbols.MINUS.symbols.first() to StandardBinaryOperations::subtract,
-  CncSymbols.MULTIPLICATION.symbols.first() to StandardBinaryOperations::multiply,
-  CncSymbols.DIVISION.symbols.first() to StandardBinaryOperations::divide
+val printScriptBinaryOperations: Map<String, BinaryOperation> = mapOf(    // La clase Standard Binary Ops es general, pero el usuario puede crear lo q quiera
+  CncSymbols.PLUS.symbols.first() to BinaryOperation(StandardBinaryOperations::add),
+  CncSymbols.MINUS.symbols.first() to BinaryOperation(StandardBinaryOperations::subtract),
+  CncSymbols.MULTIPLICATION.symbols.first() to BinaryOperation(StandardBinaryOperations::multiply),
+  CncSymbols.DIVISION.symbols.first() to BinaryOperation(StandardBinaryOperations::divide)
 )
 
 val printScriptExpressionEvaluators = mapOf(

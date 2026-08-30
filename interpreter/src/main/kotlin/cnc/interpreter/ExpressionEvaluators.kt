@@ -26,7 +26,7 @@ class IdentifierEvaluator : ExpressionEvaluator<Identifier> {
 }
 
 class BinaryExpressionEvaluator(
-    private val operators: Map<String, (Any, Any) -> Any>
+    private val operators: Map<String, BinaryOperation>
 ) : ExpressionEvaluator<BinaryExpression> {
     override fun evaluate(expression: BinaryExpression, environment: Environment, interpreter: Interpreter): Any? {
         val left = interpreter.evaluate(expression.left, environment) ?: throw RuntimeException("Null operand")
@@ -35,6 +35,6 @@ class BinaryExpressionEvaluator(
         val operation = operators[expression.operator]
             ?: throw RuntimeException("Unsupported operator: '${expression.operator}'")
 
-        return operation(left, right)
+        return operation.execute(left, right)
     }
 }
