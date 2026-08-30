@@ -5,7 +5,8 @@ import cnc.ast.Statement
 import kotlin.reflect.KClass
 
 class Environment {
-    private val variables = mutableMapOf<String, Any?>()
+    private val variables = mutableMapOf<String, Any?>() // Estado del programa del cliente, guardamos en string
+                                                         // nombre de variable mapeando con el valor en su tipo concreto
 
     fun define(name: String, value: Any?) {
         variables[name] = value
@@ -34,7 +35,7 @@ interface StatementEvaluator<T : Statement> {
 
 // Expressions
 interface ExpressionEvaluator<T : Expression> {
-    fun evaluate(expression: T, environment: Environment, interpreter: Interpreter): Any?
+    fun evaluate(expression: T, environment: Environment, interpreter: Interpreter): Any? // Devolvemos any porque pueden haber operaciones
 }
 
 class Interpreter(

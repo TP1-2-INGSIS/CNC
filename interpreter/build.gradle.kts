@@ -21,6 +21,7 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     implementation(libs.guava)
+    implementation(project(":ast"))
 }
 
 tasks.named<Test>("test") {
