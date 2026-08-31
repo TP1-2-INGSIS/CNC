@@ -7,7 +7,7 @@ import cnc.common.Success
 
 fun interface BinaryOpResolver {
     fun resolve(leftType: String, rightType: String): Result<String>
-}
+} // Basicamente recibe dos tipos y 'resuelve' que tipo corresponde. Distinto que el de interpreter que hace operaciones
 
 object TypeResolvers {
 

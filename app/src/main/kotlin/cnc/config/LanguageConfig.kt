@@ -22,6 +22,7 @@ import cnc.parser.AnyOfTypeStrat
 import cnc.semantic.BinaryOpResolver
 import cnc.semantic.TypeResolvers
 import cnc.semantic.SymbolTable
+import cnc.token.TokenDefinitionProvider
 
 // PRINTSCRIPT LANGUAGE CONFIGURATIONS
 
