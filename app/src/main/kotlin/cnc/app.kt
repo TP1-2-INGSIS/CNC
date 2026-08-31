@@ -8,7 +8,7 @@ import cnc.parser.Parser
 
 import cnc.cli.CommandSystem
 import cnc.cli.command.Command
-import cnc.cli.args.ArgsContainer
+import cnc.cli.command.GccCommand
 
 import cnc.common.Result
 import cnc.common.Failure
@@ -30,20 +30,8 @@ data class Compiler (
   }
 }
 
-object CompilerCmd : Command {
-  val compiler = Compiler(Config())
-  override val tag = "cnc";
-  override fun execute(params: ArgsContainer) : Result<Unit> {
-    if (!params.hasOption("--file")) return Failure<Unit>("No path was provided!", ErrorType.CLI);
-    
-    compiler.compile(FileContent(params.getOption("--file")!!))
-    return Success<Unit>("Compilation completed!", Unit)
-  }
-}
-
-
 fun main() {
   CommandSystem(mapOf(
-    CompilerCmd.tag to CompilerCmd
+    GccCommand.tag to GccCommand
   )).run()
 }
