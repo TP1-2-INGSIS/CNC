@@ -10,27 +10,6 @@ class CommandProvider(
     private val commands: MutableMap<String, Command> = mutableMapOf()
 ) : Provider<String, Command> {
 
-    init {
-        registerDefaults()
-    }
-
-    private fun registerDefaults() {
-        if (commands.isNotEmpty()) return
-
-        register(
-            HelpAttribute(
-                wrapped = GccCommand,
-                description = "Compiles CNC source files",
-                usage = "gcnc --file=<path> [--verbose] [--check]",
-                paramHelp = mapOf(
-                    "--file=<path>" to "Source file path to compile",
-                    "--verbose" to "Display detailed compiler output",
-                    "--check" to "Syntax and type checking only"
-                )
-            )
-        )
-    }
-
     fun register(command: Command): CommandProvider {
         commands[command.tag] = command
         return this
