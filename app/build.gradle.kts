@@ -38,6 +38,7 @@ dependencies {
     implementation(project(":token"))
     implementation(project(":common"))
     implementation(project(":ast"))
+    implementation(project(":cli"))
     implementation(project(":semantic"))
 }
 

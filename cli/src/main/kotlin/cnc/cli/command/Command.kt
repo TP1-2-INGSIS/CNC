@@ -44,24 +44,3 @@ class HelpAttribute(
         return sb.toString().trimEnd()
     }
 }
-
-object GccCommand : Command {
-    override val tag = "gcnc"
-
-    override fun execute(params: ArgsContainer): Result<Unit> {
-        val file = params.getOption("file") ?: params.getPositional(0)
-        if (file == null) {
-            return Failure("Missing required source file. Usage: gcnc --file=<path>", ErrorType.CLI)
-        }
-
-        val isVerbose = params.hasFlag("verbose")
-        val isCheck = params.hasFlag("check")
-
-        val details = buildString {
-            if (isVerbose) append(" (verbose)")
-            if (isCheck) append(" (check-only)")
-        }
-
-        return Success("Compiling '$file'$details...", Unit)
-    }
-}

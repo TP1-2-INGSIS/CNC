@@ -2,7 +2,7 @@ package cnc
 
 import cnc.config.*
 import cnc.lexer.Lexer
-import cnc.common.StrContent
+import cnc.common.FileContent
 import cnc.common.ContentManager
 import cnc.common.Success
 import cnc.common.Failure
@@ -31,24 +31,5 @@ data class Compiler(
 }
 
 fun main() {
-  val compiler = Compiler(Config())
-  compiler.compile(StrContent("""
-    let x: number = 10;
-    let y: number = 20;
-    let sum: number = x + y;
-    let product: number = x * y + 2;
-    let complex: number = (x + y) * (x - y);
-    let name: string = "hello";
-    let greeting: string = "world";
-    let concat: string = name + greeting;
-    let bad: string = x + y;
-    let duplicate: number = 1;
-    let duplicate: number = 2;
-    sum = x + y * 3;
-    sum = "oops";
-    undeclared = 5;
-    println(x);
-    println(sum + product);
-    println(name);
-  """.trimIndent()))
+  CLISystem.run()
 }
