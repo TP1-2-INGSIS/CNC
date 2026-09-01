@@ -1,27 +1,16 @@
+// TODO: revisar si es correcto tenerlo aca 
+//        vvv
+
 plugins {
-    jacoco
+    id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
 }
 
-subprojects { // NO USAR SUBPROJECTS
-    apply(plugin = "jacoco")
-
-    tasks.withType<Test>().configureEach {
-        finalizedBy(tasks.withType<JacocoReport>())
-    }
-
-    tasks.withType<JacocoReport>().configureEach {
-        dependsOn(tasks.withType<Test>())
-    }
-
-    tasks.withType<JacocoCoverageVerification>().configureEach {
-        violationRules {
-            rule {
-                limit { minimum = "0.80".toBigDecimal() }
-            }
-        }
-    }
-
-    tasks.matching { it.name == "check" }.configureEach {
-        dependsOn(tasks.withType<JacocoCoverageVerification>())
-    }
+repositories {
+    mavenCentral()
 }
+
+ktlint {
+    debug.set(true)
+    outputToConsole.set(true)
+}
+// Root build file - convention plugins are defined in buildSrc/
