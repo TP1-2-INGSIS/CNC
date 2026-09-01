@@ -6,6 +6,26 @@ import cnc.token.RegexTokenDef
 import cnc.token.SymbolTokenDef
 import cnc.token.TokenDefinition
 
+import cnc.ast.ExpressionBuilder
+import cnc.ast.NumberLiteral
+import cnc.ast.StringLiteral
+import cnc.ast.Identifier
+import cnc.ast.Declaration
+import cnc.ast.Assignment
+import cnc.ast.Call
+import cnc.ast.BinaryExpression
+
+import cnc.interpreter.Interpreter
+import cnc.interpreter.DeclarationEvaluator
+import cnc.interpreter.AssignmentEvaluator
+import cnc.interpreter.CallEvaluator
+import cnc.interpreter.NumberLiteralEvaluator
+import cnc.interpreter.StringLiteralEvaluator
+import cnc.interpreter.IdentifierEvaluator
+import cnc.interpreter.BinaryExpressionEvaluator
+import cnc.interpreter.NumberOperations
+import cnc.interpreter.StandardBinaryOperations
+import cnc.interpreter.BinaryOperation
 import cnc.ast.*
 import cnc.common.*
 
@@ -276,6 +296,42 @@ val grammars = listOf(
   VariableDeclaration,
   FunctionCall,
   VariableAssignment
+)
+
+// EXPRESSIONS BUILDER ==========================================================
+val expressionBuilder = ExpressionBuilder(mapOf(
+  CncPatterns.NUMBER to { token: Token -> NumberLiteral(token.text.toDouble()) },
+  CncPatterns.STRING to { token: Token -> StringLiteral(token.text.removeSurrounding("\"")) },
+  CncPatterns.IDENTIFIER to { token -> Identifier(token.text) }
+))
+
+// INTERPRETER CONFIGURATION ====================================================
+
+val printScriptStatementEvaluators = mapOf(
+  Declaration::class to DeclarationEvaluator(),
+  Assignment::class to AssignmentEvaluator(),
+  Call::class to CallEvaluator()
+)
+
+
+
+val printScriptBinaryOperations: Map<String, BinaryOperation> = mapOf(    // La clase Standard Binary Ops es general, pero el usuario puede crear lo q quiera
+  CncSymbols.PLUS.symbols.first() to BinaryOperation(StandardBinaryOperations::add),
+  CncSymbols.MINUS.symbols.first() to BinaryOperation(StandardBinaryOperations::subtract),
+  CncSymbols.MULTIPLICATION.symbols.first() to BinaryOperation(StandardBinaryOperations::multiply),
+  CncSymbols.DIVISION.symbols.first() to BinaryOperation(StandardBinaryOperations::divide)
+)
+
+val printScriptExpressionEvaluators = mapOf(
+  NumberLiteral::class to NumberLiteralEvaluator(),
+  StringLiteral::class to StringLiteralEvaluator(),
+  Identifier::class to IdentifierEvaluator(),
+  BinaryExpression::class to BinaryExpressionEvaluator(printScriptBinaryOperations)
+)
+
+val printScriptInterpreter = Interpreter(
+  statementEvaluators = printScriptStatementEvaluators,
+  expressionEvaluators = printScriptExpressionEvaluators
 )
 
 // =============================================================================
