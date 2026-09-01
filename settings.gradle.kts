@@ -21,3 +21,5 @@ include(
   "common",
   "interpreter"
 )
+
+include("semantic")

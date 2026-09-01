@@ -38,6 +38,7 @@ dependencies {
     implementation(project(":token"))
     implementation(project(":common"))
     implementation(project(":ast"))
+    implementation(project(":semantic"))
 }
 
 // Apply a specific Java toolchain to ease working on different environments.

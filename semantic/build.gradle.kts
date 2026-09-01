@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
-    id("jacoco-conventions")
 }
 
 repositories {
@@ -22,8 +21,10 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     implementation(libs.guava)
-    implementation(project(":token"))
+
+    // le agrego la dependencia de common
     implementation(project(":common"))
+    implementation(project(":ast"))
 }
 
 tasks.named<Test>("test") {

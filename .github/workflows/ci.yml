@@ -1,0 +1,59 @@
+name: CI
+
+# CI se ejecuta en dos escenarios:
+#  1. Pull requests hacia main -> valida los cambios ANTES de integrarlos.
+#  2. Push a main -> valida lo que quedó integrado tras el merge.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Cancela ejecuciones previas en curso para la misma rama/PR y ahorra minutos.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build, Test & Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission to gradlew
+        run: chmod +x ./gradlew
+
+      # check = build + test + JacocoCoverageVerification (umbral 80%)
+      - name: Run checks (tests + coverage)
+        run: ./gradlew check --no-daemon --stacktrace
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: '**/build/reports/tests/**'
+          if-no-files-found: ignore
+
+      - name: Upload JaCoCo coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-reports
+          path: '**/build/reports/jacoco/**'
+          if-no-files-found: ignore
