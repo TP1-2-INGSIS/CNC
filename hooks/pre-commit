@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+HOOK_NAME=$(basename "$0")
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check either hooks/<hook-name>.d or hooks/scripts/<hook-name>
+if [ -d "${HOOK_DIR}/${HOOK_NAME}.d" ]; then
+    SCRIPTS_DIR="${HOOK_DIR}/${HOOK_NAME}.d"
+elif [ -d "${HOOK_DIR}/scripts/${HOOK_NAME}" ]; then
+    SCRIPTS_DIR="${HOOK_DIR}/scripts/${HOOK_NAME}"
+else
+    SCRIPTS_DIR=""
+fi
+
+if [ -n "$SCRIPTS_DIR" ] && [ -d "$SCRIPTS_DIR" ]; then
+    shopt -s nullglob
+    for script in "$SCRIPTS_DIR"/*; do
+        if [ -f "$script" ]; then
+            filename=$(basename "$script")
+            if [[ "$filename" == .* ]]; then
+                continue
+            fi
+            echo "==> Running ${HOOK_NAME} hook: ${filename}..."
+            if [ -x "$script" ]; then
+                "$script" "$@"
+            else
+                bash "$script" "$@"
+            fi
+            status=$?
+            if [ $status -ne 0 ]; then
+                echo "[ERROR] Hook ${filename} failed with exit code $status. Aborting ${HOOK_NAME}."
+                exit $status
+            fi
+        fi
+    done
+    shopt -u nullglob
+fi
+
+exit 0

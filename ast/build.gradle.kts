@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    id("jacoco-conventions")
 }
 
 repositories {
@@ -22,6 +23,7 @@ dependencies {
 
     implementation(libs.guava)
     implementation(project(":token"))
+    implementation(project(":common"))
 }
 
 tasks.named<Test>("test") {
