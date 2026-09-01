@@ -3,6 +3,7 @@ package cnc.common
 enum class ErrorType {
   LEXER,
   PARSER,
+  SEMANTIC,
   CLI
 }
 

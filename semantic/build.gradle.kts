@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
-    id("jacoco-conventions")
 }
 
 repositories {
@@ -25,6 +24,7 @@ dependencies {
 
     // le agrego la dependencia de common
     implementation(project(":common"))
+    implementation(project(":ast"))
 }
 
 tasks.named<Test>("test") {
