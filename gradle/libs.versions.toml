@@ -3,6 +3,7 @@
 
 [versions]
 guava = "33.5.0-jre"
+ktlint = "14.2.0"
 junit-jupiter-engine = "6.0.1"
 detekt = "1.23.8"
 
@@ -13,5 +14,6 @@ detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", 
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version = "2.3.21" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 

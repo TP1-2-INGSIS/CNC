@@ -1,0 +1,26 @@
+
+# Indica que este es el archivo de configuración raíz
+root = true
+
+# Configuración para todos los archivos del proyecto
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Configuración específica para Kotlin
+[*.{kt,kts}]
+# Estilo de código oficial de ktlint (también podés usar 'android')
+ktlint_code_style = ktlint_official
+
+# Tamaño de sangría (4 espacios es el estándar)
+indent_size = 4
+
+# Longitud máxima de línea recomendada
+max_line_length = 120
+
+# Desactivar reglas molestas si lo deseás (ejemplos):
+ktlint_standard_no-wildcard-imports = enabled
+# ktlint_standard_final-newline = disabled
+
