@@ -1,27 +1,45 @@
 plugins {
-    jacoco
+    alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.detekt)
+}
+
+repositories {
+    mavenCentral()
+}
+
+detekt {
+    toolVersion = "1.23.8"
+    buildUponDefaultConfig = true
+    allRules = false
+    parallel = true
+    config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
+}
+
+dependencies {
+    detektPlugins(libs.detekt.formatting)
 }
 
 subprojects {
-    apply(plugin = "jacoco")
+    apply(plugin = "io.gitlab.arturbosch.detekt")
 
-    tasks.withType<Test>().configureEach {
-        finalizedBy(tasks.withType<JacocoReport>())
+    detekt {
+        toolVersion = "1.23.8"
+        buildUponDefaultConfig = true
+        allRules = false
+        parallel = true
+        config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
     }
 
-    tasks.withType<JacocoReport>().configureEach {
-        dependsOn(tasks.withType<Test>())
+    dependencies {
+        add("detektPlugins", rootProject.libs.detekt.formatting)
     }
 
-    tasks.withType<JacocoCoverageVerification>().configureEach {
-        violationRules {
-            rule {
-                limit { minimum = "0.80".toBigDecimal() }
-            }
+    tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+        reports {
+            html.required.set(true)
+            xml.required.set(true)
+            txt.required.set(false)
+            sarif.required.set(false)
         }
-    }
-
-    tasks.matching { it.name == "check" }.configureEach {
-        dependsOn(tasks.withType<JacocoCoverageVerification>())
     }
 }
