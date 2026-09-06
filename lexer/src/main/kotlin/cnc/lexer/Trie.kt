@@ -1,14 +1,16 @@
 package cnc.lexer
 
+import cnc.common.Cursor
+
 data class TrieNode<T>(
     val value: T? = null,
     val children: Map<Char, TrieNode<T>> = emptyMap()
 )
 
-fun <T> TrieNode<T>.matchLongest(stream: CharStream, offset: Int = 0): Pair<T, Int>? {
-    val char = stream.peek(offset)
+fun <T> TrieNode<T>.matchLongest(cursor: Cursor<Char>, offset: Int = 0): Pair<T, Int>? {
+    val char = cursor.peek(offset)
     if (char != null) {
-        val deeperMatch = children[char]?.matchLongest(stream, offset + 1)
+        val deeperMatch = children[char]?.matchLongest(cursor, offset + 1)
         if (deeperMatch != null) return deeperMatch
     }
 

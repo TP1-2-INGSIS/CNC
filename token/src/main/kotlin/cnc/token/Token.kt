@@ -1,5 +1,6 @@
 package cnc.token
 
+import cnc.common.LineIndex
 import cnc.common.Position
 import cnc.common.Provider
 
@@ -14,11 +15,27 @@ enum class TokenType {
   INVALID
 };
 
+data class RawToken(
+  val type: TokenType,
+  val text: String,
+  val offset: Int
+)
+
 data class Token(
   val type: TokenType,
   val pos: Position, // no guardo la position final, porque tenemos el size del texto
   val text: String
 )
+
+fun Sequence<RawToken>.withPositions(lineIndex: LineIndex): Sequence<Token> =
+  this.map { raw ->
+    Token(
+      type = raw.type,
+      pos = lineIndex.positionOf(raw.offset),
+      text = raw.text
+    )
+  }
+
 
 interface TokenDefinition {
   val alias: String;

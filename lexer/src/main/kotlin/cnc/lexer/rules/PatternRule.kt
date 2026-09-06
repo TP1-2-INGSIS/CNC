@@ -1,7 +1,6 @@
 package cnc.lexer.rules
 
-import cnc.lexer.CharStream
-import cnc.token.Token
+import cnc.common.Cursor
 import cnc.token.TokenType
 
 class PatternRule(
@@ -15,18 +14,17 @@ class PatternRule(
         tokenType: TokenType
     ) : this(predicate, predicate, tokenType)
 
-    override fun tryMatch(stream: CharStream): LexResult? {
-        val first = stream.peek() ?: return null
+    override fun tryMatch(cursor: Cursor<Char>): RuleResult? {
+        val first = cursor.peek() ?: return null
         if (!startPredicate(first)) return null
 
-        val startPos = stream.position
         val builder = StringBuilder()
-        builder.append(stream.advance()!!)
+        builder.append(cursor.advance()!!)
 
-        while (stream.peek()?.let(continuePredicate) == true) {
-            builder.append(stream.advance()!!)
+        while (cursor.peek()?.let(continuePredicate) == true) {
+            builder.append(cursor.advance()!!)
         }
 
-        return LexResult.Matched(Token(tokenType, startPos, builder.toString()))
+        return RuleResult.Matched(tokenType, builder.toString())
     }
 }

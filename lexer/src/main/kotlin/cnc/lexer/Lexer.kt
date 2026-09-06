@@ -1,10 +1,9 @@
 package cnc.lexer
 
-import cnc.common.ContentManager
-import cnc.common.StrContent
-import cnc.lexer.rules.LexResult
+import cnc.common.Cursor
 import cnc.lexer.rules.LexerRule
-import cnc.token.Token
+import cnc.lexer.rules.RuleResult
+import cnc.token.RawToken
 import cnc.token.TokenType
 
 class Lexer(
@@ -13,21 +12,20 @@ class Lexer(
 
     constructor(vararg rules: LexerRule) : this(rules.toList())
 
-    fun tokenize(content: ContentManager): Sequence<Token> = sequence {
-        val stream = CharStream(content.getReader())
-        while (stream.hasMore()) {
-            when (val step = nextStep(stream)) {
-                is LexResult.Matched -> yield(step.token)
-                is LexResult.Skipped -> Unit
+    /**
+     * Tokenizes characters from the given [cursor] into a lazy sequence of [RawToken]s.
+     */
+    fun tokenize(cursor: Cursor<Char>): Sequence<RawToken> = sequence {
+        while (cursor.hasMore()) {
+            val startOffset = cursor.currentOffset
+            when (val result = rules.firstNotNullOfOrNull { it.tryMatch(cursor) }) {
+                is RuleResult.Matched -> yield(RawToken(result.type, result.text, startOffset))
+                is RuleResult.Skipped -> Unit
+                null -> {
+                    val ch = cursor.advance().toString()
+                    yield(RawToken(TokenType.INVALID, ch, startOffset))
+                }
             }
         }
     }
-
-    fun getTokens(content: ContentManager): Sequence<Token> = tokenize(content)
-
-    fun getTokens(line: String, row: Int = 0): Sequence<Token> = tokenize(StrContent(line))
-
-    private fun nextStep(stream: CharStream): LexResult =
-        rules.firstNotNullOfOrNull { it.tryMatch(stream) }
-            ?: LexResult.Matched(Token(TokenType.INVALID, stream.position, stream.advance().toString()))
 }

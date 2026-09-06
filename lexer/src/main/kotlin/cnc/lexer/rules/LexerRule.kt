@@ -1,13 +1,13 @@
 package cnc.lexer.rules
 
-import cnc.lexer.CharStream
-import cnc.token.Token
+import cnc.common.Cursor
+import cnc.token.TokenType
 
-sealed interface LexResult {
-    data class Matched(val token: Token) : LexResult
-    data object Skipped : LexResult
+sealed interface RuleResult {
+    data class Matched(val type: TokenType, val text: String) : RuleResult
+    data object Skipped : RuleResult
 }
 
 fun interface LexerRule {
-    fun tryMatch(stream: CharStream): LexResult?
+    fun tryMatch(cursor: Cursor<Char>): RuleResult?
 }
