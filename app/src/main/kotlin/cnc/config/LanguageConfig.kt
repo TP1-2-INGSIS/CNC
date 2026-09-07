@@ -44,6 +44,7 @@ import cnc.semantic.DefaultSemanticContext
 import cnc.lexer.Lexer
 import cnc.lexer.rules.StandardRules
 import cnc.lexer.rules.TrieRule
+import java.io.File
 
 // =============================================================================
 // CNC DOMAIN DEFINITIONS
@@ -348,3 +349,6 @@ val binaryTypeRules: Map<String, BinaryOpResolver> = mapOf(
 val symbolTable = SymbolTable(validTypes = setOf("number", "string"))
 
 val semanticContext = DefaultSemanticContext(symbolTable, binaryTypeRules)
+
+// LINTER CONFIG
+val jsonContent = File("linter_config.json").readText();

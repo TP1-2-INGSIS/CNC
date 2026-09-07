@@ -22,4 +22,4 @@ include(
     "interpreter",
 )
 
-include("semantic")
+include("semantic", "linter")

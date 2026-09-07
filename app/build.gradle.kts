@@ -41,6 +41,7 @@ dependencies {
     implementation(project(":interpreter"))
     implementation(project(":cli"))
     implementation(project(":semantic"))
+    implementation(project(":linter"))
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
