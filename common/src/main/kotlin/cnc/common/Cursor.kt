@@ -105,17 +105,18 @@ class TrackingCharCursor(elements: Sequence<Char>) : CharCursor {
         val item = when {
             buffer.isNotEmpty() -> buffer.removeFirst()
             iterator.hasNext() -> iterator.next()
-            else -> null
+            else -> return null
         }
-        if (item != null) {
-            _offset++
-            if (item == '\n') {
-                _line++
-                _col = 0
-            } else {
-                _col++
-            }
+
+        _offset++
+
+        if (item != '\n') {
+            _col++
+            return item
         }
+
+        _line++
+        _col = 0
         return item
     }
 }
