@@ -9,7 +9,8 @@ import kotlin.reflect.KClass
 class ExpressionTypeResolver(
     private val rules: Map<KClass<out Expression>, ExpressionTypeRule<out Expression>>,
     private val declaredVars: Map<String, String>,
-    private val binaryRules: Map<String, BinaryOpResolver>
+    private val binaryRules: Map<String, BinaryOpResolver>,
+    private val unaryRules: Map<String, UnaryOpResolver> = emptyMap()
 ) : ExpressionTypeContext {
 
     override fun typeOf(name: String): String? = declaredVars[name]
@@ -17,6 +18,11 @@ class ExpressionTypeResolver(
     override fun resolveBinary(operator: String, leftType: String, rightType: String): Result<String> {
         return binaryRules[operator]?.resolve(leftType, rightType)
             ?: Failure("Operador '$operator' no soportado", ErrorType.SEMANTIC)
+    }
+
+    override fun resolveUnary(operator: String, operandType: String): Result<String> {
+        return unaryRules[operator]?.resolve(operandType)
+            ?: Failure("Operador unario '$operator' no soportado", ErrorType.SEMANTIC)
     }
 
     @Suppress("UNCHECKED_CAST")

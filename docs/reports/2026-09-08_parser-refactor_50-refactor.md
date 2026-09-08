@@ -63,20 +63,28 @@ Al evaluar la arquitectura del parser, se analizó si PrintScript requería un m
 * Al requerir a lo sumo dos tokens de lookahead ($k = 2$), un simple `canStart(cursor)` decide la regla sin ninguna ambigüedad.
 * **Beneficio:** Evita el costo de memoria y procesamiento de clonar cursores o rebobinar tokens. Si la regla seleccionada falla a mitad de camino, no es una regla diferente: **es un error de sintaxis del programador**.
 
-### 3.2. Sincronización y Recuperación ante Errores (Panic Mode Recovery)
-Cuando un programador omite un token (por ejemplo, olvida los dos puntos `:` en `let x number = 5;`):
-1. `expect(TokenType.SYMBOL, ":")` falla y retorna un `Failure(msg, ErrorType.SYNTAX)`.
-2. El `Parser` captura el fallo y emite el `Result.Failure`.
-3. Para evitar que el resto de los tokens (`number`, `=`, `5`, `;`) sean interpretados erróneamente como nuevas sentencias, el parser ejecuta `synchronize()`: avanza consumiendo tokens hasta encontrar el delimitador de sentencia (`;`) y lo consume.
-4. El parser queda listo y alineado para procesar la siguiente sentencia limpia.
+### 3.2. Filosofía de Error Handling: Fail-Fast Determinista (Fin de la sincronización mágica)
+Inicialmente se evaluó una recuperación de errores clásica (Panic-Mode saltando tokens hasta `;`). Sin embargo, durante el debate de diseño se concluyó que **Fail-Fast** es la única alternativa sólida y predecible para el pipeline de compilación:
+* **El problema de la sincronización ciega:** Si el programador olvidaba un delimitador o el lenguaje soportaba estructuras que no terminan en punto y coma (como bloques `if` en 1.1), el parser saltaba tokens válidos y los devoraba a ciegas.
+* **Evitar errores fantasma:** Si un archivo contiene un error sintáctico, el programa **no es válido**. Intentar seguir parseando solo produce árboles incompletos que generan decenas de falsos errores semánticos ("Variable no declarada").
+* **Diseño Fail-Fast implementado:** 
+  ```kotlin
+  fun parse(tokens: Sequence<Token>): Sequence<Result<Statement>> = sequence {
+      val cursor = tokens.asCursor()
+      while (cursor.hasMore()) {
+          val result = nextStatement(cursor)
+          yield(result)
+          if (result is Failure) break // Interrupción inmediata ante el primer fallo
+      }
+  }
+  ```
+* **Cero excepciones (`ParseException` eliminado):** El parser no arroja excepciones de ningún tipo. Tanto `parse()` como `getASTs()` retornan `Sequence<Result<Statement>>`. La aplicación (`Compiler.compile`) recibe el `Failure` y aborta la compilación de forma controlada.
 
-### 3.3. Separación Limpia de Responsabilidades (SRP) y Fin de `StatementDef`
-En la versión anterior, la validación semántica estaba incrustada en `StatementDef` junto a la definición léxica de los campos.
-* **Problema:** Mezclaba análisis léxico/sintáctico con semántica, y forzaba el uso de `Fields` (mapas heterogéneos `Map<String, Any>`).
-* **Solución:** 
-  - `:ast` contiene únicamente los nodos de datos puros (`Statement`, `Expression`).
-  - `:parser` se ocupa exclusivamente de transformar tokens en `Statement`.
-  - `:semantic` se ocupa de las reglas semánticas (tabla de símbolos, tipos compatibles, variables ya declaradas) mediante pattern matching directo y exhaustivo sobre el AST tipado (`when (stmt)`).
+### 3.3. Simetría Total y Desacoplamiento en Expresiones Unarias y Binarias
+En lugar de hardcodear tipos u operadores en la regla de `unaryExpression` (donde existía un `if (op == "-" && type == "number")` heredado), se introdujo `UnaryOpResolver` simétrico a `BinaryOpResolver`:
+* Las reglas sintácticas (`StandardExpressionTypeRules`) delegan ciegamente a `ctx.resolveUnary(op, operandType)`.
+* La configuración (`LanguageConfig.kt`) inyecta el mapa de operadores unarios (`mapOf("-" to TypeResolvers.unaryNumeric("-"))`).
+* No existen strings mágicos ni suposiciones en el núcleo del analizador semántico.
 
 ---
 
@@ -113,15 +121,13 @@ Reglas oficiales para PrintScript 1.0:
 - `callRule`: Valida identificador, `(`, argumentos separados por coma, `)`, `;`. Retorna `Call`.
 
 ### 4.3. `Parser.kt`
-Consumidor continuo sobre `Cursor<Token>` con dos APIs:
-- `fun parse(tokens: Cursor<Token>): Sequence<Result<Statement>>`: Emite cada resultado con soporte de recuperación de errores.
-- `fun getASTs(tokens: Sequence<Token>): Sequence<Statement>`: Emite directamente los statements válidos (lanzando excepción ante error si se requiere modo estricto).
+Consumidor continuo sobre `Cursor<Token>` con Fail-Fast:
+- `fun parse(tokens: Sequence<Token>): Sequence<Result<Statement>>`: Emite cada resultado y corta el stream ante el primer `Failure`.
+- `fun getASTs(tokens: Sequence<Token>): Sequence<Result<Statement>>`: Alias funcional sin excepciones.
 
-### 4.4. `SemanticAnalyzer.kt` Tipado
-Se actualizó el analizador semántico en `:semantic`:
-- Ahora analiza `Sequence<Statement>` y retorna `Sequence<Result<Statement>>`.
-- Despacha según el tipo concreto (`is Declaration`, `is Assignment`, `is Call`).
-- Se añadieron tests unitarios completos en `SemanticAnalyzerTest.kt`.
+### 4.4. `SemanticAnalyzer.kt` y `ExpressionTypeResolver.kt`
+- `SemanticAnalyzer`: Analiza `Sequence<Statement>` y despacha según el tipo concreto (`is Declaration`, `is Assignment`, `is Call`).
+- `ExpressionTypeResolver`: Resuelve expresiones mediante registro de reglas componibles (`ExpressionTypeRule`), permitiendo que nuevas expresiones se añadan como plugins sumando al mapa en la configuración.
 
 ---
 
@@ -129,16 +135,21 @@ Se actualizó el analizador semántico en `:semantic`:
 
 | Módulo | Archivos Modificados / Creados / Eliminados | Descripción |
 | :--- | :--- | :--- |
-| `:ast` | `ast/Statement.kt` | Se eliminaron `Fields`, `FieldType`, `StatementDef` y `GenericStatement`. Se conservan únicamente `Statement`, `Declaration`, `Assignment` y `Call`. |
+| `:ast` | `ast/Statement.kt` | Se eliminaron `Fields`, `FieldType`, `StatementDef`, `GenericStatement` y `typealiases`. Se conservan únicamente `Statement`, `Declaration`, `Assignment` y `Call`. |
+| `:ast` | `ast/AST.kt` | `Expression` es un `interface` abierto y limpio. Se eliminó todo el boilerplate de `accept(visitor)`. |
+| `:ast` | `ast/ExpressionVisitor.kt` | **Eliminado** (reemplazado por `when` / reglas componibles). |
 | `:parser` | `cnc/parser/expression/ExpressionBuilder.kt` | Reubicado desde `:ast` al módulo `:parser` (donde conceptualmente pertenece el Pratt parser). |
 | `:parser` | `cnc/parser/rule/StatementRule.kt` | Implementación del contrato `StatementRule`, `ParseContext` y el DSL `statementRule`. |
 | `:parser` | `cnc/parser/rule/StandardStatementRules.kt` | Reglas oficiales para declaración, asignación y llamada. |
-| `:parser` | `cnc/parser/Parser.kt` | Rediseñado para streaming continuo y recuperación de errores. |
+| `:parser` | `cnc/parser/Parser.kt` | Rediseñado para streaming continuo con semántica Fail-Fast; eliminado `synchronize` y `ParseException`. |
 | `:parser` | `parser/Grammar.kt` | **Eliminado** (reemplazado por `StatementRule`). |
-| `:parser` | `cnc/parser/ParserTest.kt` | Suite de 11 tests exhaustivos que cubren parsing exitoso, expresiones complejas y error recovery. |
-| `:semantic`| `cnc/semantic/SemanticAnalyzer.kt` | Actualizado para analizar `Statement` fuertemente tipado. `SemanticContext` reubicado aquí. |
-| `:semantic`| `cnc/semantic/SemanticAnalyzerTest.kt` | Nueva suite de tests para validaciones de tipos, ámbito y redeclaraciones. |
-| `:app` | `cnc/config/LanguageConfig.kt` y `cnc/app.kt` | Conexión del nuevo `printScriptParser` con `StandardStatementRules.printScript10`. |
+| `:parser` | `cnc/parser/ParserTest.kt` | Suite de 11 tests exhaustivos que cubren parsing exitoso, precedencias y Fail-Fast ante sintaxis inválida. |
+| `:semantic`| `cnc/semantic/BinaryOpResolver.kt` | Añadido soporte simétrico para `UnaryOpResolver` y resolvers en `TypeResolvers`. |
+| `:semantic`| `cnc/semantic/StandardExpressionTypeRules.kt` | Creadas reglas atómicas y desacopladas para expresiones. |
+| `:semantic`| `cnc/semantic/ExpressionTypeResolver.kt` | Resolver basado en composición de reglas (`ExpressionTypeRule`). |
+| `:semantic`| `cnc/semantic/SemanticAnalyzer.kt` | Actualizado para analizar `Statement` fuertemente tipado. |
+| `:semantic`| `cnc/semantic/SemanticAnalyzerTest.kt` | Suite de tests para validaciones de tipos, ámbito, unarios y extensión de expresiones vía plugins. |
+| `:app` | `cnc/config/LanguageConfig.kt` y `cnc/app.kt` | Conexión de `printScriptParser`, `unaryTypeRules`, y manejo funcional de `Failure` en `Compiler`. |
 | `:app` | `cnc/config/{Grammar, Expressions, Interpreter, Lexer, Token}.kt` | **Eliminados** (eran archivos redundantes/desfasados de merges pasados). |
 
 ---
@@ -153,7 +164,7 @@ Se ejecutó la suite de tests y ensamblado en todos los módulos del proyecto:
 ```
 
 **Resultado:** `BUILD SUCCESSFUL`.
-- Todos los tests de `:parser` pasaron exitosamente (declaraciones, asignaciones, llamadas, precedencia de operadores, error recovery en `;`).
+- Todos los tests de `:parser` pasaron exitosamente.
 - Todos los tests de `:semantic` pasaron exitosamente.
 - Ensamblado de `:app` y `:interpreter` impecable y sin advertencias de tipos.
 
@@ -165,7 +176,8 @@ Se ejecutó la suite de tests y ensamblado en todos los módulos del proyecto:
 * **Punto crítico identificado:** En [ExpressionBuilder.kt:L83](file:///c:/Users/bauti/projects/CNC/parser/src/main/kotlin/cnc/parser/expression/ExpressionBuilder.kt#L83) y [ExpressionBuilder.kt:L100](file:///c:/Users/bauti/projects/CNC/parser/src/main/kotlin/cnc/parser/expression/ExpressionBuilder.kt#L100), los fallos de parseo de expresiones (ej. `Expected closing ')' after grouped expression` o `Unexpected end of expression`) actualmente usan la función built-in de Kotlin `error(...)`, la cual arroja un `IllegalStateException`.
 * **Acción futura requerida:** Modificar la firma interna de `ExpressionBuilder` para que retorne `Result<Expression>` (o capture excepciones sintácticas para transformarlas en `Failure(msg, ErrorType.SYNTAX)`), alineándose estrictamente con la filosofía del proyecto de **no usar excepciones para control de flujo** y propagar fallos mediante el `Result` pattern.
 
-### 7.2. Extensibilidad de Expresiones mediante Plugins y Reglas
-* En `:semantic`, se desacopló el Visitor rígido y se implementó `ExpressionTypeRule` componible (`StandardExpressionTypeRules.kt`).
-* En futuras iteraciones (PrintScript 1.1 / 1.2), nuevas expresiones (como `BooleanLiteral`) se sumarán por composición (`mapOf`) sin tocar el núcleo.
+### 7.2. Tabla Declarativa de Firmas de Operadores (Fin de `additionOrConcat` y Primitive Obsession)
+* **Punto crítico identificado:** En `TypeResolvers.additionOrConcat`, la condición `left == "string" || right == "string"` es permisiva y asume que cualquier operando concatenado con string es válido. Además, a medida que PrintScript 1.1 agregue operadores relacionales (`<`, `>`, `==`, `!=`) y lógicos (`&&`, `||`), codificar cada operador con `when` imperativos generará una proliferación de bloques frágiles y duplicados.
+* **Acción futura requerida:** Migrar los resolvers de operadores a una **Tabla de Firmas de Tipos Declarativa** (`(Tipo, Tipo) -> TipoRetorno`), donde cada versión del lenguaje defina formalmente sus sobrecargas válidas (ej. `signature("number", "number") returns "number"`, `signature("string", "number") returns "string"`).
+
 

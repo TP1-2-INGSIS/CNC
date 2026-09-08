@@ -16,6 +16,7 @@ interface ExpressionTypeContext {
     fun typeOf(name: String): String?
     fun resolve(expr: Expression): Result<String>
     fun resolveBinary(operator: String, leftType: String, rightType: String): Result<String>
+    fun resolveUnary(operator: String, operandType: String): Result<String>
 }
 
 object StandardExpressionTypeRules {
@@ -44,11 +45,7 @@ object StandardExpressionTypeRules {
 
     val unaryExpression = ExpressionTypeRule<UnaryExpression> { expr, ctx ->
         ctx.resolve(expr.operand).flatMap { operandType ->
-            if (expr.operator == "-" && operandType == "number") {
-                Success("ok", "number")
-            } else {
-                Failure("Operador unario '${expr.operator}' no soportado para tipo '$operandType'", ErrorType.SEMANTIC)
-            }
+            ctx.resolveUnary(expr.operator, operandType)
         }
     }
 

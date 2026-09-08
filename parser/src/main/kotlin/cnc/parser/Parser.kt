@@ -5,7 +5,6 @@ import cnc.common.Cursor
 import cnc.common.ErrorType
 import cnc.common.Failure
 import cnc.common.Result
-import cnc.common.Success
 import cnc.common.asCursor
 import cnc.parser.expression.ExpressionParser
 import cnc.parser.rule.StatementRule
@@ -26,57 +25,33 @@ class Parser(
 
     /**
      * Parses a lazy sequence of [Token]s into a lazy sequence of [Result] containing [Statement]s.
-     * Operates continuously without blind delimiter slicing.
+     * Operates continuously with fail-fast semantics on syntax errors.
      */
     fun parse(tokens: Sequence<Token>): Sequence<Result<Statement>> = sequence {
         val cursor = tokens.asCursor()
         while (cursor.hasMore()) {
-            val rule = rules.firstOrNull { it.canStart(cursor) }
-            if (rule == null) {
-                yield(unexpectedTokenFailure(cursor.advance()))
-                continue
-            }
-
-            val result = rule.parse(cursor, expressionParser)
+            val result = nextStatement(cursor)
             yield(result)
-
-            if (result is Failure) {
-                synchronize(cursor)
-            }
+            if (result is Failure) break
         }
     }
 
-    private fun unexpectedTokenFailure(token: Token?): Failure<Statement> {
+    private fun nextStatement(cursor: Cursor<Token>): Result<Statement> {
+        val rule = rules.firstOrNull { it.canStart(cursor) }
+            ?: return unexpectedToken(cursor.advance())
+
+        return rule.parse(cursor, expressionParser)
+    }
+
+    private fun unexpectedToken(token: Token?): Failure<Statement> {
         val pos = token?.pos?.let { " at row ${it.row}, col ${it.col}" } ?: ""
         return Failure("Syntax error: unexpected token '${token?.text}'$pos", ErrorType.PARSER)
     }
 
-    private fun synchronize(cursor: Cursor<Token>) {
-        while (cursor.hasMore()) {
-            if (cursor.advance()?.text == ";") return
-        }
-    }
-
-    /**
-     * Convenience method: parses and returns statements, throwing ParseException on error.
-     */
-    fun getASTs(tokens: Sequence<Token>): Sequence<Statement> = parse(tokens).map { result ->
-        when (result) {
-            is Success -> result.data
-            is Failure -> throw ParseException(result.msg)
-        }
-    }
+    fun getASTs(tokens: Sequence<Token>): Sequence<Result<Statement>> = parse(tokens)
 
     fun copy(
         rules: List<StatementRule<Statement>> = this.rules,
         expressionParser: ExpressionParser = this.expressionParser
     ): Parser = Parser(rules, expressionParser)
 }
-
-/**
- * Error de parsing con información de posición y contexto.
- */
-class ParseException(
-    message: String,
-    val token: Token? = null
-) : RuntimeException(message)

@@ -1,5 +1,6 @@
 package cnc
 
+import cnc.ast.Statement
 import cnc.common.ContentManager
 import cnc.common.Failure
 import cnc.common.FileContent
@@ -22,8 +23,17 @@ data class Compiler(
   fun compile(content: ContentManager) {
     val cursor = content.openStream()
     val tokens = config.lexer.tokenize(cursor)
-    val statements = config.parser.getASTs(tokens)
-    config.semantic.analyze(statements).forEach { result ->
+    val parsedStatements = mutableListOf<Statement>()
+    for (result in config.parser.parse(tokens)) {
+      when (result) {
+        is Failure -> {
+          println("ERROR: ${result.msg}")
+          return
+        }
+        is Success -> parsedStatements.add(result.data)
+      }
+    }
+    config.semantic.analyze(parsedStatements.asSequence()).forEach { result ->
       when (result) {
         is Success -> println("OK: ${result.data}")
         is Failure -> println("ERROR: ${result.msg}")

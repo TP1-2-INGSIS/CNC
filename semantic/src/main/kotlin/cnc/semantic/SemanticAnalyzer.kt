@@ -27,6 +27,7 @@ interface SemanticContext {
 class DefaultSemanticContext(
     private val symbolTable: SymbolTable,
     private val binaryRules: Map<String, BinaryOpResolver>,
+    private val unaryRules: Map<String, UnaryOpResolver> = mapOf("-" to TypeResolvers.unaryNumeric("-")),
     private val expressionRules: Map<kotlin.reflect.KClass<out Expression>, ExpressionTypeRule<out Expression>> = StandardExpressionTypeRules.printScript10
 ) : SemanticContext {
 
@@ -36,7 +37,7 @@ class DefaultSemanticContext(
     override fun typeOf(name: String): String? = symbolTable.typeOf(name)
 
     override fun resolveExpressionType(expr: Expression): Result<String> {
-        val resolver = ExpressionTypeResolver(expressionRules, symbolTable.asReadOnly(), binaryRules)
+        val resolver = ExpressionTypeResolver(expressionRules, symbolTable.asReadOnly(), binaryRules, unaryRules)
         return resolver.resolve(expr)
     }
 }

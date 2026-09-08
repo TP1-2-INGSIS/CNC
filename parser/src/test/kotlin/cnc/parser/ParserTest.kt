@@ -256,8 +256,10 @@ class ParserTest {
                 tok(TokenType.SYMBOL, ";")
             )
 
-            val stmts = parser.getASTs(tokens).toList()
-            assertEquals(3, stmts.size)
+            val results = parser.parse(tokens).toList()
+            assertEquals(3, results.size)
+            assertTrue(results.all { it is Success })
+            val stmts = results.map { (it as Success).data }
             assertTrue(stmts[0] is Declaration)
             assertTrue(stmts[1] is Assignment)
             assertTrue(stmts[2] is Call)
@@ -301,7 +303,7 @@ class ParserTest {
         }
 
         @Test
-        fun `unexpected token at statement start reports error and recovers`() {
+        fun `unexpected token at statement start reports error and halts stream`() {
             val tokens = sequenceOf(
                 tok(TokenType.OPERATOR, "+", row = 3, col = 0),
                 tok(TokenType.KEYWORD, "let", row = 3, col = 2),
@@ -312,9 +314,11 @@ class ParserTest {
             )
 
             val results = parser.parse(tokens).toList()
-            assertEquals(2, results.size)
+            assertEquals(1, results.size)
             assertTrue(results[0] is Failure)
-            assertTrue(results[1] is Success)
+            val failure = results[0] as Failure
+            assertTrue(failure.msg.contains("unexpected token '+'"))
+            assertTrue(failure.msg.contains("row 3, col 0"))
         }
     }
 }

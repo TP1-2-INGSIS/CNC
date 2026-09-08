@@ -32,6 +32,7 @@ import cnc.parser.expression.Associativity
 import cnc.parser.rule.StandardStatementRules
 
 import cnc.semantic.BinaryOpResolver
+import cnc.semantic.UnaryOpResolver
 import cnc.semantic.TypeResolvers
 import cnc.semantic.SymbolTable
 import cnc.semantic.DefaultSemanticContext
@@ -152,6 +153,14 @@ val binaryTypeRules: Map<String, BinaryOpResolver> = mapOf(
   "/" to TypeResolvers.numericOnly("/"),
 )
 
+val unaryTypeRules: Map<String, UnaryOpResolver> = mapOf(
+  "-" to TypeResolvers.unaryNumeric("-")
+)
+
 val symbolTable = SymbolTable(validTypes = setOf("number", "string"))
 
-val semanticContext = DefaultSemanticContext(symbolTable, binaryTypeRules)
+val semanticContext = DefaultSemanticContext(
+  symbolTable = symbolTable,
+  binaryRules = binaryTypeRules,
+  unaryRules = unaryTypeRules
+)

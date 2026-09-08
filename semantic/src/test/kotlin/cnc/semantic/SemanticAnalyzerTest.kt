@@ -141,7 +141,7 @@ class SemanticAnalyzerTest {
         val extendedRules = StandardExpressionTypeRules.printScript10 + mapOf(
             CustomBooleanLiteral::class to booleanRule
         )
-        val customContext = DefaultSemanticContext(extendedTable, binaryRules, extendedRules)
+        val customContext = DefaultSemanticContext(extendedTable, binaryRules, expressionRules = extendedRules)
         val customAnalyzer = SemanticAnalyzer(customContext)
 
         val decl = Declaration("flag", "boolean", CustomBooleanLiteral(true))
@@ -150,5 +150,24 @@ class SemanticAnalyzerTest {
         assertEquals(1, results.size)
         assertTrue(results[0] is Success)
         assertEquals("boolean", extendedTable.typeOf("flag"))
+    }
+
+    @Test
+    fun `unary numeric negation succeeds on number`() {
+        val decl = Declaration("neg", "number", UnaryExpression("-", NumberLiteral(5.0)))
+        val results = analyzer.analyze(sequenceOf(decl)).toList()
+
+        assertEquals(1, results.size)
+        assertTrue(results[0] is Success)
+    }
+
+    @Test
+    fun `unary numeric negation fails on string`() {
+        val decl = Declaration("neg", "number", UnaryExpression("-", StringLiteral("hello")))
+        val results = analyzer.analyze(sequenceOf(decl)).toList()
+
+        assertEquals(1, results.size)
+        assertTrue(results[0] is Failure)
+        assertTrue((results[0] as Failure).msg.contains("Operador unario '-'"))
     }
 }
