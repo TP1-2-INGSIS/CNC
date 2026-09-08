@@ -129,4 +129,26 @@ class SemanticAnalyzerTest {
         assertTrue(results[0] is Failure)
         assertTrue((results[0] as Failure).msg.contains("no declarada"))
     }
+
+    data class CustomBooleanLiteral(val value: Boolean) : Expression
+
+    @Test
+    fun `custom expression rule can be composed into semantic context without modifying existing code`() {
+        val booleanRule = ExpressionTypeRule<CustomBooleanLiteral> { _, _ ->
+            Success("ok", "boolean")
+        }
+        val extendedTable = SymbolTable(validTypes = setOf("number", "string", "boolean"))
+        val extendedRules = StandardExpressionTypeRules.printScript10 + mapOf(
+            CustomBooleanLiteral::class to booleanRule
+        )
+        val customContext = DefaultSemanticContext(extendedTable, binaryRules, extendedRules)
+        val customAnalyzer = SemanticAnalyzer(customContext)
+
+        val decl = Declaration("flag", "boolean", CustomBooleanLiteral(true))
+        val results = customAnalyzer.analyze(sequenceOf(decl)).toList()
+
+        assertEquals(1, results.size)
+        assertTrue(results[0] is Success)
+        assertEquals("boolean", extendedTable.typeOf("flag"))
+    }
 }

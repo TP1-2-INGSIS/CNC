@@ -1,6 +1,6 @@
 package cnc.ast
 
-sealed interface Expression
+interface Expression
 
 data class NumberLiteral(val value: Double) : Expression
 

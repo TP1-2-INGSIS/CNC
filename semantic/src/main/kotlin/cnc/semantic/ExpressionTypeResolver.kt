@@ -1,48 +1,29 @@
 package cnc.semantic
 
-import cnc.ast.BinaryExpression
 import cnc.ast.Expression
-import cnc.ast.Identifier
-import cnc.ast.NumberLiteral
-import cnc.ast.StringLiteral
-import cnc.ast.UnaryExpression
 import cnc.common.ErrorType
 import cnc.common.Failure
 import cnc.common.Result
-import cnc.common.Success
-import cnc.common.flatMap
+import kotlin.reflect.KClass
 
 class ExpressionTypeResolver(
+    private val rules: Map<KClass<out Expression>, ExpressionTypeRule<out Expression>>,
     private val declaredVars: Map<String, String>,
     private val binaryRules: Map<String, BinaryOpResolver>
-) {
-    fun resolve(expr: Expression): Result<String> = when (expr) {
-        is NumberLiteral ->
-            Success("ok", "number")
+) : ExpressionTypeContext {
 
-        is StringLiteral ->
-            Success("ok", "string")
+    override fun typeOf(name: String): String? = declaredVars[name]
 
-        is Identifier ->
-            declaredVars[expr.name]
-                ?.let { Success("ok", it) }
-                ?: Failure("Variable '${expr.name}' no declarada", ErrorType.SEMANTIC)
+    override fun resolveBinary(operator: String, leftType: String, rightType: String): Result<String> {
+        return binaryRules[operator]?.resolve(leftType, rightType)
+            ?: Failure("Operador '$operator' no soportado", ErrorType.SEMANTIC)
+    }
 
-        is BinaryExpression ->
-            resolve(expr.left).flatMap { leftType ->
-                resolve(expr.right).flatMap { rightType ->
-                    binaryRules[expr.operator]?.resolve(leftType, rightType)
-                        ?: Failure("Operador '${expr.operator}' no soportado", ErrorType.SEMANTIC)
-                }
-            }
+    @Suppress("UNCHECKED_CAST")
+    override fun resolve(expr: Expression): Result<String> {
+        val rule = rules[expr::class] as? ExpressionTypeRule<Expression>
+            ?: return Failure("No hay regla de tipos registrada para expresión: ${expr::class.simpleName}", ErrorType.SEMANTIC)
 
-        is UnaryExpression ->
-            resolve(expr.operand).flatMap { operandType ->
-                if (expr.operator == "-" && operandType == "number") {
-                    Success("ok", "number")
-                } else {
-                    Failure("Operador unario '${expr.operator}' no soportado para tipo '$operandType'", ErrorType.SEMANTIC)
-                }
-            }
+        return rule.resolve(expr, this)
     }
 }
