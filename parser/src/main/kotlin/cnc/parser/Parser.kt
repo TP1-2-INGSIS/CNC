@@ -32,26 +32,29 @@ class Parser(
         val cursor = tokens.asCursor()
         while (cursor.hasMore()) {
             val rule = rules.firstOrNull { it.canStart(cursor) }
-            if (rule != null) {
-                val result = rule.parse(cursor, expressionParser)
-                yield(result)
-                if (result is Failure) {
-                    // Synchronize: skip tokens up to ';' to recover for next statement
-                    while (cursor.hasMore()) {
-                        if (cursor.advance()?.text == ";") break
-                    }
-                }
-            } else {
-                val unexpected = cursor.peek()
-                val pos = unexpected?.pos
-                val posStr = if (pos != null) " at row ${pos.row}, col ${pos.col}" else ""
-                yield(
-                    Failure("Syntax error: unexpected token '${unexpected?.text}'$posStr", ErrorType.PARSER)
-                )
-                cursor.advance() // Discard unexpected token to recover stream
+            if (rule == null) {
+                yield(unexpectedTokenFailure(cursor.advance()))
+                continue
+            }
+
+            val result = rule.parse(cursor, expressionParser)
+            yield(result)
+
+            if (result is Failure) {
+                synchronize(cursor)
             }
         }
+    }
 
+    private fun unexpectedTokenFailure(token: Token?): Failure<Statement> {
+        val pos = token?.pos?.let { " at row ${it.row}, col ${it.col}" } ?: ""
+        return Failure("Syntax error: unexpected token '${token?.text}'$pos", ErrorType.PARSER)
+    }
+
+    private fun synchronize(cursor: Cursor<Token>) {
+        while (cursor.hasMore()) {
+            if (cursor.advance()?.text == ";") return
+        }
     }
 
     /**
