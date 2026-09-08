@@ -10,6 +10,6 @@ class SymbolTable(
     fun declare(name: String, type: String) { variables[name] = type }
     fun typeOf(name: String): String? = variables[name]
 
-    // Vista de solo lectura para ExpressionTypeVisitor
+    // Vista de solo lectura para ExpressionTypeResolver
     fun asReadOnly(): Map<String, String> = variables
 }

@@ -22,7 +22,7 @@ interface SemanticContext {
 }
 
 /**
- * Implementación de SemanticContext que envuelve SymbolTable y ExpressionTypeVisitor.
+ * Implementación de SemanticContext que envuelve SymbolTable y ExpressionTypeResolver.
  */
 class DefaultSemanticContext(
     private val symbolTable: SymbolTable,
@@ -35,8 +35,8 @@ class DefaultSemanticContext(
     override fun typeOf(name: String): String? = symbolTable.typeOf(name)
 
     override fun resolveExpressionType(expr: Expression): Result<String> {
-        val visitor = ExpressionTypeVisitor(symbolTable.asReadOnly(), binaryRules)
-        return expr.accept(visitor)
+        val resolver = ExpressionTypeResolver(symbolTable.asReadOnly(), binaryRules)
+        return resolver.resolve(expr)
     }
 }
 
