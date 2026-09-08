@@ -156,3 +156,16 @@ Se ejecutó la suite de tests y ensamblado en todos los módulos del proyecto:
 - Todos los tests de `:parser` pasaron exitosamente (declaraciones, asignaciones, llamadas, precedencia de operadores, error recovery en `;`).
 - Todos los tests de `:semantic` pasaron exitosamente.
 - Ensamblado de `:app` y `:interpreter` impecable y sin advertencias de tipos.
+
+---
+
+## 7. Deuda Técnica y Próximos Pasos (TODOs Arquitectónicos)
+
+### 7.1. Migración de `error(...)` a `Result.Failure` en `ExpressionBuilder.kt`
+* **Punto crítico identificado:** En [ExpressionBuilder.kt:L83](file:///c:/Users/bauti/projects/CNC/parser/src/main/kotlin/cnc/parser/expression/ExpressionBuilder.kt#L83) y [ExpressionBuilder.kt:L100](file:///c:/Users/bauti/projects/CNC/parser/src/main/kotlin/cnc/parser/expression/ExpressionBuilder.kt#L100), los fallos de parseo de expresiones (ej. `Expected closing ')' after grouped expression` o `Unexpected end of expression`) actualmente usan la función built-in de Kotlin `error(...)`, la cual arroja un `IllegalStateException`.
+* **Acción futura requerida:** Modificar la firma interna de `ExpressionBuilder` para que retorne `Result<Expression>` (o capture excepciones sintácticas para transformarlas en `Failure(msg, ErrorType.SYNTAX)`), alineándose estrictamente con la filosofía del proyecto de **no usar excepciones para control de flujo** y propagar fallos mediante el `Result` pattern.
+
+### 7.2. Extensibilidad de Expresiones mediante Plugins y Reglas
+* En `:semantic`, se desacopló el Visitor rígido y se implementó `ExpressionTypeRule` componible (`StandardExpressionTypeRules.kt`).
+* En futuras iteraciones (PrintScript 1.1 / 1.2), nuevas expresiones (como `BooleanLiteral`) se sumarán por composición (`mapOf`) sin tocar el núcleo.
+
