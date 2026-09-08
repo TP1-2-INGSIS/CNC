@@ -12,7 +12,7 @@ import cnc.semantic.SemanticAnalyzer
 
 data class Config(
   val lexer: Lexer = printScriptLexer,
-  val parser: Parser = Parser(grammars, terminators),
+  val parser: Parser = printScriptParser,
   val semantic: SemanticAnalyzer = SemanticAnalyzer(semanticContext)
 )
 
