@@ -40,10 +40,6 @@ import cnc.lexer.Lexer
 import cnc.lexer.rules.StandardRules
 import cnc.lexer.rules.TrieRule
 
-// =============================================================================
-// CNC DOMAIN DEFINITIONS
-// =============================================================================
-
 object CncKeywords {
   val LET = SymbolTokenDef("let", "let")
   val TYPE_STRING = SymbolTokenDef("string_type", "string")
@@ -92,10 +88,6 @@ object CncPatterns {
   val STRING = RegexTokenDef("string_exp", "\".*?\"")
 }
 
-// =============================================================================
-// LEXER CONFIGURATION
-// =============================================================================
-
 val printScriptRules = listOf(
   StandardRules.whitespace(),
   StandardRules.doubleQuotedString(TokenType.STRING),
@@ -105,10 +97,6 @@ val printScriptRules = listOf(
 )
 
 val printScriptLexer = Lexer(printScriptRules)
-
-// =============================================================================
-// EXPRESSIONS
-// =============================================================================
 
 val expressionBuilder = ExpressionBuilder(
   recipes = mapOf(
@@ -127,18 +115,10 @@ val expressionBuilder = ExpressionBuilder(
   groupClose = CncSymbols.CLOSE_PAREN
 )
 
-// =============================================================================
-// PARSER CONFIGURATION
-// =============================================================================
-
 val printScriptParser = Parser(
   rules = StandardStatementRules.printScript10,
   expressionParser = expressionBuilder
 )
-
-// =============================================================================
-// INTERPRETER CONFIGURATION
-// =============================================================================
 
 val printScriptStatementEvaluators = mapOf(
   Declaration::class to DeclarationEvaluator(),
@@ -164,10 +144,6 @@ val printScriptInterpreter = Interpreter(
   statementEvaluators = printScriptStatementEvaluators,
   expressionEvaluators = printScriptExpressionEvaluators
 )
-
-// =============================================================================
-// SEMANTIC CONFIGURATION
-// =============================================================================
 
 val binaryTypeRules: Map<String, BinaryOpResolver> = mapOf(
   "+" to TypeResolvers.additionOrConcat,
