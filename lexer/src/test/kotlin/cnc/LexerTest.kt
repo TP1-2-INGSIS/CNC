@@ -6,10 +6,8 @@ import cnc.common.asCursor
 import cnc.common.openStream
 import cnc.lexer.rules.StandardRules
 import cnc.lexer.rules.TrieRule
-import cnc.token.RawToken
 import cnc.token.Token
 import cnc.token.TokenType
-import cnc.token.withPositions
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -47,8 +45,8 @@ class LexerTest {
     private val lexer = Lexer(testRules)
 
     private fun lex(input: String): List<Token> {
-        val (cursor, lineIndex) = StrContent(input).openStream()
-        return lexer.tokenize(cursor).withPositions(lineIndex).toList()
+        val cursor = StrContent(input).openStream()
+        return lexer.tokenize(cursor).toList()
     }
 
     // -------------------------------------------------------------------------
@@ -97,19 +95,18 @@ class LexerTest {
     // -------------------------------------------------------------------------
 
     @Nested
-    inner class RawTokenizationTests {
+    inner class TokenizationTests {
 
         @Test
-        fun `tokenize returns raw tokens with exact offsets`() {
-            val cursor = "let x = 10;".asSequence().asCursor()
-            val rawTokens = lexer.tokenize(cursor).toList()
+        fun `tokenize returns tokens directly with exact positions`() {
+            val tokens = lexer.tokenize("let x = 10;").toList()
 
-            assertEquals(5, rawTokens.size)
-            assertEquals(RawToken(TokenType.KEYWORD, "let", 0), rawTokens[0])
-            assertEquals(RawToken(TokenType.IDENTIFIER, "x", 4), rawTokens[1])
-            assertEquals(RawToken(TokenType.SYMBOL, "=", 6), rawTokens[2])
-            assertEquals(RawToken(TokenType.NUMBER, "10", 8), rawTokens[3])
-            assertEquals(RawToken(TokenType.SYMBOL, ";", 10), rawTokens[4])
+            assertEquals(5, tokens.size)
+            assertEquals(Token(TokenType.KEYWORD, Position(0, 0), "let"), tokens[0])
+            assertEquals(Token(TokenType.IDENTIFIER, Position(0, 4), "x"), tokens[1])
+            assertEquals(Token(TokenType.SYMBOL, Position(0, 6), "="), tokens[2])
+            assertEquals(Token(TokenType.NUMBER, Position(0, 8), "10"), tokens[3])
+            assertEquals(Token(TokenType.SYMBOL, Position(0, 10), ";"), tokens[4])
         }
     }
 
