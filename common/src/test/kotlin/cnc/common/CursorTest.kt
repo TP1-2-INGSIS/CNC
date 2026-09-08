@@ -74,4 +74,37 @@ class CursorTest {
         assertEquals(11, cursor.currentOffset)
         assertFalse(cursor.hasMore())
     }
+
+    @Test
+    fun `trackingCharCursor tracks line and column accurately across newlines`() {
+        val cursor = "ab\ncd\ne".asCharCursor()
+
+        assertEquals(Position(0, 0), cursor.currentPosition)
+        assertEquals('a', cursor.advance())
+        assertEquals(Position(0, 1), cursor.currentPosition)
+        assertEquals('b', cursor.advance())
+        assertEquals(Position(0, 2), cursor.currentPosition)
+        assertEquals('\n', cursor.advance())
+        assertEquals(Position(1, 0), cursor.currentPosition)
+
+        assertEquals('c', cursor.peek(0))
+        assertEquals('d', cursor.peek(1))
+        assertEquals('\n', cursor.peek(2))
+        assertEquals('e', cursor.peek(3))
+        // peek must NOT change currentPosition or offset
+        assertEquals(Position(1, 0), cursor.currentPosition)
+        assertEquals(3, cursor.currentOffset)
+
+        assertEquals('c', cursor.advance())
+        assertEquals('d', cursor.advance())
+        assertEquals('\n', cursor.advance())
+        assertEquals(Position(2, 0), cursor.currentPosition)
+
+        assertEquals('e', cursor.advance())
+        assertEquals(Position(2, 1), cursor.currentPosition)
+        assertNull(cursor.advance())
+        assertEquals(Position(2, 1), cursor.currentPosition)
+        assertFalse(cursor.hasMore())
+    }
 }
+

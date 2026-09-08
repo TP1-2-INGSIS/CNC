@@ -10,16 +10,15 @@ class ContentManagerTest {
     @Test
     fun `openStream streams characters lazily and tracks lines incrementally`() {
         val content = StrContent("val x = 1;\nval y = 2;")
-        val (cursor, lineIndex) = content.openStream(bufferSize = 4) // small buffer to test multiple chunk reads
+        val cursor = content.openStream(bufferSize = 4) // small buffer to test multiple chunk reads
 
         assertEquals('v', cursor.peek())
+        assertEquals(Position(0, 0), cursor.currentPosition)
         assertEquals("val x = 1;\n", cursor.consume(11))
-        assertEquals(Position(0, 0), lineIndex.positionOf(0))
-        assertEquals(Position(0, 4), lineIndex.positionOf(4))
-        assertEquals(Position(1, 0), lineIndex.positionOf(11))
+        assertEquals(Position(1, 0), cursor.currentPosition)
 
         assertEquals("val y = 2;", cursor.consume(10))
-        assertEquals(Position(1, 4), lineIndex.positionOf(15))
+        assertEquals(Position(1, 10), cursor.currentPosition)
         assertFalse(cursor.hasMore())
     }
 
@@ -29,10 +28,10 @@ class ContentManagerTest {
         tempFile.writeText("let greeting = \"hello\";\nprintln(greeting);")
         try {
             val content = FileContent(tempFile.absolutePath)
-            val (cursor, lineIndex) = content.openStream(bufferSize = 8)
+            val cursor = content.openStream(bufferSize = 8)
 
             assertEquals("let greeting = \"hello\";\n", cursor.consume(24))
-            assertEquals(Position(1, 0), lineIndex.positionOf(24))
+            assertEquals(Position(1, 0), cursor.currentPosition)
         } finally {
             tempFile.delete()
         }
