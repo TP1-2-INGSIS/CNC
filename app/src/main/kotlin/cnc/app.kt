@@ -9,7 +9,6 @@ import cnc.config.*
 import cnc.lexer.Lexer
 import cnc.parser.Parser
 import cnc.semantic.SemanticAnalyzer
-import cnc.token.withPositions
 
 data class Config(
   val lexer: Lexer = printScriptLexer,
@@ -21,9 +20,8 @@ data class Compiler(
   val config: Config
 ) {
   fun compile(content: ContentManager) {
-    val (cursor, lineIndex) = content.openStream()
-    val rawTokens = config.lexer.tokenize(cursor)
-    val tokens = rawTokens.withPositions(lineIndex)
+    val cursor = content.openStream()
+    val tokens = config.lexer.tokenize(cursor)
     val statements = config.parser.getASTs(tokens)
     config.semantic.analyze(statements).forEach { result ->
       when (result) {
