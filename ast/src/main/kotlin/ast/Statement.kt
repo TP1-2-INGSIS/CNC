@@ -18,7 +18,3 @@ data class Call(
     val function: String,
     val arguments: List<Expression>
 ) : Statement
-
-typealias VariableDeclaration = Declaration
-typealias VariableAssignment = Assignment
-typealias FunctionCall = Call
