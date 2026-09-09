@@ -1,34 +1,46 @@
 package cnc.interpreter
 
-import cnc.ast.Assignment
-import cnc.ast.Call
-import cnc.ast.Declaration
-import cnc.ast.Statement
-import kotlin.reflect.KClass
+import cnc.ast.Fields
 
-class DeclarationEvaluator : StatementEvaluator<Declaration> {
-    override fun evaluate(statement: Declaration, environment: Environment, interpreter: Interpreter) {
-        val initialValue = statement.value?.let { interpreter.evaluate(it, environment) }
-        environment.define(statement.name, initialValue)
+/**
+ * Evalúa una declaración de variable: `let name: type = value;`.
+ * Campos esperados (definidos por la Grammar): `name` (TEXT), `value` (EXPRESSION).
+ */
+class DeclarationEvaluator : StatementEvaluator {
+    override fun evaluate(fields: Fields, environment: Environment, interpreter: Interpreter) {
+        val initialValue = if (fields.has("value")) {
+            interpreter.evaluate(fields.expression("value"), environment)
+        } else {
+            null
+        }
+        environment.define(fields.text("name"), initialValue)
     }
 }
 
-class AssignmentEvaluator : StatementEvaluator<Assignment> {
-    override fun evaluate(statement: Assignment, environment: Environment, interpreter: Interpreter) {
-        val value = interpreter.evaluate(statement.value, environment)
-        environment.assign(statement.target, value)
+/**
+ * Evalúa una asignación: `target = value;`.
+ * Campos esperados: `target` (TEXT), `value` (EXPRESSION).
+ */
+class AssignmentEvaluator : StatementEvaluator {
+    override fun evaluate(fields: Fields, environment: Environment, interpreter: Interpreter) {
+        val value = interpreter.evaluate(fields.expression("value"), environment)
+        environment.assign(fields.text("target"), value)
     }
 }
 
+/**
+ * Evalúa una llamada a función soportada (p. ej. `println(args);`).
+ * Campos esperados: `function` (TEXT), `arguments` (EXPRESSIONS).
+ */
 class CallEvaluator(
     private val output: (String) -> Unit = { println(it) }
-) : StatementEvaluator<Call> {
-    override fun evaluate(statement: Call, environment: Environment, interpreter: Interpreter) {
-        val evaluatedArgs = statement.arguments.map { interpreter.evaluate(it, environment) }
+) : StatementEvaluator {
+    override fun evaluate(fields: Fields, environment: Environment, interpreter: Interpreter) {
+        val evaluatedArgs = fields.expressions("arguments").map { interpreter.evaluate(it, environment) }
 
-        when (statement.function) {
+        when (val function = fields.text("function")) {
             "println" -> output(evaluatedArgs.joinToString(" ") { formatOutput(it) })
-            else -> throw RuntimeException("Unknown function: '${statement.function}'")
+            else -> throw RuntimeException("Unknown function: '$function'")
         }
     }
 
