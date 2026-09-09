@@ -1,7 +1,8 @@
 package cnc.interpreter
 
 import cnc.ast.Expression
-import cnc.ast.Statement
+import cnc.ast.Fields
+import cnc.ast.GenericStatement
 import kotlin.reflect.KClass
 
 class Environment {
@@ -29,8 +30,11 @@ class Environment {
 }
 
 // STATEMENTS
-interface StatementEvaluator<T : Statement> {
-    fun evaluate(statement: T, environment: Environment, interpreter: Interpreter)
+// Data-driven: cada evaluador se mapea por `tag` (coherente con :semantic, que
+// usa StatementDef.semanticCheck, y con :formatter, que mapea por tag). Recibe
+// los Fields del GenericStatement en lugar de una subclase de Statement.
+interface StatementEvaluator {
+    fun evaluate(fields: Fields, environment: Environment, interpreter: Interpreter)
 }
 
 // Expressions
@@ -39,29 +43,28 @@ interface ExpressionEvaluator<T : Expression> {
 }
 
 class Interpreter(
-    private val statementEvaluators: Map<KClass<out Statement>, StatementEvaluator<out Statement>>,
+    private val statementEvaluators: Map<String, StatementEvaluator>,
     private val expressionEvaluators: Map<KClass<out Expression>, ExpressionEvaluator<out Expression>>
 ) {
 
-    fun interpret(statements: List<Statement>, environment: Environment) {
+    fun interpret(statements: List<GenericStatement>, environment: Environment) {
         for (statement in statements) {
             interpret(statement, environment)
         }
     }
 
-    @Suppress("UNCHECKED_CAST")
-    fun interpret(statement: Statement, environment: Environment) {
-        val evaluator = statementEvaluators[statement::class] as? StatementEvaluator<Statement>
-            ?: throw RuntimeException("No evaluator registered for statement type: ${statement::class.simpleName}")
-        
-        evaluator.evaluate(statement, environment, this)
+    fun interpret(statement: GenericStatement, environment: Environment) {
+        val evaluator = statementEvaluators[statement.tag]
+            ?: throw RuntimeException("No evaluator registered for statement tag: '${statement.tag}'")
+
+        evaluator.evaluate(statement.fields, environment, this)
     }
 
     @Suppress("UNCHECKED_CAST")
     fun evaluate(expression: Expression, environment: Environment): Any? {
         val evaluator = expressionEvaluators[expression::class] as? ExpressionEvaluator<Expression>
             ?: throw RuntimeException("No evaluator registered for expression type: ${expression::class.simpleName}")
-        
+
         return evaluator.evaluate(expression, environment, this)
     }
 }
