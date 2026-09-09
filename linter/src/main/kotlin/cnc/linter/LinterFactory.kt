@@ -12,7 +12,8 @@ object LinterFactory {
 
     fun build(
         jsonString: String,
-        declarationTag: String
+        declarationTag: String,
+        validators: Map<String, NamingValidator>
     ): CNCLinter {
 
         val config = Gson().fromJson(jsonString, LinterConfigDto::class.java)
@@ -21,12 +22,9 @@ object LinterFactory {
         val activeRules = mutableListOf<LinterRule>()
 
         if (config.namingConvention != null) {
-            val convention = when (config.namingConvention) {
-                "camelCase" -> NamingConvention.CAMEL_CASE
-                "snake_case" -> NamingConvention.SNAKE_CASE
-                else -> throw IllegalArgumentException("Convención desconocida: \${config.namingConvention}")
-            }
-            activeRules.add(NamingConventionRule(declarationTag, convention))
+            val validator = validators[config.namingConvention]
+                ?: throw IllegalArgumentException("Convention validator for '${config.namingConvention}' not found")
+            activeRules.add(NamingConventionRule(declarationTag, config.namingConvention, validator))
         }
 
         return CNCLinter(activeRules)

@@ -8,6 +8,8 @@ import cnc.common.Success
 import cnc.common.Failure
 import cnc.linter.CNCLinter
 import cnc.linter.LinterFactory
+import cnc.linter.CamelCaseValidator
+import cnc.linter.SnakeCaseValidator
 import cnc.parser.Parser
 import cnc.semantic.SemanticAnalyzer
 
@@ -17,7 +19,12 @@ data class Config(
   val semantic: SemanticAnalyzer = SemanticAnalyzer(semanticContext),
   val linter: CNCLinter = LinterFactory.build(
     jsonString = jsonContent,
-    declarationTag = DeclarationDef.tag)
+    declarationTag = DeclarationDef.tag,
+    validators = mapOf(
+      "camelCase" to CamelCaseValidator(),
+      "snake_case" to SnakeCaseValidator()
+    )
+  )
 )
 
 data class Compiler(
