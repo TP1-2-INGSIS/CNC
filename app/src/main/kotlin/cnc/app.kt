@@ -6,13 +6,25 @@ import cnc.common.FileContent
 import cnc.common.ContentManager
 import cnc.common.Success
 import cnc.common.Failure
+import cnc.linter.CNCLinter
+import cnc.linter.LinterFactory
+import cnc.linter.CamelCaseValidator
+import cnc.linter.SnakeCaseValidator
 import cnc.parser.Parser
 import cnc.semantic.SemanticAnalyzer
 
 data class Config(
   val lexer: Lexer = printScriptLexer,
   val parser: Parser = Parser(grammars, terminators),
-  val semantic: SemanticAnalyzer = SemanticAnalyzer(semanticContext)
+  val semantic: SemanticAnalyzer = SemanticAnalyzer(semanticContext),
+  val linter: CNCLinter = LinterFactory.build(
+    jsonString = jsonContent,
+    declarationTag = DeclarationDef.tag,
+    validators = mapOf(
+      "camelCase" to CamelCaseValidator(),
+      "snake_case" to SnakeCaseValidator()
+    )
+  )
 )
 
 data class Compiler(

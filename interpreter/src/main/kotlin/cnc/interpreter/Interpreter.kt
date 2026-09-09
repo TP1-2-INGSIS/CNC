@@ -1,7 +1,7 @@
 package cnc.interpreter
 
 import cnc.ast.Expression
-import cnc.ast.Statement
+import cnc.ast.GenericStatement
 import kotlin.reflect.KClass
 
 class Environment {
@@ -29,8 +29,8 @@ class Environment {
 }
 
 // STATEMENTS
-interface StatementEvaluator<T : Statement> {
-    fun evaluate(statement: T, environment: Environment, interpreter: Interpreter)
+interface StatementEvaluator {
+    fun evaluate(statement: GenericStatement, environment: Environment, interpreter: Interpreter)
 }
 
 // Expressions
@@ -39,20 +39,19 @@ interface ExpressionEvaluator<T : Expression> {
 }
 
 class Interpreter(
-    private val statementEvaluators: Map<KClass<out Statement>, StatementEvaluator<out Statement>>,
+    private val statementEvaluators: Map<String, StatementEvaluator>,
     private val expressionEvaluators: Map<KClass<out Expression>, ExpressionEvaluator<out Expression>>
 ) {
 
-    fun interpret(statements: List<Statement>, environment: Environment) {
+    fun interpret(statements: List<GenericStatement>, environment: Environment) {
         for (statement in statements) {
             interpret(statement, environment)
         }
     }
 
-    @Suppress("UNCHECKED_CAST")
-    fun interpret(statement: Statement, environment: Environment) {
-        val evaluator = statementEvaluators[statement::class] as? StatementEvaluator<Statement>
-            ?: throw RuntimeException("No evaluator registered for statement type: ${statement::class.simpleName}")
+    fun interpret(statement: GenericStatement, environment: Environment) {
+        val evaluator = statementEvaluators[statement.tag]
+            ?: throw RuntimeException("No evaluator registered for statement tag: ${statement.tag}")
         
         evaluator.evaluate(statement, environment, this)
     }
