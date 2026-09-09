@@ -23,3 +23,5 @@ include(
 )
 
 include("semantic")
+
+include("formatter")
