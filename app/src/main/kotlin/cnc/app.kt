@@ -7,6 +7,8 @@ import cnc.common.FileContent
 import cnc.common.Success
 import cnc.common.openStream
 import cnc.config.*
+import cnc.interpreter.Environment
+import cnc.interpreter.Interpreter
 import cnc.lexer.Lexer
 import cnc.parser.Parser
 import cnc.semantic.SemanticAnalyzer
@@ -14,7 +16,8 @@ import cnc.semantic.SemanticAnalyzer
 data class Config(
   val lexer: Lexer = printScriptLexer,
   val parser: Parser = printScriptParser,
-  val semantic: SemanticAnalyzer = SemanticAnalyzer(semanticContext)
+  val semantic: SemanticAnalyzer = SemanticAnalyzer(semanticContext),
+  val interpreter: Interpreter = printScriptInterpreter
 )
 
 data class Compiler(
@@ -33,10 +36,24 @@ data class Compiler(
         is Success -> parsedStatements.add(result.data)
       }
     }
-    config.semantic.analyze(parsedStatements.asSequence()).forEach { result ->
+    val validatedStatements = mutableListOf<Statement>()
+    for (result in config.semantic.analyze(parsedStatements.asSequence())) {
       when (result) {
-        is Success -> println("OK: ${result.data}")
-        is Failure -> println("ERROR: ${result.msg}")
+        is Failure -> {
+          println("ERROR: ${result.msg}")
+          return
+        }
+        is Success -> validatedStatements.add(result.data)
+      }
+    }
+    val environment = Environment()
+    for (result in config.interpreter.interpretAll(validatedStatements, environment)) {
+      when (result) {
+        is Failure -> {
+          println("ERROR: ${result.msg}")
+          return
+        }
+        is Success -> { /* Statement executed successfully */ }
       }
     }
   }
