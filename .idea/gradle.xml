@@ -26,6 +26,7 @@
             <option value="$PROJECT_DIR$/common" />
             <option value="$PROJECT_DIR$/interpreter" />
             <option value="$PROJECT_DIR$/lexer" />
+            <option value="$PROJECT_DIR$/linter" />
             <option value="$PROJECT_DIR$/parser" />
             <option value="$PROJECT_DIR$/semantic" />
             <option value="$PROJECT_DIR$/token" />
