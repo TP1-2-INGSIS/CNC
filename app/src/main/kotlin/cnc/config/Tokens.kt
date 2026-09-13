@@ -1,10 +1,9 @@
 package cnc.config
 
-import cnc.token.Token
-import cnc.token.TokenType
 import cnc.token.RegexTokenDef
 import cnc.token.SymbolTokenDef
 import cnc.token.TokenDefinition
+import cnc.token.TokenType
 
 object CncKeywords {
   val LET = SymbolTokenDef("let", "let")
@@ -30,6 +29,8 @@ object CncSymbols {
   val SEMICOLON = SymbolTokenDef("semicolon", ";")
   val COLON = SymbolTokenDef("colon", ":")
   val ASSIGN = SymbolTokenDef("assign", "=")
+  val OPEN_PAREN = SymbolTokenDef("open_paren", "(")
+  val CLOSE_PAREN = SymbolTokenDef("close_paren", ")")
 
   val all = mapOf(
     "+" to TokenType.OPERATOR,
@@ -40,7 +41,9 @@ object CncSymbols {
     "**" to TokenType.OPERATOR,
     ";" to TokenType.SYMBOL,
     ":" to TokenType.SYMBOL,
-    "=" to TokenType.SYMBOL
+    "=" to TokenType.SYMBOL,
+    "(" to TokenType.SYMBOL,
+    ")" to TokenType.SYMBOL
   )
 }
 

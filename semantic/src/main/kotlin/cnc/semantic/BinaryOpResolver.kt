@@ -9,6 +9,10 @@ fun interface BinaryOpResolver {
     fun resolve(leftType: String, rightType: String): Result<String>
 }
 
+fun interface UnaryOpResolver {
+    fun resolve(operandType: String): Result<String>
+}
+
 object TypeResolvers {
 
     fun numericOnly(op: String) = BinaryOpResolver { left, right ->
@@ -24,5 +28,19 @@ object TypeResolvers {
             left == "string" || right == "string"  -> Success("ok", "string")
             else -> Failure("Operador '+' incompatible entre '$left' y '$right'", ErrorType.SEMANTIC)
         }
+    }
+
+    fun unaryNumeric(op: String) = UnaryOpResolver { operandType ->
+        if (operandType == "number")
+            Success("ok", "number")
+        else
+            Failure("Operador unario '$op' requiere 'number', pero se obtuvo '$operandType'", ErrorType.SEMANTIC)
+    }
+
+    val booleanNot = UnaryOpResolver { operandType ->
+        if (operandType == "boolean")
+            Success("ok", "boolean")
+        else
+            Failure("Operador unario '!' requiere 'boolean', pero se obtuvo '$operandType'", ErrorType.SEMANTIC)
     }
 }
