@@ -1,10 +1,10 @@
 package cnc.linter
 
-import cnc.ast.GenericStatement
+import cnc.ast.Statement
 
 class CNCLinter(private val rules: List<LinterRule>) {
 
-    fun lint(statements: Sequence<GenericStatement>): List<String> {
+    fun lint(statements: Sequence<Statement>): List<String> {
         val allWarnings = mutableListOf<String>()
 
         for (statement in statements) {

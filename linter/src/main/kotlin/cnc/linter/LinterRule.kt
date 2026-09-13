@@ -1,7 +1,7 @@
 package cnc.linter
 
-import cnc.ast.GenericStatement
+import cnc.ast.Statement
 
 interface LinterRule {
-    fun check(statement: GenericStatement): List<String>
+    fun check(statement: Statement): List<String>
 }
