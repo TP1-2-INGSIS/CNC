@@ -1,19 +1,19 @@
 package cnc.lexer.rules
 
-import cnc.lexer.CharStream
+import cnc.common.Cursor
 
 class WhitespaceRule(
     private val isWhitespace: (Char) -> Boolean = Char::isWhitespace
 ) : LexerRule {
 
-    override fun tryMatch(stream: CharStream): LexResult? {
-        val first = stream.peek() ?: return null
+    override fun tryMatch(cursor: Cursor<Char>): RuleResult? {
+        val first = cursor.peek() ?: return null
         if (!isWhitespace(first)) return null
 
-        while (stream.peek()?.let(isWhitespace) == true) {
-            stream.advance()
+        while (cursor.peek()?.let(isWhitespace) == true) {
+            cursor.advance()
         }
 
-        return LexResult.Skipped
+        return RuleResult.Skipped
     }
 }

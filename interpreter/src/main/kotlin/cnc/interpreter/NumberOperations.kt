@@ -1,35 +1,39 @@
 package cnc.interpreter
 
+import cnc.common.ErrorType
+import cnc.common.Failure
+import cnc.common.Result
+import cnc.common.Success
+
 object NumberOperations {
 
-    private fun toDouble(value: Any): Double = when (value) {
+    private fun toDouble(value: Any): Double? = when (value) {
         is Number -> value.toDouble()
-        else -> throw RuntimeException("Expected a number, but got ${value::class.simpleName}")
+        else -> null
     }
 
-    private fun formatResult(result: Double): Number {
-        return if (result % 1.0 == 0.0) {
-            result.toInt()
-        } else {
-            result
-        }
+    fun add(left: Any, right: Any): Result<Any> {
+        val l = toDouble(left) ?: return Failure("Expected a number, but got ${left::class.simpleName}", ErrorType.RUNTIME)
+        val r = toDouble(right) ?: return Failure("Expected a number, but got ${right::class.simpleName}", ErrorType.RUNTIME)
+        return Success("ok", ValueFormatter.formatNumber(l + r))
     }
 
-    fun add(left: Any, right: Any): Number {
-        return formatResult(toDouble(left) + toDouble(right))
+    fun subtract(left: Any, right: Any): Result<Any> {
+        val l = toDouble(left) ?: return Failure("Expected a number, but got ${left::class.simpleName}", ErrorType.RUNTIME)
+        val r = toDouble(right) ?: return Failure("Expected a number, but got ${right::class.simpleName}", ErrorType.RUNTIME)
+        return Success("ok", ValueFormatter.formatNumber(l - r))
     }
 
-    fun subtract(left: Any, right: Any): Number {
-        return formatResult(toDouble(left) - toDouble(right))
+    fun multiply(left: Any, right: Any): Result<Any> {
+        val l = toDouble(left) ?: return Failure("Expected a number, but got ${left::class.simpleName}", ErrorType.RUNTIME)
+        val r = toDouble(right) ?: return Failure("Expected a number, but got ${right::class.simpleName}", ErrorType.RUNTIME)
+        return Success("ok", ValueFormatter.formatNumber(l * r))
     }
 
-    fun multiply(left: Any, right: Any): Number {
-        return formatResult(toDouble(left) * toDouble(right))
-    }
-
-    fun divide(left: Any, right: Any): Number {
-        val r = toDouble(right)
-        if (r == 0.0) throw ArithmeticException("Division by zero")
-        return formatResult(toDouble(left) / r)
+    fun divide(left: Any, right: Any): Result<Any> {
+        val l = toDouble(left) ?: return Failure("Expected a number, but got ${left::class.simpleName}", ErrorType.RUNTIME)
+        val r = toDouble(right) ?: return Failure("Expected a number, but got ${right::class.simpleName}", ErrorType.RUNTIME)
+        if (r == 0.0) return Failure("Division by zero", ErrorType.RUNTIME)
+        return Success("ok", ValueFormatter.formatNumber(l / r))
     }
 }

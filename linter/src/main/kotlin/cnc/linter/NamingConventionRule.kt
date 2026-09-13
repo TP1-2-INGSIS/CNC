@@ -1,8 +1,9 @@
 package cnc.linter
 
-import cnc.ast.GenericStatement
+import cnc.ast.Declaration
+import cnc.ast.Statement
 
-interface NamingValidator {
+fun interface NamingValidator {
     fun isValid(name: String): Boolean
 }
 
@@ -15,17 +16,14 @@ class SnakeCaseValidator : NamingValidator {
 }
 
 class NamingConventionRule(
-    private val targetTag: String,
     private val conventionName: String,
     private val validator: NamingValidator
 ) : LinterRule {
 
-    override fun check(statement: GenericStatement): List<String> {
-        if (statement.tag != targetTag) return emptyList()
+    override fun check(statement: Statement): List<String> {
+        if (statement !is Declaration) return emptyList()
 
-        if (!statement.fields.has("name")) return emptyList()
-        val varName = statement.fields.text("name")
-
+        val varName = statement.name
         if (!validator.isValid(varName)) {
             return listOf("La variable '$varName' debería estar en formato $conventionName.")
         }

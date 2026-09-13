@@ -4,7 +4,9 @@ enum class ErrorType {
   LEXER,
   PARSER,
   SEMANTIC,
-  CLI
+  CLI,
+  INTERPRETER,
+  RUNTIME
 }
 
 sealed interface Result<T> {

@@ -1,80 +1,57 @@
 package cnc.parser
 
+import cnc.ast.Statement
+import cnc.common.Cursor
+import cnc.common.ErrorType
+import cnc.common.Failure
+import cnc.common.Result
+import cnc.common.asCursor
+import cnc.parser.expression.ExpressionParser
+import cnc.parser.rule.StatementRule
 import cnc.token.Token
-import cnc.token.TokenDefinition
-import cnc.ast.GenericStatement
 
 /**
- * Error de parsing con información de posición y contexto.
- */
-class ParseException(
-  message: String,
-  val token: Token? = null
-) : RuntimeException(message)
-
-/**
- * Agrupa los tokens entre los termination tokens y
- * matchea cada grupo contra las gramáticas para construir GenericStatements.
+ * Predictive, streaming parser for PrintScript statements.
  */
 class Parser(
-  private val grammars: List<Grammar>,
-  private val terminators: List<TokenDefinition>
+    val rules: List<StatementRule<Statement>>,
+    val expressionParser: ExpressionParser
 ) {
-  fun getASTs(tokens: Sequence<Token>): Sequence<GenericStatement> {
-    return tokens
-      .splitAfter { terminators.any { t -> t.match(it.text) } }
-      .map { parseStatement(it) }
-  }
 
-  private fun parseStatement(tokens: List<Token>): GenericStatement {
-    val grammar = grammars.firstOrNull { it.matches(tokens) }
-    if (grammar != null) {
-      return grammar.buildStatement(tokens)
+    constructor(
+        vararg rules: StatementRule<Statement>,
+        expressionParser: ExpressionParser
+    ) : this(rules.toList(), expressionParser)
+
+    /**
+     * Parses a lazy sequence of [Token]s into a lazy sequence of [Result] containing [Statement]s.
+     * Operates continuously with fail-fast semantics on syntax errors.
+     */
+    fun parse(tokens: Sequence<Token>): Sequence<Result<Statement>> = sequence {
+        val cursor = tokens.asCursor()
+        while (cursor.hasMore()) {
+            val result = nextStatement(cursor)
+            yield(result)
+            if (result is Failure) break
+        }
     }
 
-    // Buscar la gramática que más avanzó para dar mejor error
-    val bestAttempt = grammars
-      .map { g -> g to g.matchProgress(tokens) }
-      .maxByOrNull { (_, progress) -> progress.strategiesMatched }
+    private fun nextStatement(cursor: Cursor<Token>): Result<Statement> {
+        val rule = rules.firstOrNull { it.canStart(cursor) }
+            ?: return unexpectedToken(cursor.advance())
 
-    val errorToken = if (bestAttempt != null) {
-      val (_, progress) = bestAttempt
-      tokens.getOrNull(progress.tokensConsumed)
-    } else null
-
-    val position = errorToken?.pos
-    val posStr = if (position != null) " at row ${position.row}, col ${position.col}" else ""
-    val foundStr = if (errorToken != null) ", found '${errorToken.text}'" else ""
-
-    val bestGrammar = bestAttempt?.first
-    val progress = bestAttempt?.second
-
-    val message = buildString {
-      append("Syntax error$posStr")
-      if (bestGrammar != null && progress != null && progress.strategiesMatched > 0) {
-        append(": parsing ${bestGrammar.tag}")
-        append(", matched ${progress.strategiesMatched}/${bestGrammar.steps.size} parts")
-        append(foundStr)
-      } else {
-        append(": no grammar matches [${tokens.joinToString(" ") { it.text }}]")
-      }
+        return rule.parse(cursor, expressionParser)
     }
 
-    throw ParseException(message, errorToken)
-  }
-}
+    private fun unexpectedToken(token: Token?): Failure<Statement> {
+        val pos = token?.pos?.let { " at row ${it.row}, col ${it.col}" } ?: ""
+        return Failure("Syntax error: unexpected token '${token?.text}'$pos", ErrorType.PARSER)
+    }
 
-// Retorna un stream de listas con nuestros elementos separados por el predicado.
-fun <T> Sequence<T>.splitAfter(predicate: (T) -> Boolean): Sequence<List<T>> = sequence {
-  val current = mutableListOf<T>()
+    fun getASTs(tokens: Sequence<Token>): Sequence<Result<Statement>> = parse(tokens)
 
-  for (item in this@splitAfter) {
-    current.add(item)
-    if (!predicate(item)) continue
-
-    yield(current.toList())
-    current.clear()
-  }
-  
-  if (current.isNotEmpty()) yield(current.toList())
+    fun copy(
+        rules: List<StatementRule<Statement>> = this.rules,
+        expressionParser: ExpressionParser = this.expressionParser
+    ): Parser = Parser(rules, expressionParser)
 }

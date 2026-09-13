@@ -3,39 +3,62 @@ package cnc.interpreter
 import cnc.ast.Assignment
 import cnc.ast.Call
 import cnc.ast.Declaration
-import cnc.ast.Statement
-import kotlin.reflect.KClass
+import cnc.common.ErrorType
+import cnc.common.Failure
+import cnc.common.Result
+import cnc.common.Success
 
 class DeclarationEvaluator : StatementEvaluator<Declaration> {
-    override fun evaluate(statement: Declaration, environment: Environment, interpreter: Interpreter) {
-        val initialValue = statement.value?.let { interpreter.evaluate(it, environment) }
-        environment.define(statement.name, initialValue)
+    override fun evaluate(statement: Declaration, environment: Environment, interpreter: Interpreter): Result<Unit> {
+        val valueExpr = statement.value
+        val (initialValue, isInitialized) = if (valueExpr != null) {
+            val evalResult = interpreter.evaluate(valueExpr, environment)
+            if (evalResult is Failure) return Failure(evalResult.msg, evalResult.type)
+            Pair((evalResult as Success).data, true)
+        } else {
+            Pair(null, false)
+        }
+
+        return environment.define(
+            name = statement.name,
+            value = initialValue,
+            isMutable = statement.isMutable,
+            isInitialized = isInitialized
+        )
     }
 }
 
 class AssignmentEvaluator : StatementEvaluator<Assignment> {
-    override fun evaluate(statement: Assignment, environment: Environment, interpreter: Interpreter) {
-        val value = interpreter.evaluate(statement.value, environment)
-        environment.assign(statement.target, value)
+    override fun evaluate(statement: Assignment, environment: Environment, interpreter: Interpreter): Result<Unit> {
+        val evalResult = interpreter.evaluate(statement.value, environment)
+        if (evalResult is Failure) return Failure(evalResult.msg, evalResult.type)
+        val value = (evalResult as Success).data
+
+        return environment.assign(statement.target, value)
     }
 }
 
 class CallEvaluator(
-    private val output: (String) -> Unit = { println(it) }
+    private val builtins: Map<String, BuiltinMethod>
 ) : StatementEvaluator<Call> {
-    override fun evaluate(statement: Call, environment: Environment, interpreter: Interpreter) {
-        val evaluatedArgs = statement.arguments.map { interpreter.evaluate(it, environment) }
 
-        when (statement.function) {
-            "println" -> output(evaluatedArgs.joinToString(" ") { formatOutput(it) })
-            else -> throw RuntimeException("Unknown function: '${statement.function}'")
-        }
-    }
+    constructor(output: (String) -> Unit = ::println) : this(
+        mapOf("println" to BuiltinMethodFactory.println(output))
+    )
 
-    private fun formatOutput(value: Any?): String {
-        if (value is Double && value % 1.0 == 0.0) {
-            return value.toInt().toString()
+    override fun evaluate(statement: Call, environment: Environment, interpreter: Interpreter): Result<Unit> {
+        val builtin = builtins[statement.function]
+            ?: return Failure("Unknown function: '${statement.function}'", ErrorType.RUNTIME)
+
+        val evaluatedArgs = mutableListOf<Any?>()
+        for (arg in statement.arguments) {
+            val evalResult = interpreter.evaluate(arg, environment)
+            if (evalResult is Failure) return Failure(evalResult.msg, evalResult.type)
+            evaluatedArgs.add((evalResult as Success).data)
         }
-        return value?.toString() ?: "null"
+
+        val execResult = builtin.execute(evaluatedArgs)
+        if (execResult is Failure) return Failure(execResult.msg, execResult.type)
+        return Success("ok", Unit)
     }
 }
