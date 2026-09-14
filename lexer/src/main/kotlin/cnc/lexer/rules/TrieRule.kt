@@ -1,10 +1,10 @@
 package cnc.lexer.rules
 
-import cnc.lexer.CharStream
+import cnc.common.Cursor
+import cnc.common.consume
 import cnc.lexer.TrieNode
 import cnc.lexer.buildTrie
 import cnc.lexer.matchLongest
-import cnc.token.Token
 import cnc.token.TokenType
 
 class TrieRule(
@@ -13,12 +13,11 @@ class TrieRule(
 
     constructor(symbols: Map<String, TokenType>) : this(buildTrie(symbols))
 
-    override fun tryMatch(stream: CharStream): LexResult? {
-        val startPos = stream.position
-        val (type, length) = root.matchLongest(stream) ?: return null
+    override fun tryMatch(cursor: Cursor<Char>): RuleResult? {
+        val (type, length) = root.matchLongest(cursor) ?: return null
         if (length == 0) return null
 
-        val text = stream.consume(length)
-        return LexResult.Matched(Token(type, startPos, text))
+        val text = cursor.consume(length)
+        return RuleResult.Matched(type, text)
     }
 }

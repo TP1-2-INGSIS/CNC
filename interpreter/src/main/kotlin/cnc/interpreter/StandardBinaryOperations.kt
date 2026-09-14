@@ -1,25 +1,21 @@
 package cnc.interpreter
 
-object StandardBinaryOperations {
-    
-    private fun formatValue(value: Any?): String {
-        if (value is Double && value % 1.0 == 0.0) {
-            return value.toInt().toString()
-        }
-        return value?.toString() ?: "null"
-    }
+import cnc.common.Result
+import cnc.common.Success
 
-    fun add(left: Any, right: Any): Any {
+object StandardBinaryOperations {
+
+    fun add(left: Any, right: Any): Result<Any> {
         return if (left is String || right is String) {
-            "${formatValue(left)}${formatValue(right)}"
+            Success("ok", "${ValueFormatter.format(left)}${ValueFormatter.format(right)}")
         } else {
             NumberOperations.add(left, right)
         }
     }
 
-    fun subtract(left: Any, right: Any): Any = NumberOperations.subtract(left, right)
-    
-    fun multiply(left: Any, right: Any): Any = NumberOperations.multiply(left, right)
-    
-    fun divide(left: Any, right: Any): Any = NumberOperations.divide(left, right)
+    fun subtract(left: Any, right: Any): Result<Any> = NumberOperations.subtract(left, right)
+
+    fun multiply(left: Any, right: Any): Result<Any> = NumberOperations.multiply(left, right)
+
+    fun divide(left: Any, right: Any): Result<Any> = NumberOperations.divide(left, right)
 }

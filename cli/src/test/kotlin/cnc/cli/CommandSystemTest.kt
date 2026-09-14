@@ -1,13 +1,34 @@
 package cnc.cli
 
 import cnc.cli.command.Command
-import cnc.cli.command.GccCommand
 import cnc.cli.command.HelpAttribute
 import cnc.common.ErrorType
 import cnc.common.Failure
+import cnc.common.Result
 import cnc.common.Success
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+
+private object TestGccCommand : Command {
+    override val tag = "gcnc"
+
+    override fun execute(params: cnc.cli.args.ArgsContainer): Result<Unit> {
+        val file = params.getOption("file") ?: params.getPositional(0)
+        if (file == null) {
+            return Failure("Missing required source file. Usage: gcnc --file=<path>", ErrorType.CLI)
+        }
+
+        val isVerbose = params.hasFlag("verbose")
+        val isCheck = params.hasFlag("check")
+
+        val details = buildString {
+            if (isVerbose) append(" (verbose)")
+            if (isCheck) append(" (check-only)")
+        }
+
+        return Success("Compiling '$file'$details...", Unit)
+    }
+}
 
 class CommandSystemTest {
 
@@ -18,7 +39,7 @@ class CommandSystemTest {
         testIO.addInput("exit")
 
         val sys = CommandSystem(
-            mapOf("gcnc" to GccCommand),
+            mapOf("gcnc" to TestGccCommand),
             testIO
         )
         val result = sys.run()
@@ -35,7 +56,7 @@ class CommandSystemTest {
         testIO.addInput("exit")
 
         val decorated = HelpAttribute(
-            wrapped = GccCommand,
+            wrapped = TestGccCommand,
             description = "Compiles CNC files",
             usage = "gcnc --file=<path> [--verbose]",
             paramHelp = mapOf(
@@ -63,7 +84,7 @@ class CommandSystemTest {
         testIO.addInput("exit")
 
         val decorated = HelpAttribute(
-            wrapped = GccCommand,
+            wrapped = TestGccCommand,
             description = "Compiles CNC files"
         )
 
@@ -86,7 +107,7 @@ class CommandSystemTest {
         testIO.addInput("exit")
 
         val decorated = HelpAttribute(
-            wrapped = GccCommand,
+            wrapped = TestGccCommand,
             description = "Compiles CNC files"
         )
 
@@ -108,7 +129,7 @@ class CommandSystemTest {
         testIO.addInput("exit")
 
         val sys = CommandSystem(
-            mapOf("gcnc" to GccCommand),
+            mapOf("gcnc" to TestGccCommand),
             testIO
         )
         sys.run()

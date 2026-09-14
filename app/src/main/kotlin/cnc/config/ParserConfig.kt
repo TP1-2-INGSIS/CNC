@@ -1,23 +1,20 @@
 package cnc.config
 
-import cnc.ast.Associativity
-import cnc.ast.ExpressionBuilder
 import cnc.ast.Identifier
 import cnc.ast.NumberLiteral
-import cnc.ast.OperatorDef
 import cnc.ast.StringLiteral
-
+import cnc.parser.Parser
+import cnc.parser.expression.Associativity
+import cnc.parser.expression.ExpressionBuilder
+import cnc.parser.expression.OperatorDef
+import cnc.parser.rule.StandardStatementRules
 import cnc.token.Token
 
-/**
- * ExpressionBuilder de PrintScript: recetas para literales/identificadores y la
- * tabla de operadores con su precedencia (usada por el Pratt parser del AST).
- */
 val expressionBuilder = ExpressionBuilder(
   recipes = mapOf(
     CncPatterns.NUMBER to { token: Token -> NumberLiteral(token.text.toDouble()) },
     CncPatterns.STRING to { token: Token -> StringLiteral(token.text.removeSurrounding("\"")) },
-    CncPatterns.IDENTIFIER to { token: Token -> Identifier(token.text) }
+    CncPatterns.IDENTIFIER to { token -> Identifier(token.text) }
   ),
   operators = listOf(
     OperatorDef(CncSymbols.PLUS, precedence = 1),
@@ -25,5 +22,12 @@ val expressionBuilder = ExpressionBuilder(
     OperatorDef(CncSymbols.MULTIPLICATION, precedence = 2),
     OperatorDef(CncSymbols.DIVISION, precedence = 2),
     OperatorDef(CncSymbols.EXPONENT, precedence = 3, associativity = Associativity.RIGHT)
-  )
+  ),
+  groupOpen = CncSymbols.OPEN_PAREN,
+  groupClose = CncSymbols.CLOSE_PAREN
+)
+
+val printScriptParser = Parser(
+  rules = StandardStatementRules.printScript10,
+  expressionParser = expressionBuilder
 )

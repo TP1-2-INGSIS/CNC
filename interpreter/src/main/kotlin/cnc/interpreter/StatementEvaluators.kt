@@ -1,53 +1,64 @@
 package cnc.interpreter
 
-import cnc.ast.Fields
+import cnc.ast.Assignment
+import cnc.ast.Call
+import cnc.ast.Declaration
+import cnc.common.ErrorType
+import cnc.common.Failure
+import cnc.common.Result
+import cnc.common.Success
 
-/**
- * Evalúa una declaración de variable: `let name: type = value;`.
- * Campos esperados (definidos por la Grammar): `name` (TEXT), `value` (EXPRESSION).
- */
-class DeclarationEvaluator : StatementEvaluator {
-    override fun evaluate(fields: Fields, environment: Environment, interpreter: Interpreter) {
-        val initialValue = if (fields.has("value")) {
-            interpreter.evaluate(fields.expression("value"), environment)
+class DeclarationEvaluator : StatementEvaluator<Declaration> {
+    override fun evaluate(statement: Declaration, environment: Environment, interpreter: Interpreter): Result<Unit> {
+        val valueExpr = statement.value
+        val (initialValue, isInitialized) = if (valueExpr != null) {
+            val evalResult = interpreter.evaluate(valueExpr, environment)
+            if (evalResult is Failure) return Failure(evalResult.msg, evalResult.type)
+            Pair((evalResult as Success).data, true)
         } else {
-            null
+            Pair(null, false)
         }
-        environment.define(fields.text("name"), initialValue)
+
+        return environment.define(
+            name = statement.name,
+            value = initialValue,
+            isMutable = statement.isMutable,
+            isInitialized = isInitialized
+        )
     }
 }
 
-/**
- * Evalúa una asignación: `target = value;`.
- * Campos esperados: `target` (TEXT), `value` (EXPRESSION).
- */
-class AssignmentEvaluator : StatementEvaluator {
-    override fun evaluate(fields: Fields, environment: Environment, interpreter: Interpreter) {
-        val value = interpreter.evaluate(fields.expression("value"), environment)
-        environment.assign(fields.text("target"), value)
+class AssignmentEvaluator : StatementEvaluator<Assignment> {
+    override fun evaluate(statement: Assignment, environment: Environment, interpreter: Interpreter): Result<Unit> {
+        val evalResult = interpreter.evaluate(statement.value, environment)
+        if (evalResult is Failure) return Failure(evalResult.msg, evalResult.type)
+        val value = (evalResult as Success).data
+
+        return environment.assign(statement.target, value)
     }
 }
 
-/**
- * Evalúa una llamada a función soportada (p. ej. `println(args);`).
- * Campos esperados: `function` (TEXT), `arguments` (EXPRESSIONS).
- */
 class CallEvaluator(
-    private val output: (String) -> Unit = { println(it) }
-) : StatementEvaluator {
-    override fun evaluate(fields: Fields, environment: Environment, interpreter: Interpreter) {
-        val evaluatedArgs = fields.expressions("arguments").map { interpreter.evaluate(it, environment) }
+    private val builtins: Map<String, BuiltinMethod>
+) : StatementEvaluator<Call> {
 
-        when (val function = fields.text("function")) {
-            "println" -> output(evaluatedArgs.joinToString(" ") { formatOutput(it) })
-            else -> throw RuntimeException("Unknown function: '$function'")
-        }
-    }
+    constructor(output: (String) -> Unit = ::println) : this(
+        mapOf("println" to BuiltinMethodFactory.println(output))
+    )
 
-    private fun formatOutput(value: Any?): String {
-        if (value is Double && value % 1.0 == 0.0) {
-            return value.toInt().toString()
+    override fun evaluate(statement: Call, environment: Environment, interpreter: Interpreter): Result<Unit> {
+        val builtin = builtins[statement.function]
+            ?: return Failure("Unknown function: '${statement.function}'", ErrorType.RUNTIME)
+
+        val evaluatedArgs = mutableListOf<Any?>()
+        for (arg in statement.arguments) {
+            val evalResult = interpreter.evaluate(arg, environment)
+            if (evalResult is Failure) return Failure(evalResult.msg, evalResult.type)
+            evaluatedArgs.add((evalResult as Success).data)
         }
-        return value?.toString() ?: "null"
+
+        val execResult = builtin.execute(evaluatedArgs)
+        if (execResult is Failure) return Failure(execResult.msg, execResult.type)
+        return Success("ok", Unit)
     }
 }

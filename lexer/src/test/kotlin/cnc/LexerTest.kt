@@ -2,15 +2,17 @@ package cnc.lexer
 
 import cnc.common.Position
 import cnc.common.StrContent
+import cnc.common.asCursor
+import cnc.common.openStream
 import cnc.lexer.rules.StandardRules
 import cnc.lexer.rules.TrieRule
+import cnc.token.Token
 import cnc.token.TokenType
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import java.io.StringReader
 
 class LexerTest {
 
@@ -42,7 +44,10 @@ class LexerTest {
 
     private val lexer = Lexer(testRules)
 
-    private fun lex(input: String) = lexer.tokenize(StrContent(input)).toList()
+    private fun lex(input: String): List<Token> {
+        val cursor = StrContent(input).openStream()
+        return lexer.tokenize(cursor).toList()
+    }
 
     // -------------------------------------------------------------------------
     // Trie Unit Tests
@@ -62,15 +67,15 @@ class LexerTest {
                 )
             )
 
-            val streamEquals = CharStream(StringReader("=="))
+            val streamEquals = "==".asSequence().asCursor()
             val matchEquals = trie.matchLongest(streamEquals)
             assertEquals(TokenType.OPERATOR to 2, matchEquals)
 
-            val streamSingle = CharStream(StringReader("= "))
+            val streamSingle = "= ".asSequence().asCursor()
             val matchSingle = trie.matchLongest(streamSingle)
             assertEquals(TokenType.SYMBOL to 1, matchSingle)
 
-            val streamExponent = CharStream(StringReader("**="))
+            val streamExponent = "**=".asSequence().asCursor()
             val matchExponent = trie.matchLongest(streamExponent)
             assertEquals(TokenType.OPERATOR to 2, matchExponent)
         }
@@ -86,41 +91,25 @@ class LexerTest {
     }
 
     // -------------------------------------------------------------------------
-    // CharStream Unit Tests
+    // Raw Tokenization Unit Tests
     // -------------------------------------------------------------------------
 
     @Nested
-    inner class CharStreamTests {
+    inner class TokenizationTests {
 
         @Test
-        fun `peek and advance track position correctly across newlines`() {
-            val stream = CharStream(StringReader("a\nbc"))
-            assertEquals(Position(0, 0), stream.position)
-            assertEquals('a', stream.peek())
-            assertEquals('a', stream.advance())
+        fun `tokenize returns tokens directly with exact positions`() {
+            val tokens = lexer.tokenize("let x = 10;").toList()
 
-            assertEquals(Position(0, 1), stream.position)
-            assertEquals('\n', stream.advance())
-
-            assertEquals(Position(1, 0), stream.position)
-            assertEquals('b', stream.advance())
-
-            assertEquals(Position(1, 1), stream.position)
-            assertEquals('c', stream.advance())
-
-            assertEquals(Position(1, 2), stream.position)
-            assertNull(stream.advance())
-            assertEquals(false, stream.hasMore())
-        }
-
-        @Test
-        fun `consume extracts exact number of characters`() {
-            val stream = CharStream(StringReader("hello world"))
-            assertEquals("hello", stream.consume(5))
-            assertEquals(Position(0, 5), stream.position)
-            assertEquals(' ', stream.peek())
+            assertEquals(5, tokens.size)
+            assertEquals(Token(TokenType.KEYWORD, Position(0, 0), "let"), tokens[0])
+            assertEquals(Token(TokenType.IDENTIFIER, Position(0, 4), "x"), tokens[1])
+            assertEquals(Token(TokenType.SYMBOL, Position(0, 6), "="), tokens[2])
+            assertEquals(Token(TokenType.NUMBER, Position(0, 8), "10"), tokens[3])
+            assertEquals(Token(TokenType.SYMBOL, Position(0, 10), ";"), tokens[4])
         }
     }
+
 
     // -------------------------------------------------------------------------
     // TokenType Tests
@@ -418,7 +407,7 @@ class LexerTest {
             assertEquals("==", tokens[0].text)
         }
 
-        @Test fun `operador ** no se confunde con *`() {
+        @Test fun `operador potencia no se confunde con multiplicacion`() {
             val tokens = lex("**")
             assertEquals(1, tokens.size)
             assertEquals(TokenType.OPERATOR, tokens[0].type)

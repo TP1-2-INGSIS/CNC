@@ -3,7 +3,6 @@ package cnc.config
 import cnc.lexer.Lexer
 import cnc.lexer.rules.StandardRules
 import cnc.lexer.rules.TrieRule
-
 import cnc.token.TokenType
 
 val printScriptRules = listOf(

@@ -1,10 +1,9 @@
 package cnc.lexer.rules
 
-import cnc.lexer.CharStream
+import cnc.common.Cursor
 import cnc.lexer.TrieNode
 import cnc.lexer.buildTrie
 import cnc.lexer.matchExact
-import cnc.token.Token
 import cnc.token.TokenType
 
 class IdentifierRule(
@@ -21,20 +20,19 @@ class IdentifierRule(
         defaultType: TokenType = TokenType.IDENTIFIER
     ) : this(isStart, isContinue, buildTrie(keywords), defaultType)
 
-    override fun tryMatch(stream: CharStream): LexResult? {
-        val first = stream.peek() ?: return null
+    override fun tryMatch(cursor: Cursor<Char>): RuleResult? {
+        val first = cursor.peek() ?: return null
         if (!isStart(first)) return null
 
-        val startPos = stream.position
         val builder = StringBuilder()
-        builder.append(stream.advance()!!)
+        builder.append(cursor.advance()!!)
 
-        while (stream.peek()?.let(isContinue) == true) {
-            builder.append(stream.advance()!!)
+        while (cursor.peek()?.let(isContinue) == true) {
+            builder.append(cursor.advance()!!)
         }
 
         val word = builder.toString()
         val type = keywordsTrie.matchExact(word) ?: defaultType
-        return LexResult.Matched(Token(type, startPos, word))
+        return RuleResult.Matched(type, word)
     }
 }

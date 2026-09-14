@@ -1,7 +1,6 @@
 package cnc.lexer.rules
 
-import cnc.lexer.CharStream
-import cnc.token.Token
+import cnc.common.Cursor
 import cnc.token.TokenType
 
 class DelimitedRule(
@@ -10,29 +9,28 @@ class DelimitedRule(
     private val escapeChar: Char? = '\\'
 ) : LexerRule {
 
-    override fun tryMatch(stream: CharStream): LexResult? {
-        val first = stream.peek() ?: return null
+    override fun tryMatch(cursor: Cursor<Char>): RuleResult? {
+        val first = cursor.peek() ?: return null
         if (first != delimiter) return null
 
-        val startPos = stream.position
         val builder = StringBuilder()
-        builder.append(stream.advance()!!) // Consumir delimitador de apertura
+        builder.append(cursor.advance()!!) // Consume opening delimiter
 
-        while (stream.hasMore()) {
-            val char = stream.advance() ?: break
+        while (cursor.hasMore()) {
+            val char = cursor.advance() ?: break
             builder.append(char)
 
-            if (escapeChar != null && char == escapeChar && stream.hasMore()) {
-                builder.append(stream.advance()!!)
+            if (escapeChar != null && char == escapeChar && cursor.hasMore()) {
+                builder.append(cursor.advance()!!)
                 continue
             }
 
             if (char == delimiter) {
-                return LexResult.Matched(Token(tokenType, startPos, builder.toString()))
+                return RuleResult.Matched(tokenType, builder.toString())
             }
         }
 
-        // Si llega a EOF sin cerrar el delimitador, se marca como INVALID
-        return LexResult.Matched(Token(TokenType.INVALID, startPos, builder.toString()))
+        // Reaching EOF without closing delimiter marks token as INVALID
+        return RuleResult.Matched(TokenType.INVALID, builder.toString())
     }
 }

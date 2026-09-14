@@ -1,7 +1,9 @@
 package cnc.config
 
+import cnc.ast.Assignment
 import cnc.ast.BinaryExpression
-import cnc.ast.GenericStatement
+import cnc.ast.Call
+import cnc.ast.Declaration
 import cnc.ast.Identifier
 import cnc.ast.NumberLiteral
 import cnc.ast.StringLiteral
@@ -11,6 +13,7 @@ import cnc.formatter.ExpressionRule
 import cnc.formatter.FormatRule
 import cnc.formatter.Formatter
 import cnc.formatter.OperandSide
+import cnc.formatter.StatementRule
 
 // =============================================================================
 // Configuración concreta del Formatter de PrintScript (Decisión 8)
@@ -51,6 +54,7 @@ val printScriptSymbolRules: Map<String, FormatRule<String>> = mapOf(
     "=" to spaceAround,   // "x = 5"
     ":" to spaceAfter,    // "x: number"  (sin espacio antes, uno después)
     "let" to noSpace,     // el espacio tras `let` lo pone la statement rule
+    "const" to noSpace,   // idem para `const`
     ";" to noSpace        // ";" pegado, sin espacio
 )
 
@@ -104,39 +108,52 @@ private fun formatNumber(value: Double): String =
     if (value % 1.0 == 0.0) value.toLong().toString() else value.toString()
 
 // -----------------------------------------------------------------------------
-// Reglas de statements (fase `general`) — mapeadas por `tag`. Reconstruyen la
-// forma del statement manualmente (Decisión 6), delegando cada símbolo y
-// expresión en el contexto.
+// Reglas de statements (fase `general`) — self-dispatch sobre el AST tipado.
+// Reconstruyen la forma del statement manualmente (Decisión 6), delegando cada
+// símbolo y expresión en el contexto.
 // -----------------------------------------------------------------------------
 
-// "let name: type = value;"
-private val variableDeclarationRule = FormatRule<GenericStatement> { stmt, ctx ->
-    val fields = stmt.fields
-    buildString {
-        append(ctx.formatSymbol("let")).append(" ")
-        append(fields.text("name"))
-        append(ctx.formatSymbol(":"))
-        append(fields.text("type"))
-        append(ctx.formatSymbol("="))
-        append(ctx.formatExpression(fields.expression("value")))
-        append(ctx.formatSymbol(";"))
+// "let name: type = value;" / "const name: type = value;" (sin `= value` si no hay init).
+private val variableDeclarationRule = StatementRule { stmt, ctx ->
+    (stmt as? Declaration)?.let { decl ->
+        buildString {
+            append(ctx.formatSymbol(if (decl.isMutable) "let" else "const")).append(" ")
+            append(decl.name)
+            append(ctx.formatSymbol(":"))
+            append(decl.type)
+            decl.value?.let {
+                append(ctx.formatSymbol("="))
+                append(ctx.formatExpression(it))
+            }
+            append(ctx.formatSymbol(";"))
+        }
     }
 }
 
 // "target = value;"
-private val variableAssignmentRule = FormatRule<GenericStatement> { stmt, ctx ->
-    val fields = stmt.fields
-    buildString {
-        append(fields.text("target"))
-        append(ctx.formatSymbol("="))
-        append(ctx.formatExpression(fields.expression("value")))
-        append(ctx.formatSymbol(";"))
+private val variableAssignmentRule = StatementRule { stmt, ctx ->
+    (stmt as? Assignment)?.let { assign ->
+        buildString {
+            append(assign.target)
+            append(ctx.formatSymbol("="))
+            append(ctx.formatExpression(assign.value))
+            append(ctx.formatSymbol(";"))
+        }
     }
 }
 
-val printScriptStatementRules: Map<String, FormatRule<GenericStatement>> = mapOf(
-    "VariableDeclaration" to variableDeclarationRule,
-    "VariableAssignment" to variableAssignmentRule
+// "function(arg1, arg2);"
+private val callRule = StatementRule { stmt, ctx ->
+    (stmt as? Call)?.let { call ->
+        val args = call.arguments.joinToString(", ") { ctx.formatExpression(it) }
+        "${call.function}($args)${ctx.formatSymbol(";")}"
+    }
+}
+
+val printScriptStatementRules: List<StatementRule> = listOf(
+    variableDeclarationRule,
+    variableAssignmentRule,
+    callRule
 )
 
 // -----------------------------------------------------------------------------

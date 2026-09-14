@@ -7,13 +7,9 @@ import cnc.cli.command.HelpAttribute
 import cnc.common.ErrorType
 import cnc.common.Failure
 import cnc.common.FileContent
+import cnc.common.openStream
 import cnc.common.Result
 import cnc.common.Success
-
-import cnc.parser.Parser
-
-/** Parser de PrintScript reutilizando la config de gramáticas existente. */
-val printScriptParser = Parser(grammars, terminators)
 
 /**
  * Comando CLI `format` — formatea un archivo PrintScript y devuelve el texto
@@ -36,8 +32,13 @@ object FormatCommand : Command {
 
         return runCatching {
             val content = FileContent(file)
-            val tokens = printScriptLexer.tokenize(content)
-            val statements = printScriptParser.getASTs(tokens).toList()
+            val tokens = printScriptLexer.tokenize(content.openStream())
+            val statements = printScriptParser.getASTs(tokens).map { result ->
+                when (result) {
+                    is Success -> result.data
+                    is Failure -> error(result.msg)
+                }
+            }.toList()
             printScriptFormatter.format(statements)
         }.fold(
             onSuccess = { formatted -> Success(formatted, Unit) },

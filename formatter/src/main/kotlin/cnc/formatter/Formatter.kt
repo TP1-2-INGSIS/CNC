@@ -2,29 +2,19 @@ package cnc.formatter
 
 import cnc.ast.BinaryExpression
 import cnc.ast.Expression
-import cnc.ast.GenericStatement
+import cnc.ast.Statement
 
 /**
- * Motor de formateo genérico. No conoce PrintScript: recibe inyectadas las
- * reglas concretas desde `app/config/` como código Kotlin (Decisiones 7 y 8).
+ * Motor de formateo genérico. No conoce PrintScript: recibe las reglas
+ * concretas inyectadas desde `app/config/` (Decisiones 7 y 8).
  *
- * Formatea en una sola pasada con dos niveles anidados (Decisión 5):
- *  - Fase `general` (externa): recorre los statements y despacha por `tag`.
- *  - Fase `specific` (interna): mientras la regla de statement construye la
- *    forma, resuelve símbolos (`formatSymbol`) y expresiones (`formatExpression`)
- *    vía el [FormatContext].
+ * - Fase general: despacha statements por self-dispatch ([StatementRule]).
+ * - Fase specific: resuelve símbolos y expresiones vía [FormatContext].
  *
- * Las expresiones usan self-dispatch por lista (Decisión 9). Los paréntesis se
- * reintroducen por precedencia vía [FormatContext.formatOperand] (Decisión 10),
- * usando la tabla [precedences] inyectada.
- *
- * @property statementRules  mapa `tag` -> regla estructural (fase general).
- * @property symbolRules     mapa símbolo -> regla de símbolo (fase specific).
- * @property expressionRules lista de reglas de expresión (chain of responsibility).
- * @property precedences     tabla operador -> precedencia (para parentización).
+ * Los paréntesis se reintroducen por precedencia (Decisión 10) usando [precedences].
  */
 class Formatter(
-    private val statementRules: Map<String, FormatRule<GenericStatement>>,
+    private val statementRules: List<StatementRule>,
     private val symbolRules: Map<String, FormatRule<String>>,
     private val expressionRules: List<ExpressionRule>,
     private val precedences: Map<String, Int> = emptyMap()
@@ -51,13 +41,7 @@ class Formatter(
         }
     }
 
-    /**
-     * Criterio de parentización (Decisión 10): un operando binario se envuelve si
-     * su precedencia es **menor** que la del padre. En empate no se envuelve
-     * (se asume asociatividad izquierda estándar, coherente con la mayoría de los
-     * operadores). Operandos no-binarios (literales, identificadores) nunca se
-     * envuelven.
-     */
+    // Un operando binario se envuelve si su precedencia es menor que la del padre.
     private fun needsParentheses(
         child: Expression,
         parentPrecedence: Int,
@@ -70,10 +54,9 @@ class Formatter(
     }
 
     /** Formatea el AST completo a su forma textual canónica. */
-    fun format(ast: List<GenericStatement>): String =
+    fun format(ast: List<Statement>): String =
         ast.joinToString(separator = "\n") { statement ->
-            val rule = statementRules[statement.tag]
-                ?: error("No FormatRule registered for tag '${statement.tag}'")
-            rule.format(statement, context)
+            statementRules.firstNotNullOfOrNull { it.tryFormat(statement, context) }
+                ?: error("No StatementRule applies to '$statement'")
         }
 }

@@ -41,6 +41,7 @@ dependencies {
     implementation(project(":interpreter"))
     implementation(project(":cli"))
     implementation(project(":semantic"))
+    implementation(project(":linter"))
     implementation(project(":formatter"))
 }
 

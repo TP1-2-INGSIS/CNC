@@ -1,26 +1,20 @@
 package cnc.formatter
 
+import cnc.ast.Assignment
 import cnc.ast.BinaryExpression
+import cnc.ast.Call
+import cnc.ast.Declaration
 import cnc.ast.Expression
-import cnc.ast.Fields
-import cnc.ast.GenericStatement
 import cnc.ast.Identifier
 import cnc.ast.NumberLiteral
-import cnc.ast.StatementDef
 import cnc.ast.StringLiteral
-import cnc.common.Result
-import cnc.common.Success
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Espejo verificable de `app/config/Formatter.kt`.
- *
- * La config real vive en `:app`, que hoy no compila por causas ajenas al
- * formatter (`:interpreter` desactualizado, ver plan). Para poder verificar de
- * forma EJECUTABLE que las reglas de PrintScript producen el output esperado,
- * se replican aquí las MISMAS reglas (espaciados, precedencias y formas) que en
- * `app/config/Formatter.kt`. Si esa config cambia, este espejo debe cambiar.
+ * Espejo verificable de `app/config/Formatter.kt`: replica las MISMAS reglas
+ * (espaciados, precedencias y formas) para verificar el output esperado de
+ * PrintScript de forma ejecutable. Si esa config cambia, este espejo debe cambiar.
  */
 class PrintScriptConfigTest {
 
@@ -33,7 +27,8 @@ class PrintScriptConfigTest {
     private val symbolRules: Map<String, FormatRule<String>> = mapOf(
         "+" to spaceAround, "-" to spaceAround, "*" to spaceAround,
         "/" to spaceAround, "**" to spaceAround,
-        "=" to spaceAround, ":" to spaceAfter, "let" to noSpace, ";" to noSpace
+        "=" to spaceAround, ":" to spaceAfter,
+        "let" to noSpace, "const" to noSpace, ";" to noSpace
     )
 
     private fun formatNumber(v: Double) =
@@ -53,47 +48,47 @@ class PrintScriptConfigTest {
         }
     )
 
-    private val declRule = FormatRule<GenericStatement> { stmt, ctx ->
-        val f = stmt.fields
-        buildString {
-            append(ctx.formatSymbol("let")).append(" ")
-            append(f.text("name"))
-            append(ctx.formatSymbol(":")).append(f.text("type"))
-            append(ctx.formatSymbol("=")).append(ctx.formatExpression(f.expression("value")))
-            append(ctx.formatSymbol(";"))
+    private val declRule = StatementRule { stmt, ctx ->
+        (stmt as? Declaration)?.let { decl ->
+            buildString {
+                append(ctx.formatSymbol(if (decl.isMutable) "let" else "const")).append(" ")
+                append(decl.name)
+                append(ctx.formatSymbol(":")).append(decl.type)
+                decl.value?.let {
+                    append(ctx.formatSymbol("=")).append(ctx.formatExpression(it))
+                }
+                append(ctx.formatSymbol(";"))
+            }
         }
     }
-    private val assignRule = FormatRule<GenericStatement> { stmt, ctx ->
-        val f = stmt.fields
-        buildString {
-            append(f.text("target"))
-            append(ctx.formatSymbol("=")).append(ctx.formatExpression(f.expression("value")))
-            append(ctx.formatSymbol(";"))
+    private val assignRule = StatementRule { stmt, ctx ->
+        (stmt as? Assignment)?.let { assign ->
+            buildString {
+                append(assign.target)
+                append(ctx.formatSymbol("=")).append(ctx.formatExpression(assign.value))
+                append(ctx.formatSymbol(";"))
+            }
+        }
+    }
+    private val callRule = StatementRule { stmt, ctx ->
+        (stmt as? Call)?.let { call ->
+            val args = call.arguments.joinToString(", ") { ctx.formatExpression(it) }
+            "${call.function}($args)${ctx.formatSymbol(";")}"
         }
     }
 
     private val formatter = Formatter(
-        statementRules = mapOf(
-            "VariableDeclaration" to declRule,
-            "VariableAssignment" to assignRule
-        ),
+        statementRules = listOf(declRule, assignRule, callRule),
         symbolRules = symbolRules,
         expressionRules = expressionRules,
         precedences = precedences
     )
 
-    private val declDef = StatementDef("VariableDeclaration", emptyMap()) { _, _ ->
-        Success("ok", Unit) as Result<Unit>
-    }
-    private val assignDef = StatementDef("VariableAssignment", emptyMap()) { _, _ ->
-        Success("ok", Unit) as Result<Unit>
-    }
-
     private fun decl(name: String, type: String, value: Expression) =
-        GenericStatement(declDef, Fields(mapOf("name" to name, "type" to type, "value" to value)))
+        Declaration(name = name, type = type, value = value)
 
     private fun assign(target: String, value: Expression) =
-        GenericStatement(assignDef, Fields(mapOf("target" to target, "value" to value)))
+        Assignment(target = target, value = value)
 
     @Test
     fun `declaration number`() {
@@ -123,5 +118,11 @@ class PrintScriptConfigTest {
     fun `assignment`() {
         val expr = BinaryExpression(Identifier("x"), "+", NumberLiteral(1.0))
         assertEquals("x = x + 1;", formatter.format(listOf(assign("x", expr))))
+    }
+
+    @Test
+    fun `call with arguments`() {
+        val call = Call(function = "println", arguments = listOf(Identifier("x")))
+        assertEquals("println(x);", formatter.format(listOf(call)))
     }
 }

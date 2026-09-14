@@ -20,6 +20,7 @@ data class Token(
   val text: String
 )
 
+
 interface TokenDefinition {
   val alias: String;
   val symbols: List<String>;
