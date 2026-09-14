@@ -5,7 +5,7 @@ name: CD
 # y como GitHub Release cuando se crea un tag de versión (vX.Y.Z).
 on:
   push:
-    branches: [main]
+    branches: [main, printscript-release]
     tags: ['v*']
 
 concurrency:
