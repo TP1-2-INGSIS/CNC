@@ -43,5 +43,6 @@ val GCNCWithHelp = HelpAttribute(
 )
 
 val CLISystem = CommandSystem(mapOf(
-  GccCommand.tag to GCNCWithHelp
+  GccCommand.tag to GCNCWithHelp,
+  FormatCommand.tag to FormatWithHelp
 ))
