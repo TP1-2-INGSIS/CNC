@@ -28,6 +28,8 @@ interface ParseContext {
     fun expect(type: TokenType, text: String? = null): Token
     fun advance(): Token
     fun parseExpression(): Expression
+    fun parseStatement(): Statement
+    fun parseBlock(): cnc.ast.BlockStatement
 }
 
 /**
@@ -37,7 +39,7 @@ interface StatementRule<T : Statement> {
     val tag: String
 
     fun canStart(cursor: Cursor<Token>): Boolean
-    fun parse(cursor: Cursor<Token>, expressionParser: ExpressionParser): Result<T>
+    fun parse(cursor: Cursor<Token>, expressionParser: ExpressionParser, nextStatement: (Cursor<Token>) -> Result<Statement>): Result<T>
 }
 
 /**
@@ -46,13 +48,13 @@ interface StatementRule<T : Statement> {
 fun <T : Statement> statementRule(
     tag: String,
     canStart: (Cursor<Token>) -> Boolean,
-    parseBlock: ParseContext.() -> T
+    action: ParseContext.() -> T
 ): StatementRule<T> = object : StatementRule<T> {
     override val tag: String = tag
 
     override fun canStart(cursor: Cursor<Token>): Boolean = canStart(cursor)
 
-    override fun parse(cursor: Cursor<Token>, expressionParser: ExpressionParser): Result<T> {
+    override fun parse(cursor: Cursor<Token>, expressionParser: ExpressionParser, nextStatement: (Cursor<Token>) -> Result<Statement>): Result<T> {
         val context = object : ParseContext {
             override val cursor: Cursor<Token> = cursor
 
@@ -105,10 +107,28 @@ fun <T : Statement> statementRule(
                     )
                 }
             }
+
+            override fun parseStatement(): Statement {
+                val res = nextStatement(cursor)
+                if (res is Failure) {
+                    throw ParseAbortException(Failure<Nothing>(res.msg, res.type))
+                }
+                return (res as Success).data
+            }
+
+            override fun parseBlock(): cnc.ast.BlockStatement {
+                expect(TokenType.SYMBOL, "{")
+                val stmts = mutableListOf<Statement>()
+                while (peek()?.text != "}") {
+                    stmts.add(parseStatement())
+                }
+                expect(TokenType.SYMBOL, "}")
+                return cnc.ast.BlockStatement(stmts)
+            }
         }
 
         return try {
-            val statement = context.parseBlock()
+            val statement = context.action()
             Success("Parsed $tag", statement)
         } catch (e: ParseAbortException) {
             Failure(e.failure.msg, e.failure.type)

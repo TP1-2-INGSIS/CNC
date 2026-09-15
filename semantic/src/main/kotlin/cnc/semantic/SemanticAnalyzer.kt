@@ -1,9 +1,11 @@
 package cnc.semantic
 
 import cnc.ast.Assignment
+import cnc.ast.BlockStatement
 import cnc.ast.Call
 import cnc.ast.Declaration
 import cnc.ast.Expression
+import cnc.ast.IfStatement
 import cnc.ast.Statement
 import cnc.common.ErrorType
 import cnc.common.Failure
@@ -62,6 +64,32 @@ class SemanticAnalyzer(
         is Declaration -> checkDeclaration(statement)
         is Assignment -> checkAssignment(statement)
         is Call -> checkCall(statement)
+        is BlockStatement -> checkBlock(statement)
+        is IfStatement -> checkIf(statement)
+    }
+
+    private fun checkBlock(block: BlockStatement): Result<Unit> {
+        for (stmt in block.statements) {
+            val result = check(stmt)
+            if (result is Failure) return result
+        }
+        return Success("ok", Unit)
+    }
+
+    private fun checkIf(ifStmt: IfStatement): Result<Unit> {
+        val condType = context.resolveExpressionType(ifStmt.condition)
+        if (condType is Failure) return Failure(condType.msg, condType.type)
+
+        val thenResult = checkBlock(ifStmt.thenBlock)
+        if (thenResult is Failure) return thenResult
+
+        val elseBlock = ifStmt.elseBlock
+        if (elseBlock != null) {
+            val elseResult = checkBlock(elseBlock)
+            if (elseResult is Failure) return elseResult
+        }
+
+        return Success("ok", Unit)
     }
 
     private fun checkDeclaration(decl: Declaration): Result<Unit> {

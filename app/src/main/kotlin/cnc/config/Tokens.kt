@@ -14,8 +14,14 @@ object CncKeywords {
 
   val all = mapOf(
     "let" to TokenType.KEYWORD,
+    "const" to TokenType.KEYWORD,
+    "if" to TokenType.KEYWORD,
+    "else" to TokenType.KEYWORD,
+    "true" to TokenType.KEYWORD,
+    "false" to TokenType.KEYWORD,
     "string" to TokenType.VARIABLE_TYPE,
-    "number" to TokenType.VARIABLE_TYPE
+    "number" to TokenType.VARIABLE_TYPE,
+    "boolean" to TokenType.VARIABLE_TYPE
   )
 }
 

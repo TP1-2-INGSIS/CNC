@@ -3,6 +3,8 @@ package cnc.parser.expression
 import cnc.ast.BinaryExpression
 import cnc.ast.Expression
 import cnc.ast.UnaryExpression
+import cnc.ast.CallExpression
+import cnc.ast.Identifier
 import cnc.common.Cursor
 import cnc.common.asCursor
 import cnc.token.Token
@@ -104,7 +106,28 @@ class ExpressionBuilder(
         }
 
         cursor.advance()
-        return build(token)
+        val atom = build(token)
+        
+        val nextToken = cursor.peek()
+        if (atom is Identifier && nextToken != null && nextToken.text == "(") {
+            cursor.advance() // consume "("
+            val args = mutableListOf<Expression>()
+            if (cursor.peek()?.text != ")") {
+                args.add(parseExpression(cursor, 0))
+                while (cursor.peek()?.text == ",") {
+                    cursor.advance() // consume ","
+                    args.add(parseExpression(cursor, 0))
+                }
+            }
+            val closeToken = cursor.peek()
+            if (closeToken == null || closeToken.text != ")") {
+                error("Expected closing ')' after arguments")
+            }
+            cursor.advance() // consume ")"
+            return CallExpression(atom.name, args)
+        }
+        
+        return atom
     }
 
     private fun findOperator(token: Token): OperatorDef? =

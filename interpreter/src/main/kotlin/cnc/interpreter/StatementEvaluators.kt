@@ -62,3 +62,37 @@ class CallEvaluator(
         return Success("ok", Unit)
     }
 }
+
+class BlockEvaluator : StatementEvaluator<cnc.ast.BlockStatement> {
+    override fun evaluate(statement: cnc.ast.BlockStatement, environment: Environment, interpreter: Interpreter): Result<Unit> {
+        val blockEnv = environment.createChild()
+        for (stmt in statement.statements) {
+            val res = interpreter.interpret(stmt, blockEnv)
+            if (res is Failure) return res
+        }
+        return Success("ok", Unit)
+    }
+}
+
+class IfEvaluator : StatementEvaluator<cnc.ast.IfStatement> {
+    override fun evaluate(statement: cnc.ast.IfStatement, environment: Environment, interpreter: Interpreter): Result<Unit> {
+        val condRes = interpreter.evaluate(statement.condition, environment)
+        if (condRes is Failure) return Failure(condRes.msg, condRes.type)
+        
+        val conditionValue = (condRes as Success).data
+        if (conditionValue !is Boolean) {
+            return Failure("Condition must evaluate to boolean, got ${conditionValue?.let { it::class.simpleName }}", ErrorType.RUNTIME)
+        }
+
+        if (conditionValue) {
+            return interpreter.interpret(statement.thenBlock, environment) // BlockEvaluator will create its own child scope
+        } else {
+            val elseBlock = statement.elseBlock
+            if (elseBlock != null) {
+                return interpreter.interpret(elseBlock, environment)
+            }
+        }
+        
+        return Success("ok", Unit)
+    }
+}

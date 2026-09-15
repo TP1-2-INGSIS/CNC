@@ -12,14 +12,29 @@ import cnc.common.Result
 import cnc.common.Success
 import cnc.common.map
 
+import cnc.ast.CallExpression
+
 class ExpressionEvaluator(
-    private val binaryOperations: Map<String, BinaryOperation>
+    private val binaryOperations: Map<String, BinaryOperation>,
+    private val builtins: Map<String, BuiltinMethod> = emptyMap()
 ) {
     fun evaluate(expression: Expression, environment: Environment, interpreter: Interpreter): Result<Any?> {
         return when (expression) {
             is NumberLiteral -> Success("ok", ValueFormatter.formatNumber(expression.value))
             is StringLiteral -> Success("ok", expression.value)
+            is cnc.ast.BooleanLiteral -> Success("ok", expression.value)
             is Identifier -> environment.get(expression.name)
+            is CallExpression -> {
+                val builtin = builtins[expression.function]
+                    ?: return Failure("Function '${expression.function}' not found", ErrorType.RUNTIME)
+                val args = mutableListOf<Any?>()
+                for (arg in expression.arguments) {
+                    val argRes = interpreter.evaluate(arg, environment)
+                    if (argRes is Failure) return Failure(argRes.msg, argRes.type)
+                    args.add((argRes as Success).data)
+                }
+                builtin.execute(args)
+            }
             is BinaryExpression -> {
                 val leftResult = interpreter.evaluate(expression.left, environment)
                 if (leftResult is Failure) return Failure(leftResult.msg, leftResult.type)

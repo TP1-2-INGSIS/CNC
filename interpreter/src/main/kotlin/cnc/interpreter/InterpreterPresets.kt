@@ -49,6 +49,12 @@ class InterpreterBuilder {
         if (!statementEvaluators.containsKey(Call::class)) {
             statementEvaluators[Call::class] = CallEvaluator(builtins)
         }
+        if (!statementEvaluators.containsKey(cnc.ast.BlockStatement::class)) {
+            statementEvaluators[cnc.ast.BlockStatement::class] = BlockEvaluator()
+        }
+        if (!statementEvaluators.containsKey(cnc.ast.IfStatement::class)) {
+            statementEvaluators[cnc.ast.IfStatement::class] = IfEvaluator()
+        }
 
         if (!binaryOperations.containsKey("+")) {
             binaryOperations["+"] = BinaryOperation(StandardBinaryOperations::add)
@@ -63,7 +69,7 @@ class InterpreterBuilder {
             binaryOperations["/"] = BinaryOperation(StandardBinaryOperations::divide)
         }
 
-        val expressionEvaluator = ExpressionEvaluator(binaryOperations.toMap())
+        val expressionEvaluator = ExpressionEvaluator(binaryOperations.toMap(), builtins.toMap())
         return Interpreter(statementEvaluators.toMap(), expressionEvaluator)
     }
 }

@@ -17,7 +17,7 @@ val unaryTypeRules: Map<String, UnaryOpResolver> = mapOf(
   "-" to TypeResolvers.unaryNumeric("-")
 )
 
-val symbolTable = SymbolTable(validTypes = setOf("number", "string"))
+val symbolTable = SymbolTable(validTypes = setOf("number", "string", "boolean"))
 
 val semanticContext = DefaultSemanticContext(
   symbolTable = symbolTable,

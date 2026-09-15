@@ -95,12 +95,25 @@ private val unaryRule = ExpressionRule { expr, ctx ->
     }
 }
 
+private val booleanRule = ExpressionRule { expr, _ ->
+    (expr as? cnc.ast.BooleanLiteral)?.let { it.value.toString() }
+}
+
+private val callExpressionRule = ExpressionRule { expr, ctx ->
+    (expr as? cnc.ast.CallExpression)?.let { call ->
+        val args = call.arguments.joinToString(", ") { ctx.formatExpression(it) }
+        "${call.function}($args)"
+    }
+}
+
 val printScriptExpressionRules: List<ExpressionRule> = listOf(
     numberRule,
     stringRule,
+    booleanRule,
     identifierRule,
     binaryRule,
-    unaryRule
+    unaryRule,
+    callExpressionRule
 )
 
 /** `5.0` -> `"5"`, `3.14` -> `"3.14"` (los enteros se muestran sin decimal). */
@@ -150,10 +163,41 @@ private val callRule = StatementRule { stmt, ctx ->
     }
 }
 
+// "{\n    stmt1;\n    stmt2;\n}"
+private val blockStatementRule = StatementRule { stmt, ctx ->
+    (stmt as? cnc.ast.BlockStatement)?.let { block ->
+        if (block.statements.isEmpty()) {
+            "{}"
+        } else {
+            val stmts = block.statements.mapNotNull { inner ->
+                printScriptStatementRules.firstNotNullOfOrNull { rule -> rule.tryFormat(inner, ctx) }
+            }
+            "{\n" + stmts.joinToString("\n") { "    " + it.replace("\n", "\n    ") } + "\n}"
+        }
+    }
+}
+
+// "if (condition) {\n    ...\n} else {\n    ...\n}"
+private val ifStatementRule = StatementRule { stmt, ctx ->
+    (stmt as? cnc.ast.IfStatement)?.let { ifStmt ->
+        val cond = ctx.formatExpression(ifStmt.condition)
+        val thenBlock = blockStatementRule.tryFormat(ifStmt.thenBlock, ctx)
+        val elseB = ifStmt.elseBlock
+        if (elseB != null) {
+            val elseBlock = blockStatementRule.tryFormat(elseB, ctx)
+            "if ($cond) $thenBlock else $elseBlock"
+        } else {
+            "if ($cond) $thenBlock"
+        }
+    }
+}
+
 val printScriptStatementRules: List<StatementRule> = listOf(
     variableDeclarationRule,
     variableAssignmentRule,
-    callRule
+    callRule,
+    blockStatementRule,
+    ifStatementRule
 )
 
 // -----------------------------------------------------------------------------

@@ -40,7 +40,7 @@ class Parser(
         val rule = rules.firstOrNull { it.canStart(cursor) }
             ?: return unexpectedToken(cursor.advance())
 
-        return rule.parse(cursor, expressionParser)
+        return rule.parse(cursor, expressionParser) { cur -> nextStatement(cur) }
     }
 
     private fun unexpectedToken(token: Token?): Failure<Statement> {

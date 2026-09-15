@@ -24,6 +24,12 @@ val declarationRule: StatementRule<Declaration> = statementRule(
         parseExpression()
     } else null
 
+    if (!isMutable && initializer == null) {
+        throw ParseAbortException(
+            cnc.common.Failure("Syntax error: const declaration '${name}' must have an initializer", cnc.common.ErrorType.PARSER)
+        )
+    }
+
     expect(TokenType.SYMBOL, ";")
 
     Declaration(
@@ -71,15 +77,36 @@ val callRule: StatementRule<Call> = statementRule(
     Call(function = function, arguments = arguments)
 }
 
+val ifRule: StatementRule<cnc.ast.IfStatement> = statementRule(
+    tag = "if",
+    canStart = { cursor -> cursor.peek(0)?.text == "if" }
+) {
+    expect(TokenType.KEYWORD, "if")
+    expect(TokenType.SYMBOL, "(")
+    val condition = parseExpression()
+    expect(TokenType.SYMBOL, ")")
+
+    val thenBlock = parseBlock()
+
+    var elseBlock: cnc.ast.BlockStatement? = null
+    if (match(TokenType.KEYWORD, "else")) {
+        elseBlock = parseBlock()
+    }
+
+    cnc.ast.IfStatement(condition, thenBlock, elseBlock)
+}
+
 object StandardStatementRules {
     val declaration = declarationRule
     val assignment = assignmentRule
     val call = callRule
+    val ifStatement = ifRule
 
     @Suppress("UNCHECKED_CAST")
     val printScript10: List<StatementRule<Statement>> = listOf(
         declaration,
         assignment,
-        call
+        call,
+        ifStatement
     ) as List<StatementRule<Statement>>
 }
