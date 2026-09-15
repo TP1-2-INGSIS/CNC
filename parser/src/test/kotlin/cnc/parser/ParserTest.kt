@@ -320,5 +320,99 @@ class ParserTest {
             assertTrue(failure.msg.contains("unexpected token '+'"))
             assertTrue(failure.msg.contains("row 3, col 0"))
         }
+
+        @Test
+        fun `if statement with then and else blocks parsed correctly in v1_1`() {
+            val v11Parser = Parser(StandardStatementRules.v1_1, testExprBuilder)
+            val tokens = sequenceOf(
+                tok(TokenType.KEYWORD, "if"),
+                tok(TokenType.SYMBOL, "("),
+                tok(TokenType.IDENTIFIER, "cond"),
+                tok(TokenType.SYMBOL, ")"),
+                tok(TokenType.SYMBOL, "{"),
+                tok(TokenType.IDENTIFIER, "println"),
+                tok(TokenType.SYMBOL, "("),
+                tok(TokenType.STRING, "\"true\""),
+                tok(TokenType.SYMBOL, ")"),
+                tok(TokenType.SYMBOL, ";"),
+                tok(TokenType.SYMBOL, "}"),
+                tok(TokenType.KEYWORD, "else"),
+                tok(TokenType.SYMBOL, "{"),
+                tok(TokenType.IDENTIFIER, "println"),
+                tok(TokenType.SYMBOL, "("),
+                tok(TokenType.STRING, "\"false\""),
+                tok(TokenType.SYMBOL, ")"),
+                tok(TokenType.SYMBOL, ";"),
+                tok(TokenType.SYMBOL, "}")
+            )
+
+            val results = v11Parser.parse(tokens).toList()
+            assertEquals(1, results.size)
+            assertTrue(results[0] is Success)
+            val ifStmt = (results[0] as Success).data as cnc.ast.IfStatement
+            assertEquals(Identifier("cond"), ifStmt.condition)
+            assertEquals(1, ifStmt.thenBlock.statements.size)
+            assertEquals(1, ifStmt.elseBlock?.statements?.size)
+        }
+
+        @Test
+        fun `v1_0 parser rejects const declaration`() {
+            val v10Parser = Parser(StandardStatementRules.v1_0, testExprBuilder)
+            val tokens = sequenceOf(
+                tok(TokenType.KEYWORD, "const"),
+                tok(TokenType.IDENTIFIER, "x"),
+                tok(TokenType.SYMBOL, ":"),
+                tok(TokenType.VARIABLE_TYPE, "number"),
+                tok(TokenType.SYMBOL, "="),
+                tok(TokenType.NUMBER, "10"),
+                tok(TokenType.SYMBOL, ";")
+            )
+
+            val results = v10Parser.parse(tokens).toList()
+            assertEquals(1, results.size)
+            assertTrue(results[0] is Failure)
+            assertTrue((results[0] as Failure).msg.contains("unexpected token 'const'"))
+        }
+
+        @Test
+        fun `v1_0 parser rejects if statement`() {
+            val v10Parser = Parser(StandardStatementRules.v1_0, testExprBuilder)
+            val tokens = sequenceOf(
+                tok(TokenType.KEYWORD, "if"),
+                tok(TokenType.SYMBOL, "("),
+                tok(TokenType.IDENTIFIER, "x"),
+                tok(TokenType.SYMBOL, ")"),
+                tok(TokenType.SYMBOL, "{"),
+                tok(TokenType.SYMBOL, "}")
+            )
+
+            val results = v10Parser.parse(tokens).toList()
+            assertEquals(1, results.size)
+            assertTrue(results[0] is Failure)
+            assertTrue((results[0] as Failure).msg.contains("unexpected token 'if'"))
+        }
+    }
+
+    @Nested
+    inner class BuilderTests {
+        @Test
+        fun `custom rules can be built with StatementRulesBuilder`() {
+            val customRules = StandardStatementRules.builder()
+                .addDeclaration(cnc.token.CncKeywords.LET)
+                .addAssignment()
+                .build()
+
+            val customParser = Parser(customRules, testExprBuilder)
+            val tokens = sequenceOf(
+                tok(TokenType.KEYWORD, "let"),
+                tok(TokenType.IDENTIFIER, "a"),
+                tok(TokenType.SYMBOL, ":"),
+                tok(TokenType.VARIABLE_TYPE, "number"),
+                tok(TokenType.SYMBOL, ";")
+            )
+            val results = customParser.parse(tokens).toList()
+            assertEquals(1, results.size)
+            assertTrue(results[0] is Success)
+        }
     }
 }

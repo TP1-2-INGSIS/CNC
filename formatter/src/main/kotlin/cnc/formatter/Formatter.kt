@@ -21,6 +21,10 @@ class Formatter(
 ) {
 
     private val context = object : FormatContext {
+        override fun formatStatement(statement: Statement): String =
+            statementRules.firstNotNullOfOrNull { it.tryFormat(statement, this) }
+                ?: error("No StatementRule applies to '$statement'")
+
         override fun formatSymbol(symbol: String): String {
             val rule = symbolRules[symbol]
                 ?: error("No FormatRule registered for symbol '$symbol'")

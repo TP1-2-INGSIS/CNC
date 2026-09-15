@@ -1,6 +1,7 @@
 package cnc.formatter
 
 import cnc.ast.Expression
+import cnc.ast.Statement
 
 /**
  * Capacidades de sub-render que el motor entrega a cada regla, para que
@@ -8,6 +9,9 @@ import cnc.ast.Expression
  * y sin duplicar la lógica de paréntesis (Decisiones 7 y 10).
  */
 interface FormatContext {
+    /** Renderiza una sentencia delegando al motor de formateo. */
+    fun formatStatement(statement: Statement): String
+
     /** Renderiza una expresión probando las `ExpressionRule` en orden. */
     fun formatExpression(expression: Expression): String
 

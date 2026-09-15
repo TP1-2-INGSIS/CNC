@@ -33,6 +33,14 @@ object StandardRules {
         tokenType = tokenType
     )
 
+    fun decimalNumber(
+        tokenType: TokenType = TokenType.NUMBER
+    ): LexerRule = PatternRule(
+        startPredicate = Char::isDigit,
+        continuePredicate = { it.isDigit() || it == '.' },
+        tokenType = tokenType
+    )
+
     fun standardIdentifier(
         keywords: Map<String, TokenType> = emptyMap(),
         defaultType: TokenType = TokenType.IDENTIFIER

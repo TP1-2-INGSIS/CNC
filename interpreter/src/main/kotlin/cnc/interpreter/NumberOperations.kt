@@ -36,4 +36,16 @@ object NumberOperations {
         if (r == 0.0) return Failure("Division by zero", ErrorType.RUNTIME)
         return Success("ok", ValueFormatter.formatNumber(l / r))
     }
+
+    fun negate(operand: Any): Result<Any> {
+        val num = toDouble(operand)
+            ?: return Failure("Unary '-' operator cannot be applied to type ${operand::class.simpleName}", ErrorType.RUNTIME)
+        return Success("ok", ValueFormatter.formatNumber(-num))
+    }
+
+    fun positive(operand: Any): Result<Any> {
+        val num = toDouble(operand)
+            ?: return Failure("Unary '+' operator cannot be applied to type ${operand::class.simpleName}", ErrorType.RUNTIME)
+        return Success("ok", ValueFormatter.formatNumber(num))
+    }
 }

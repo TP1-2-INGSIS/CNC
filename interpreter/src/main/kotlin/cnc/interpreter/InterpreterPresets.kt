@@ -9,6 +9,7 @@ import kotlin.reflect.KClass
 class InterpreterBuilder {
     private val statementEvaluators = mutableMapOf<KClass<out Statement>, StatementEvaluator<*>>()
     private val binaryOperations = mutableMapOf<String, BinaryOperation>()
+    private val unaryOperations = mutableMapOf<String, UnaryOperation>()
     private val builtins = mutableMapOf<String, BuiltinMethod>()
     private var output: ((String) -> Unit)? = null
 
@@ -24,6 +25,10 @@ class InterpreterBuilder {
 
     fun registerOperation(operator: String, operation: BinaryOperation): InterpreterBuilder = apply {
         binaryOperations[operator] = operation
+    }
+
+    fun registerUnaryOperation(operator: String, operation: UnaryOperation): InterpreterBuilder = apply {
+        unaryOperations[operator] = operation
     }
 
     fun registerBuiltin(builtin: BuiltinMethod): InterpreterBuilder = apply {
@@ -49,6 +54,12 @@ class InterpreterBuilder {
         if (!statementEvaluators.containsKey(Call::class)) {
             statementEvaluators[Call::class] = CallEvaluator(builtins)
         }
+        if (!statementEvaluators.containsKey(cnc.ast.BlockStatement::class)) {
+            statementEvaluators[cnc.ast.BlockStatement::class] = BlockEvaluator()
+        }
+        if (!statementEvaluators.containsKey(cnc.ast.IfStatement::class)) {
+            statementEvaluators[cnc.ast.IfStatement::class] = IfEvaluator()
+        }
 
         if (!binaryOperations.containsKey("+")) {
             binaryOperations["+"] = BinaryOperation(StandardBinaryOperations::add)
@@ -63,7 +74,18 @@ class InterpreterBuilder {
             binaryOperations["/"] = BinaryOperation(StandardBinaryOperations::divide)
         }
 
-        val expressionEvaluator = ExpressionEvaluator(binaryOperations.toMap())
+        if (!unaryOperations.containsKey("-")) {
+            unaryOperations["-"] = UnaryOperation(StandardUnaryOperations::negate)
+        }
+        if (!unaryOperations.containsKey("+")) {
+            unaryOperations["+"] = UnaryOperation(StandardUnaryOperations::positive)
+        }
+
+        val expressionEvaluator = ExpressionEvaluator(
+            binaryOperations = binaryOperations.toMap(),
+            unaryOperations = unaryOperations.toMap(),
+            builtins = builtins.toMap()
+        )
         return Interpreter(statementEvaluators.toMap(), expressionEvaluator)
     }
 }
@@ -75,6 +97,18 @@ object InterpreterPresets {
     fun v1_0(output: (String) -> Unit = ::println): Interpreter {
         return builder()
             .withOutput(output)
+            .build()
+    }
+
+    fun v1_1(
+        input: (String) -> String = { readln() },
+        envProvider: (String) -> String? = System::getenv,
+        output: (String) -> Unit = ::println
+    ): Interpreter {
+        return builder()
+            .withOutput(output)
+            .registerBuiltin(BuiltinMethodFactory.readInput(input))
+            .registerBuiltin(BuiltinMethodFactory.readEnv(envProvider))
             .build()
     }
 }

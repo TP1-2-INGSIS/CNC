@@ -174,6 +174,28 @@ class InterpreterTest {
     }
 
     @Test
+    fun `unary positive works on numbers`() {
+        val expr = UnaryExpression(
+            operator = "+",
+            operand = NumberLiteral(42.0)
+        )
+        val result = interpreter.evaluate(expr, env)
+        assertTrue(result is Success)
+        assertEquals(42, (result as Success).data)
+    }
+
+    @Test
+    fun `unary operator fails on non-numbers`() {
+        val expr = UnaryExpression(
+            operator = "-",
+            operand = StringLiteral("hello")
+        )
+        val result = interpreter.evaluate(expr, env)
+        assertTrue(result is Failure)
+        assertEquals(ErrorType.RUNTIME, (result as Failure).type)
+    }
+
+    @Test
     fun `string concatenation with numbers formats whole numbers without decimal point`() {
         val expr = BinaryExpression(
             left = StringLiteral("Result: "),
@@ -279,5 +301,63 @@ class InterpreterTest {
         val result = customInterpreter.interpret(call, env)
         assertTrue(result is Success)
         assertEquals("hello world", capturedVal)
+    }
+
+    @Test
+    fun `v1_1 preset executes readInput in CallExpression`() {
+        val interp11 = InterpreterPresets.v1_1(
+            input = { "Bautista" },
+            output = { outputBuffer.add(it) }
+        )
+        val decl = Declaration(
+            name = "name",
+            type = "string",
+            value = cnc.ast.CallExpression("readInput", listOf(StringLiteral("Tu nombre:"))),
+            isMutable = true
+        )
+        val result = interp11.interpret(decl, env)
+        assertTrue(result is Success)
+
+        val evalResult = interp11.evaluate(Identifier("name"), env)
+        assertTrue(evalResult is Success)
+        assertEquals("Bautista", (evalResult as Success).data)
+    }
+
+    @Test
+    fun `v1_1 preset executes readEnv in CallExpression`() {
+        val interp11 = InterpreterPresets.v1_1(
+            envProvider = { if (it == "APP_ENV") "production" else null },
+            output = { outputBuffer.add(it) }
+        )
+        val decl = Declaration(
+            name = "envVal",
+            type = "string",
+            value = cnc.ast.CallExpression("readEnv", listOf(StringLiteral("APP_ENV"))),
+            isMutable = true
+        )
+        val result = interp11.interpret(decl, env)
+        assertTrue(result is Success)
+
+        val evalResult = interp11.evaluate(Identifier("envVal"), env)
+        assertTrue(evalResult is Success)
+        assertEquals("production", (evalResult as Success).data)
+    }
+
+    @Test
+    fun `v1_1 executes IfStatement branching and block scoping`() {
+        val interp11 = InterpreterPresets.v1_1(output = { outputBuffer.add(it) })
+        val ifStmt = cnc.ast.IfStatement(
+            condition = cnc.ast.BooleanLiteral(true),
+            thenBlock = cnc.ast.BlockStatement(listOf(
+                Call("println", listOf(StringLiteral("in then block")))
+            )),
+            elseBlock = cnc.ast.BlockStatement(listOf(
+                Call("println", listOf(StringLiteral("in else block")))
+            ))
+        )
+
+        val result = interp11.interpret(ifStmt, env)
+        assertTrue(result is Success)
+        assertEquals(listOf("in then block"), outputBuffer)
     }
 }
