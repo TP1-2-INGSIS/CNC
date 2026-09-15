@@ -38,6 +38,8 @@ flowchart LR
 | [**`:interpreter`**](../interpreter/README.md) | Motor de ejecución, manejo de memoria, tabla de símbolos y ámbitos (scopes). | `:ast`, `:token`, `:common` |
 | [**`:cli`**](../cli/README.md) | Interfaz por línea de comandos, parseo de flags/argumentos, abstracción de I/O (`IOManager`) y comandos registrados. | `:common` |
 | [**`:app`**](../app/README.md) | Punto de entrada (`main`) que orquesta la configuración del compilador/intérprete y ejecuta la aplicación. | `:lexer`, `:parser`, `:token`, `:ast`, `:common`, `:cli` |
+| [**`:formatter`**](../formatter/README.md) | Herramienta lateral: pretty-printing del AST con reglas de estilo inyectables y parentización por precedencia. | `:ast`, `:common` |
+| [**`:linter`**](../linter/README.md) | Herramienta lateral: análisis estático de estilo (convenciones de nombres, restricción de `println` complejo) configurable por JSON. | `:ast`, `:common` |
 
 > El detalle técnico completo de cada módulo (diagramas, ejemplos y decisiones de diseño) vive en el `README.md` de cada módulo. Ver el [índice de módulos](modules/README.md).
 

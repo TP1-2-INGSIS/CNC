@@ -20,6 +20,15 @@ Documentación técnica y operativa completa de la arquitectura de compilación 
 
 ---
 
+## Herramientas Laterales (consumen el AST, fuera del pipeline de ejecución)
+
+| # | Módulo | Responsabilidad Principal | Informe Detallado |
+|---|---|---|---|
+| 10 | **`:formatter`** | Pretty-printing del AST con reglas de estilo y parentización por precedencia | [formatter/README.md](../../formatter/README.md) |
+| 11 | **`:linter`** | Análisis estático de estilo (convenciones de nombres, `println` simple) | [linter/README.md](../../linter/README.md) |
+
+---
+
 ## Flujo del Pipeline
 
 ```mermaid
