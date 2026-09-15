@@ -30,14 +30,16 @@ flowchart LR
 
 | Módulo | Responsabilidad Principal | Dependencias |
 | :--- | :--- | :--- |
-| **`:common`** | Clases base, gestión de posiciones (`Position`), manejo de flujos de texto (`CharStream`), y tipo funcional `Result<T>`. | *Ninguna* |
-| **`:token`** | Definición de tipos de token (`TokenType`), categorías (`Keyword`, `Literal`, `Operator`, `Symbol`) y modelo `Token`. | `:common` |
-| **`:lexer`** | Motor de análisis léxico single-pass basado en estructura **Trie** y reglas semánticas modulares. | `:token`, `:common` |
-| **`:ast`** | Definición de los nodos del árbol de sintaxis abstracta (`Statement`, `Expression`, `BinaryOp`, etc.). | `:token`, `:common` |
-| **`:parser`** | Analizador sintáctico que procesa tokens y construye el AST respetando la gramática y precedencia de operadores. | `:token`, `:ast`, `:common` |
-| **`:interpreter`** | Motor de ejecución, manejo de memoria, tabla de símbolos y ámbitos (scopes). | `:ast`, `:token`, `:common` |
-| **`:cli`** | Interfaz por línea de comandos, parseo de flags/argumentos, abstracción de I/O (`IOManager`) y comandos registrados. | `:common` |
-| **`:app`** | Punto de entrada (`main`) que orquesta la configuración del compilador/intérprete y ejecuta la aplicación. | `:lexer`, `:parser`, `:token`, `:ast`, `:common`, `:cli` |
+| [**`:common`**](../common/README.md) | Clases base, gestión de posiciones (`Position`), manejo de flujos de texto (`CharStream`), y tipo funcional `Result<T>`. | *Ninguna* |
+| [**`:token`**](../token/README.md) | Definición de tipos de token (`TokenType`), categorías (`Keyword`, `Literal`, `Operator`, `Symbol`) y modelo `Token`. | `:common` |
+| [**`:lexer`**](../lexer/README.md) | Motor de análisis léxico single-pass basado en estructura **Trie** y reglas semánticas modulares. | `:token`, `:common` |
+| [**`:ast`**](../ast/README.md) | Definición de los nodos del árbol de sintaxis abstracta (`Statement`, `Expression`, `BinaryOp`, etc.). | `:token`, `:common` |
+| [**`:parser`**](../parser/README.md) | Analizador sintáctico que procesa tokens y construye el AST respetando la gramática y precedencia de operadores. | `:token`, `:ast`, `:common` |
+| [**`:interpreter`**](../interpreter/README.md) | Motor de ejecución, manejo de memoria, tabla de símbolos y ámbitos (scopes). | `:ast`, `:token`, `:common` |
+| [**`:cli`**](../cli/README.md) | Interfaz por línea de comandos, parseo de flags/argumentos, abstracción de I/O (`IOManager`) y comandos registrados. | `:common` |
+| [**`:app`**](../app/README.md) | Punto de entrada (`main`) que orquesta la configuración del compilador/intérprete y ejecuta la aplicación. | `:lexer`, `:parser`, `:token`, `:ast`, `:common`, `:cli` |
+
+> El detalle técnico completo de cada módulo (diagramas, ejemplos y decisiones de diseño) vive en el `README.md` de cada módulo. Ver el [índice de módulos](modules/README.md).
 
 ---
 
