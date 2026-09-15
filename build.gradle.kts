@@ -13,7 +13,18 @@ ktlint {
 
 allprojects {
     group = "com.github.TP1-2-INGSIS"
-    version = (project.findProperty("version") as? String)?.takeIf { it != "unspecified" } ?: "1.0.0"
+    version = resolveVersion()
+}
+
+// The version at the commit's tag is resolved and used for the mavens package
+fun resolveVersion(): String {
+    // GITHUB_REF_NAME lo setea GitHub Actions: es el tag (v2.0.0) o la rama (main)
+    val ref = System.getenv("GITHUB_REF_NAME") ?: "local"
+    return if (ref.matches(Regex("v\\d+\\.\\d+\\.\\d+"))) {
+        ref.removePrefix("v")            // v2.0.0 -> 2.0.0 (release)
+    } else {
+        "0.0.0-SNAPSHOT"                 // cualquier otra cosa -> snapshot
+    }
 }
 
 subprojects {
