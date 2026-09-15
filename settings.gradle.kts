@@ -21,6 +21,6 @@ include(
     "common",
     "interpreter",
     "formatter",
+    "semantic",
+    "linter"
 )
-
-include("semantic", "linter")
