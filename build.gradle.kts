@@ -13,7 +13,7 @@ ktlint {
 
 allprojects {
     group = "com.github.TP1-2-INGSIS"
-    version = (project.findProperty("version") as? String)?.takeIf { it != "unspecified" } ?: "1.0.0"
+    version = "1.1.0"
 }
 
 subprojects {
