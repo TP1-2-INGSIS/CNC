@@ -65,7 +65,15 @@ object StandardExpressionTypeRules {
         Success("ok", "boolean")
     }
 
-    val printScript10: Map<KClass<out Expression>, ExpressionTypeRule<out Expression>> = mapOf(
+    val v1_0: Map<KClass<out Expression>, ExpressionTypeRule<out Expression>> = mapOf(
+        NumberLiteral::class to numberLiteral,
+        StringLiteral::class to stringLiteral,
+        Identifier::class to identifier,
+        BinaryExpression::class to binaryExpression,
+        UnaryExpression::class to unaryExpression
+    )
+
+    val v1_1: Map<KClass<out Expression>, ExpressionTypeRule<out Expression>> = mapOf(
         NumberLiteral::class to numberLiteral,
         StringLiteral::class to stringLiteral,
         BooleanLiteral::class to booleanLiteral,
@@ -74,4 +82,6 @@ object StandardExpressionTypeRules {
         UnaryExpression::class to unaryExpression,
         CallExpression::class to callExpression
     )
+
+    val printScript10: Map<KClass<out Expression>, ExpressionTypeRule<out Expression>> = v1_1
 }

@@ -18,9 +18,12 @@ import cnc.common.Success
 interface SemanticContext {
     fun isValidType(type: String): Boolean
     fun isDeclared(name: String): Boolean
-    fun declare(name: String, type: String)
+    fun isDeclaredInCurrentScope(name: String): Boolean
+    fun declare(name: String, type: String, isMutable: Boolean = true): Result<Unit>
     fun typeOf(name: String): String?
+    fun isMutable(name: String): Boolean?
     fun resolveExpressionType(expr: Expression): Result<String>
+    fun createChildScope(): SemanticContext
 }
 
 /**
@@ -35,13 +38,23 @@ class DefaultSemanticContext(
 
     override fun isValidType(type: String): Boolean = symbolTable.isValidType(type)
     override fun isDeclared(name: String): Boolean = symbolTable.isDeclared(name)
-    override fun declare(name: String, type: String) = symbolTable.declare(name, type)
+    override fun isDeclaredInCurrentScope(name: String): Boolean = symbolTable.isDeclaredInCurrentScope(name)
+    override fun declare(name: String, type: String, isMutable: Boolean): Result<Unit> =
+        symbolTable.declare(name, type, isMutable)
     override fun typeOf(name: String): String? = symbolTable.typeOf(name)
+    override fun isMutable(name: String): Boolean? = symbolTable.isMutable(name)
 
     override fun resolveExpressionType(expr: Expression): Result<String> {
         val resolver = ExpressionTypeResolver(expressionRules, symbolTable.asReadOnly(), binaryRules, unaryRules)
         return resolver.resolve(expr)
     }
+
+    override fun createChildScope(): SemanticContext = DefaultSemanticContext(
+        symbolTable = symbolTable.createChild(),
+        binaryRules = binaryRules,
+        unaryRules = unaryRules,
+        expressionRules = expressionRules
+    )
 }
 
 /**
@@ -69,8 +82,10 @@ class SemanticAnalyzer(
     }
 
     private fun checkBlock(block: BlockStatement): Result<Unit> {
+        val childContext = context.createChildScope()
+        val childAnalyzer = SemanticAnalyzer(childContext)
         for (stmt in block.statements) {
-            val result = check(stmt)
+            val result = childAnalyzer.check(stmt)
             if (result is Failure) return result
         }
         return Success("ok", Unit)
@@ -79,6 +94,9 @@ class SemanticAnalyzer(
     private fun checkIf(ifStmt: IfStatement): Result<Unit> {
         val condType = context.resolveExpressionType(ifStmt.condition)
         if (condType is Failure) return Failure(condType.msg, condType.type)
+        if ((condType as Success).data != "boolean") {
+            return Failure("La condición del 'if' debe ser de tipo 'boolean', pero se obtuvo '${condType.data}'", ErrorType.SEMANTIC)
+        }
 
         val thenResult = checkBlock(ifStmt.thenBlock)
         if (thenResult is Failure) return thenResult
@@ -93,8 +111,8 @@ class SemanticAnalyzer(
     }
 
     private fun checkDeclaration(decl: Declaration): Result<Unit> {
-        if (context.isDeclared(decl.name)) {
-            return Failure("Variable '${decl.name}' ya fue declarada", ErrorType.SEMANTIC)
+        if (context.isDeclaredInCurrentScope(decl.name)) {
+            return Failure("Variable '${decl.name}' ya fue declarada en este ámbito", ErrorType.SEMANTIC)
         }
         if (!context.isValidType(decl.type)) {
             return Failure("Tipo '${decl.type}' no reconocido", ErrorType.SEMANTIC)
@@ -111,13 +129,17 @@ class SemanticAnalyzer(
                 }
             }
         }
-        context.declare(decl.name, decl.type)
-        return Success("ok", Unit)
+        return context.declare(decl.name, decl.type, decl.isMutable)
     }
 
     private fun checkAssignment(assign: Assignment): Result<Unit> {
         val targetType = context.typeOf(assign.target)
             ?: return Failure("Variable '${assign.target}' no declarada", ErrorType.SEMANTIC)
+
+        val isMutable = context.isMutable(assign.target) ?: true
+        if (!isMutable) {
+            return Failure("No se puede reasignar la constante '${assign.target}'", ErrorType.SEMANTIC)
+        }
 
         val exprType = context.resolveExpressionType(assign.value)
         return when (exprType) {

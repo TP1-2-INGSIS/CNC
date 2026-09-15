@@ -169,9 +169,7 @@ private val blockStatementRule = StatementRule { stmt, ctx ->
         if (block.statements.isEmpty()) {
             "{}"
         } else {
-            val stmts = block.statements.mapNotNull { inner ->
-                printScriptStatementRules.firstNotNullOfOrNull { rule -> rule.tryFormat(inner, ctx) }
-            }
+            val stmts = block.statements.map { inner -> ctx.formatStatement(inner) }
             "{\n" + stmts.joinToString("\n") { "    " + it.replace("\n", "\n    ") } + "\n}"
         }
     }
@@ -181,10 +179,10 @@ private val blockStatementRule = StatementRule { stmt, ctx ->
 private val ifStatementRule = StatementRule { stmt, ctx ->
     (stmt as? cnc.ast.IfStatement)?.let { ifStmt ->
         val cond = ctx.formatExpression(ifStmt.condition)
-        val thenBlock = blockStatementRule.tryFormat(ifStmt.thenBlock, ctx)
+        val thenBlock = ctx.formatStatement(ifStmt.thenBlock)
         val elseB = ifStmt.elseBlock
         if (elseB != null) {
-            val elseBlock = blockStatementRule.tryFormat(elseB, ctx)
+            val elseBlock = ctx.formatStatement(elseB)
             "if ($cond) $thenBlock else $elseBlock"
         } else {
             "if ($cond) $thenBlock"

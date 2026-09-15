@@ -16,6 +16,7 @@ import cnc.ast.CallExpression
 
 class ExpressionEvaluator(
     private val binaryOperations: Map<String, BinaryOperation>,
+    private val unaryOperations: Map<String, UnaryOperation> = emptyMap(),
     private val builtins: Map<String, BuiltinMethod> = emptyMap()
 ) {
     fun evaluate(expression: Expression, environment: Environment, interpreter: Interpreter): Result<Any?> {
@@ -57,23 +58,10 @@ class ExpressionEvaluator(
                 val operand = (operandResult as Success).data
                     ?: return Failure("Null operand in unary expression", ErrorType.RUNTIME)
 
-                when (expression.operator) {
-                    "-" -> {
-                        when (operand) {
-                            is Double -> Success("ok", ValueFormatter.formatNumber(-operand))
-                            is Number -> Success("ok", ValueFormatter.formatNumber(-operand.toDouble()))
-                            else -> Failure("Unary '-' operator cannot be applied to type ${operand::class.simpleName}", ErrorType.RUNTIME)
-                        }
-                    }
-                    "+" -> {
-                        when (operand) {
-                            is Double -> Success("ok", ValueFormatter.formatNumber(operand))
-                            is Number -> Success("ok", ValueFormatter.formatNumber(operand.toDouble()))
-                            else -> Failure("Unary '+' operator cannot be applied to type ${operand::class.simpleName}", ErrorType.RUNTIME)
-                        }
-                    }
-                    else -> Failure("Unsupported unary operator '${expression.operator}'", ErrorType.RUNTIME)
-                }
+                val operation = unaryOperations[expression.operator]
+                    ?: return Failure("Unsupported unary operator '${expression.operator}'", ErrorType.RUNTIME)
+
+                operation.execute(operand).map { it as Any? }
             }
             else -> Failure("Unsupported expression type: ${expression::class.simpleName}", ErrorType.RUNTIME)
         }

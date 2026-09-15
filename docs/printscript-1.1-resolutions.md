@@ -38,6 +38,8 @@ Este documento detalla todas las modificaciones funcionales realizadas al motor 
   - Se aplicó una validación temprana del tipo "fail-fast" en `declarationRule` (`StandardStatementRules.kt`) para verificar que las variables inmutables contengan de manera obligatoria una expresión inicializadora.
 
 ---
-## Siguientes Pasos (No críticos)
-- **Punto 3:** Refactor del diseño de `ExpressionEvaluator` para que respete Open/Closed.
-- **Punto 10 y 11:** Expansión del Formatter, Linter y la gestión de versión en el CLI.
+## Siguientes Pasos (Completados)
+- **Punto 3:** Refactor del diseño de `ExpressionEvaluator` para que respete Open/Closed (desacoplamiento de `unaryOperations: Map<String, UnaryOperation>` y centralización en `NumberOperations`).
+- **Punto 10 y 11:** Expansión del Formatter (recursión en `FormatContext` para bloques), Linter y soporte de versiones en el CLI (`ConfigFactory` y comandos `run`/`validate`).
+- **Reporte completo:** Véase `docs/reports/2026-09-15_printscript-1.1-resolutions-refactor.md`.
+
