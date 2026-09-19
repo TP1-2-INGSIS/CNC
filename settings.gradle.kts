@@ -20,7 +20,8 @@ include(
     "parser",
     "common",
     "interpreter",
-    "formatter"
+    "formatter",
+    "semantic",
+    "linter",
+    "printscript"
 )
-
-include("semantic", "linter", "printscript")
