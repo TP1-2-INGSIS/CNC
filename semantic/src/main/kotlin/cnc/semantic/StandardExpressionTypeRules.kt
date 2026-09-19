@@ -49,11 +49,39 @@ object StandardExpressionTypeRules {
         }
     }
 
-    val printScript10: Map<KClass<out Expression>, ExpressionTypeRule<out Expression>> = mapOf(
+    val callExpression = ExpressionTypeRule<CallExpression> { expr, ctx ->
+        for (arg in expr.arguments) {
+            val res = ctx.resolve(arg)
+            if (res is Failure) return@ExpressionTypeRule res
+        }
+        if (expr.function == "readInput" || expr.function == "readEnv") {
+            Success("ok", "string")
+        } else {
+            Failure("Función no reconocida o no retorna valor: '${expr.function}'", ErrorType.SEMANTIC)
+        }
+    }
+
+    val booleanLiteral = ExpressionTypeRule<BooleanLiteral> { _, _ ->
+        Success("ok", "boolean")
+    }
+
+    val v1_0: Map<KClass<out Expression>, ExpressionTypeRule<out Expression>> = mapOf(
         NumberLiteral::class to numberLiteral,
         StringLiteral::class to stringLiteral,
         Identifier::class to identifier,
         BinaryExpression::class to binaryExpression,
         UnaryExpression::class to unaryExpression
     )
+
+    val v1_1: Map<KClass<out Expression>, ExpressionTypeRule<out Expression>> = mapOf(
+        NumberLiteral::class to numberLiteral,
+        StringLiteral::class to stringLiteral,
+        BooleanLiteral::class to booleanLiteral,
+        Identifier::class to identifier,
+        BinaryExpression::class to binaryExpression,
+        UnaryExpression::class to unaryExpression,
+        CallExpression::class to callExpression
+    )
+
+    val printScript10: Map<KClass<out Expression>, ExpressionTypeRule<out Expression>> = v1_1
 }

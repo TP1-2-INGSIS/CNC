@@ -2,4 +2,4 @@ package cnc.config
 
 import cnc.interpreter.InterpreterPresets
 
-val printScriptInterpreter = InterpreterPresets.v1_0()
+val printScriptInterpreter = InterpreterPresets.v1_1()

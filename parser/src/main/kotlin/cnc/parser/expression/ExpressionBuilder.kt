@@ -3,6 +3,8 @@ package cnc.parser.expression
 import cnc.ast.BinaryExpression
 import cnc.ast.Expression
 import cnc.ast.UnaryExpression
+import cnc.ast.CallExpression
+import cnc.ast.Identifier
 import cnc.common.Cursor
 import cnc.common.asCursor
 import cnc.token.Token
@@ -39,19 +41,25 @@ class ExpressionBuilder(
     fun build(token: Token): Expression {
         val (_, builder) = recipes.entries.firstOrNull { (definition, _) ->
             definition.match(token.text)
-        } ?: error("No recipe matches token: '${token.text}' at row ${token.pos.row}, col ${token.pos.col}")
+        } ?: throw cnc.parser.rule.ParseAbortException(
+            cnc.common.Failure("No recipe matches token: '${token.text}' at row ${token.pos.row}, col ${token.pos.col}", cnc.common.ErrorType.PARSER)
+        )
         return builder(token)
     }
 
     fun build(tokens: List<Token>): Expression {
-        if (tokens.isEmpty()) error("Cannot build expression from empty token list")
+        if (tokens.isEmpty()) throw cnc.parser.rule.ParseAbortException(
+            cnc.common.Failure("Cannot build expression from empty token list", cnc.common.ErrorType.PARSER)
+        )
         if (operators.isEmpty() || tokens.size == 1) {
             return build(tokens.first())
         }
         val cursor = tokens.asCursor()
         val result = parse(cursor)
         if (cursor.hasMore()) {
-            error("Unexpected token '${cursor.peek()?.text}' after expression")
+            throw cnc.parser.rule.ParseAbortException(
+                cnc.common.Failure("Unexpected token '${cursor.peek()?.text}' after expression", cnc.common.ErrorType.PARSER)
+            )
         }
         return result
     }
@@ -62,17 +70,21 @@ class ExpressionBuilder(
         var left = parseAtom(cursor)
 
         while (cursor.hasMore()) {
-            val opToken = cursor.peek() ?: break
-            val opDef = findOperator(opToken) ?: break
-            if (opDef.precedence < minPrecedence) break
+            val token = cursor.peek() ?: break
+            val operator = findOperator(token) ?: break
+
+            if (operator.precedence < minPrecedence) break
 
             cursor.advance()
-            val nextMinPrecedence = when (opDef.associativity) {
-                Associativity.LEFT -> opDef.precedence + 1
-                Associativity.RIGHT -> opDef.precedence
+
+            val nextMinPrecedence = if (operator.associativity == Associativity.LEFT) {
+                operator.precedence + 1
+            } else {
+                operator.precedence
             }
+
             val right = parseExpression(cursor, nextMinPrecedence)
-            left = BinaryExpression(left, opToken.text, right)
+            left = BinaryExpression(left, token.text, right)
         }
 
         return left
@@ -80,7 +92,9 @@ class ExpressionBuilder(
 
     private fun parseAtom(cursor: Cursor<Token>): Expression {
         if (!cursor.hasMore()) {
-            error("Unexpected end of expression, expected a value")
+            throw cnc.parser.rule.ParseAbortException(
+                cnc.common.Failure("Unexpected end of expression, expected a value", cnc.common.ErrorType.PARSER)
+            )
         }
 
         val token = cursor.peek()!!
@@ -97,14 +111,39 @@ class ExpressionBuilder(
             val expr = parseExpression(cursor, 0)
             val closing = cursor.peek()
             if (closing == null || groupClose == null || !groupClose.match(closing.text)) {
-                error("Expected closing '${groupClose?.symbols?.first() ?: ")"}' after grouped expression")
+                throw cnc.parser.rule.ParseAbortException(
+                    cnc.common.Failure("Expected closing '${groupClose?.symbols?.first() ?: ")"}' after grouped expression", cnc.common.ErrorType.PARSER)
+                )
             }
             cursor.advance()
             return expr
         }
 
         cursor.advance()
-        return build(token)
+        val atom = build(token)
+        
+        val nextToken = cursor.peek()
+        if (atom is Identifier && nextToken != null && nextToken.text == "(") {
+            cursor.advance() // consume "("
+            val args = mutableListOf<Expression>()
+            if (cursor.peek()?.text != ")") {
+                args.add(parseExpression(cursor, 0))
+                while (cursor.peek()?.text == ",") {
+                    cursor.advance() // consume ","
+                    args.add(parseExpression(cursor, 0))
+                }
+            }
+            val closeToken = cursor.peek()
+            if (closeToken == null || closeToken.text != ")") {
+                throw cnc.parser.rule.ParseAbortException(
+                    cnc.common.Failure("Expected closing ')' after arguments", cnc.common.ErrorType.PARSER)
+                )
+            }
+            cursor.advance() // consume ")"
+            return CallExpression(atom.name, args)
+        }
+        
+        return atom
     }
 
     private fun findOperator(token: Token): OperatorDef? =

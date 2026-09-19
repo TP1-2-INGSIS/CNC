@@ -12,14 +12,30 @@ import cnc.common.Result
 import cnc.common.Success
 import cnc.common.map
 
+import cnc.ast.CallExpression
+
 class ExpressionEvaluator(
-    private val binaryOperations: Map<String, BinaryOperation>
+    private val binaryOperations: Map<String, BinaryOperation>,
+    private val unaryOperations: Map<String, UnaryOperation> = emptyMap(),
+    private val builtins: Map<String, BuiltinMethod> = emptyMap()
 ) {
     fun evaluate(expression: Expression, environment: Environment, interpreter: Interpreter): Result<Any?> {
         return when (expression) {
             is NumberLiteral -> Success("ok", ValueFormatter.formatNumber(expression.value))
             is StringLiteral -> Success("ok", expression.value)
+            is cnc.ast.BooleanLiteral -> Success("ok", expression.value)
             is Identifier -> environment.get(expression.name)
+            is CallExpression -> {
+                val builtin = builtins[expression.function]
+                    ?: return Failure("Function '${expression.function}' not found", ErrorType.RUNTIME)
+                val args = mutableListOf<Any?>()
+                for (arg in expression.arguments) {
+                    val argRes = interpreter.evaluate(arg, environment)
+                    if (argRes is Failure) return Failure(argRes.msg, argRes.type)
+                    args.add((argRes as Success).data)
+                }
+                builtin.execute(args)
+            }
             is BinaryExpression -> {
                 val leftResult = interpreter.evaluate(expression.left, environment)
                 if (leftResult is Failure) return Failure(leftResult.msg, leftResult.type)
@@ -42,23 +58,10 @@ class ExpressionEvaluator(
                 val operand = (operandResult as Success).data
                     ?: return Failure("Null operand in unary expression", ErrorType.RUNTIME)
 
-                when (expression.operator) {
-                    "-" -> {
-                        when (operand) {
-                            is Double -> Success("ok", ValueFormatter.formatNumber(-operand))
-                            is Number -> Success("ok", ValueFormatter.formatNumber(-operand.toDouble()))
-                            else -> Failure("Unary '-' operator cannot be applied to type ${operand::class.simpleName}", ErrorType.RUNTIME)
-                        }
-                    }
-                    "+" -> {
-                        when (operand) {
-                            is Double -> Success("ok", ValueFormatter.formatNumber(operand))
-                            is Number -> Success("ok", ValueFormatter.formatNumber(operand.toDouble()))
-                            else -> Failure("Unary '+' operator cannot be applied to type ${operand::class.simpleName}", ErrorType.RUNTIME)
-                        }
-                    }
-                    else -> Failure("Unsupported unary operator '${expression.operator}'", ErrorType.RUNTIME)
-                }
+                val operation = unaryOperations[expression.operator]
+                    ?: return Failure("Unsupported unary operator '${expression.operator}'", ErrorType.RUNTIME)
+
+                operation.execute(operand).map { it as Any? }
             }
             else -> Failure("Unsupported expression type: ${expression::class.simpleName}", ErrorType.RUNTIME)
         }

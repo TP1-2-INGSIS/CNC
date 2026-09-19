@@ -168,6 +168,93 @@ class SemanticAnalyzerTest {
 
         assertEquals(1, results.size)
         assertTrue(results[0] is Failure)
-        assertTrue((results[0] as Failure).msg.contains("Operador unario '-'"))
+        assertTrue((results[1 - 1] as Failure).msg.contains("Operador unario '-'"))
+    }
+
+    @Test
+    fun `same variable name declared in then and else blocks succeeds`() {
+        val table = SymbolTable(validTypes = setOf("number", "string", "boolean"))
+        val ctx = DefaultSemanticContext(table, binaryRules)
+        val ifAnalyzer = SemanticAnalyzer(ctx)
+
+        val ifStmt = IfStatement(
+            condition = BooleanLiteral(true),
+            thenBlock = BlockStatement(listOf(
+                Declaration("msg", "string", StringLiteral("then"), isMutable = true)
+            )),
+            elseBlock = BlockStatement(listOf(
+                Declaration("msg", "string", StringLiteral("else"), isMutable = true)
+            ))
+        )
+
+        val results = ifAnalyzer.analyze(sequenceOf(ifStmt)).toList()
+        assertEquals(1, results.size)
+        assertTrue(results[0] is Success)
+        assertFalse(table.isDeclared("msg"), "Variable declared inside blocks should not leak to root scope")
+    }
+
+    @Test
+    fun `shadowing of outer variable inside block succeeds`() {
+        val table = SymbolTable(validTypes = setOf("number", "string", "boolean"))
+        val ctx = DefaultSemanticContext(table, binaryRules)
+        val ifAnalyzer = SemanticAnalyzer(ctx)
+
+        val outerDecl = Declaration("x", "number", NumberLiteral(1.0))
+        val ifStmt = IfStatement(
+            condition = BooleanLiteral(true),
+            thenBlock = BlockStatement(listOf(
+                Declaration("x", "string", StringLiteral("shadowed"), isMutable = true)
+            ))
+        )
+
+        val results = ifAnalyzer.analyze(sequenceOf(outerDecl, ifStmt)).toList()
+        assertEquals(2, results.size)
+        assertTrue(results[0] is Success)
+        assertTrue(results[1] is Success)
+        assertEquals("number", table.typeOf("x"), "Outer variable type should remain intact")
+    }
+
+    @Test
+    fun `reassigning a const variable fails in semantic analysis`() {
+        val constDecl = Declaration("PI", "number", NumberLiteral(3.14), isMutable = false)
+        val assign = Assignment("PI", NumberLiteral(3.14159))
+
+        val results = analyzer.analyze(sequenceOf(constDecl, assign)).toList()
+        assertEquals(2, results.size)
+        assertTrue(results[0] is Success)
+        assertTrue(results[1] is Failure)
+        assertTrue((results[1] as Failure).msg.contains("No se puede reasignar la constante 'PI'"))
+    }
+
+    @Test
+    fun `if with non-boolean condition fails in semantic analysis`() {
+        val ifStmt = IfStatement(
+            condition = NumberLiteral(123.0),
+            thenBlock = BlockStatement(listOf(
+                Call("println", listOf(StringLiteral("unreachable")))
+            ))
+        )
+
+        val results = analyzer.analyze(sequenceOf(ifStmt)).toList()
+        assertEquals(1, results.size)
+        assertTrue(results[0] is Failure)
+        assertTrue((results[0] as Failure).msg.contains("La condición del 'if' debe ser de tipo 'boolean'"))
+    }
+
+    @Test
+    fun `variable declared in block cannot be accessed outside block`() {
+        val ifStmt = IfStatement(
+            condition = BooleanLiteral(true),
+            thenBlock = BlockStatement(listOf(
+                Declaration("secret", "number", NumberLiteral(42.0))
+            ))
+        )
+        val call = Call("println", listOf(Identifier("secret")))
+
+        val results = analyzer.analyze(sequenceOf(ifStmt, call)).toList()
+        assertEquals(2, results.size)
+        assertTrue(results[0] is Success)
+        assertTrue(results[1] is Failure)
+        assertTrue((results[1] as Failure).msg.contains("Variable 'secret' no declarada"))
     }
 }

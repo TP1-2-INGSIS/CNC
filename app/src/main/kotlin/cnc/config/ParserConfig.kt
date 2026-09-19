@@ -12,6 +12,8 @@ import cnc.token.Token
 
 val expressionBuilder = ExpressionBuilder(
   recipes = mapOf(
+    cnc.token.SymbolTokenDef("true", "true") to { _ -> cnc.ast.BooleanLiteral(true) },
+    cnc.token.SymbolTokenDef("false", "false") to { _ -> cnc.ast.BooleanLiteral(false) },
     CncPatterns.NUMBER to { token: Token -> NumberLiteral(token.text.toDouble()) },
     CncPatterns.STRING to { token: Token -> StringLiteral(token.text.removeSurrounding("\"")) },
     CncPatterns.IDENTIFIER to { token -> Identifier(token.text) }

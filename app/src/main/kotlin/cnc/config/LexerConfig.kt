@@ -8,7 +8,7 @@ import cnc.token.TokenType
 val printScriptRules = listOf(
   StandardRules.whitespace(),
   StandardRules.doubleQuotedString(TokenType.STRING),
-  StandardRules.integerNumber(TokenType.NUMBER),
+  StandardRules.decimalNumber(TokenType.NUMBER),
   StandardRules.standardIdentifier(keywords = CncKeywords.all),
   TrieRule(CncSymbols.all)
 )
