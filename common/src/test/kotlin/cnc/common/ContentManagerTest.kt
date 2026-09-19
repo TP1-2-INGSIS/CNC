@@ -9,7 +9,7 @@ class ContentManagerTest {
 
     @Test
     fun `openStream streams characters lazily and tracks lines incrementally`() {
-        val content = StrContent("val x = 1;\nval y = 2;")
+        val content = StringContent("val x = 1;\nval y = 2;")
         val cursor = content.openStream(bufferSize = 4) // small buffer to test multiple chunk reads
 
         assertEquals('v', cursor.peek())
@@ -34,6 +34,33 @@ class ContentManagerTest {
             assertEquals(Position(1, 0), cursor.currentPosition)
         } finally {
             tempFile.delete()
+        }
+    }
+
+    @Test
+    fun `inputStreamContent and companion factory stream content correctly`() {
+        val stream = "let a: number = 42;".byteInputStream()
+        val content = ContentManager.of(stream)
+        val cursor = content.openStream()
+
+        assertEquals('l', cursor.peek())
+        assertEquals("let a: number = 42;", cursor.consume(19))
+        assertFalse(cursor.hasMore())
+
+        val strContent = ContentManager.of("hello")
+        assertEquals('h', strContent.openStream().peek())
+
+        val tempFile = File.createTempFile("test_of_file", ".prs")
+        tempFile.writeText("content")
+        try {
+            val fileContent = ContentManager.of(tempFile)
+            assertEquals('c', fileContent.openStream().peek())
+        } finally {
+            tempFile.delete()
+        }
+
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            FileContent("non_existent_file_12345.prs")
         }
     }
 }
