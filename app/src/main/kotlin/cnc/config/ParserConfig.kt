@@ -30,6 +30,6 @@ val expressionBuilder = ExpressionBuilder(
 )
 
 val printScriptParser = Parser(
-  rules = StandardStatementRules.printScript10,
+  rules = StandardStatementRules.v1_1,
   expressionParser = expressionBuilder
 )

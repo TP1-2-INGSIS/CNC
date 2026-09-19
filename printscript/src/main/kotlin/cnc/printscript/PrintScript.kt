@@ -15,6 +15,7 @@ import cnc.common.Success
 import cnc.common.flatMap
 import cnc.common.openStream
 import cnc.config.ConfigFactory
+import cnc.config.LanguageVersion
 import cnc.config.printScriptFormatter
 import cnc.interpreter.Environment
 import cnc.interpreter.InterpreterPresets
@@ -153,29 +154,33 @@ interface PrintScriptFacade {
  * With a single import (`import cnc.printscript.PrintScript`), users have
  * access to every execution, validation, formatting, and linting capability.
  *
- * Language versions are managed exclusively via repository tags / package
- * releases (e.g. Git tags), without maintaining distinct version creation
- * methods in the application code.
+ * Version-specific engine implementation of [PrintScriptFacade].
+ *
+ * Instances are internal: consumers obtain a facade exclusively through
+ * [PsVersioner.version], which selects the language version. Each instance
+ * carries its own default [Config] built for its [LanguageVersion].
  */
-object PrintScript : PrintScriptFacade {
+internal class PrintScriptEngine(
+    private val version: LanguageVersion
+) : PrintScriptFacade {
 
-    private val defaultConfig: Config = ConfigFactory.create()
+    private val config: Config = ConfigFactory.create(version)
 
     // =========================================================================
     // Granular Methods — Direct Access to Each Pipeline Stage
     // =========================================================================
 
     override fun lex(content: ContentManager): Sequence<Token> {
-        return defaultConfig.lexer.tokenize(content.openStream())
+        return config.lexer.tokenize(content.openStream())
     }
-
     override fun lex(source: String): Sequence<Token> = lex(StringContent(source))
     override fun lex(file: File): Sequence<Token> = lex(FileContent(file.absolutePath))
     override fun lex(stream: InputStream): Sequence<Token> = lex(InputStreamContent(stream))
 
+    
     override fun parse(tokens: Sequence<Token>): Result<List<Statement>> {
         val statements = mutableListOf<Statement>()
-        for (result in defaultConfig.parser.parse(tokens)) {
+        for (result in config.parser.parse(tokens)) {
             when (result) {
                 is Failure -> return Failure(result.msg, result.type)
                 is Success -> statements.add(result.data)
@@ -183,14 +188,13 @@ object PrintScript : PrintScriptFacade {
         }
         return Success("ok", statements)
     }
-
     override fun parse(content: ContentManager): Result<List<Statement>> = parse(lex(content))
     override fun parse(source: String): Result<List<Statement>> = parse(StringContent(source))
     override fun parse(file: File): Result<List<Statement>> = parse(FileContent(file.absolutePath))
     override fun parse(stream: InputStream): Result<List<Statement>> = parse(InputStreamContent(stream))
 
     override fun semantic(statements: List<Statement>): Result<List<Statement>> {
-        val semanticAnalyzer = ConfigFactory.create().semantic
+        val semanticAnalyzer = ConfigFactory.create(version).semantic
         val validated = mutableListOf<Statement>()
         for (result in semanticAnalyzer.analyze(statements.asSequence())) {
             when (result) {
@@ -200,16 +204,12 @@ object PrintScript : PrintScriptFacade {
         }
         return Success("ok", validated)
     }
-
     override fun semantic(content: ContentManager): Result<List<Statement>> =
         parse(content).flatMap { semantic(it) }
-
     override fun semantic(source: String): Result<List<Statement>> =
         semantic(StringContent(source))
-
     override fun semantic(file: File): Result<List<Statement>> =
         semantic(FileContent(file.absolutePath))
-
     override fun semantic(stream: InputStream): Result<List<Statement>> =
         semantic(InputStreamContent(stream))
 
@@ -268,7 +268,7 @@ object PrintScript : PrintScriptFacade {
         envProvider: (String) -> String?,
         output: (String) -> Unit
     ): Result<Unit> {
-        val cfg = ConfigFactory.create(input, envProvider, output)
+        val cfg = ConfigFactory.create(version, input, envProvider, output)
         val compiler = Compiler(cfg)
         return compiler.execute(content)
     }
@@ -295,7 +295,7 @@ object PrintScript : PrintScriptFacade {
     ): Result<Unit> = execute(InputStreamContent(stream), input, envProvider, output)
 
     override fun validate(content: ContentManager): Result<Unit> {
-        val compiler = Compiler(ConfigFactory.create())
+        val compiler = Compiler(ConfigFactory.create(version))
         return compiler.validate(content)
     }
 
@@ -342,24 +342,11 @@ object PrintScript : PrintScriptFacade {
         }
     }
 
-    override fun lint(source: String, configJson: String): List<String> =
-        lint(StringContent(source), configJson)
-
-    override fun lint(file: File, configJson: String): List<String> =
-        lint(FileContent(file.absolutePath), configJson)
-
-    override fun lint(stream: InputStream, configJson: String): List<String> =
-        lint(InputStreamContent(stream), configJson)
-
-    override fun lint(statements: List<Statement>, configFile: File): List<String> =
-        lint(statements, configFile.readText())
-
-    override fun lint(source: String, configFile: File): List<String> =
-        lint(source, configFile.readText())
-
-    override fun lint(file: File, configFile: File): List<String> =
-        lint(file, configFile.readText())
-
-    override fun lint(stream: InputStream, configFile: File): List<String> =
-        lint(stream, configFile.readText())
+    override fun lint(source: String, configJson: String): List<String> = lint(StringContent(source), configJson)
+    override fun lint(file: File, configJson: String): List<String> = lint(FileContent(file.absolutePath), configJson)
+    override fun lint(stream: InputStream, configJson: String): List<String> = lint(InputStreamContent(stream), configJson)
+    override fun lint(statements: List<Statement>, configFile: File): List<String> = lint(statements, configFile.readText())
+    override fun lint(source: String, configFile: File): List<String> = lint(source, configFile.readText())
+    override fun lint(file: File, configFile: File): List<String> = lint(file, configFile.readText())
+    override fun lint(stream: InputStream, configFile: File): List<String> = lint(stream, configFile.readText())
 }

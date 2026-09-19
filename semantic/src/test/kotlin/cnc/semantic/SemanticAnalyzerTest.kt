@@ -138,7 +138,7 @@ class SemanticAnalyzerTest {
             Success("ok", "boolean")
         }
         val extendedTable = SymbolTable(validTypes = setOf("number", "string", "boolean"))
-        val extendedRules = StandardExpressionTypeRules.printScript10 + mapOf(
+        val extendedRules = StandardExpressionTypeRules.v1_1 + mapOf(
             CustomBooleanLiteral::class to booleanRule
         )
         val customContext = DefaultSemanticContext(extendedTable, binaryRules, expressionRules = extendedRules)
