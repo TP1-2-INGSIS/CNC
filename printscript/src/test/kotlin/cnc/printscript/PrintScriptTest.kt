@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Test
 
 class PrintScriptTest {
 
+    private val PrintScript: PrintScriptFacade = PsVersioner.version("1.1")
+
     @Test
     fun `lex generates tokens from string, file, and inputStream`() {
         val code = "let x: number = 10;"

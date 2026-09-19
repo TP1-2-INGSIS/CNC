@@ -67,7 +67,7 @@ private fun tok(type: TokenType, text: String, row: Int = 0, col: Int = 0) =
 
 class ParserTest {
 
-    private val parser = Parser(StandardStatementRules.printScript10, testExprBuilder)
+    private val parser = Parser(StandardStatementRules.v1_1, testExprBuilder)
 
     @Nested
     inner class DeclarationTests {

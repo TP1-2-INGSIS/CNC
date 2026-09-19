@@ -82,6 +82,4 @@ object StandardExpressionTypeRules {
         UnaryExpression::class to unaryExpression,
         CallExpression::class to callExpression
     )
-
-    val printScript10: Map<KClass<out Expression>, ExpressionTypeRule<out Expression>> = v1_1
 }

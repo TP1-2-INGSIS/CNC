@@ -163,6 +163,4 @@ object StandardStatementRules {
         .addCall()
         .addIf()
         .build()
-
-    val printScript10: List<StatementRule<Statement>> = v1_1
 }
