@@ -235,11 +235,7 @@ object PrintScript : PrintScriptFacade {
         output: (String) -> Unit,
         input: (String) -> String,
         envProvider: (String) -> String?
-    ): Result<Unit> {
-        val semanticResult = semantic(content)
-        if (semanticResult is Failure) return Failure(semanticResult.msg, semanticResult.type)
-        return interpret((semanticResult as Success).data, output, input, envProvider)
-    }
+    ): Result<Unit> = execute(content, input, envProvider, output)
 
     override fun interpret(
         source: String,

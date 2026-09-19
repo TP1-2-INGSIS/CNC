@@ -184,4 +184,23 @@ class PrintScriptTest {
         assertTrue(result.isOk())
         assertEquals(listOf("interpreter test"), output)
     }
+
+    @Test
+    fun `execute is lazy and executes statement by statement failing fast`() {
+        val output = mutableListOf<String>()
+        val code = """
+            println("step 1 executed");
+            let x: number = "type mismatch";
+            println("step 2 should not execute");
+        """.trimIndent()
+
+        val result = PrintScript.execute(
+            source = code,
+            output = { output.add(it) }
+        )
+
+        assertFalse(result.isOk())
+        assertTrue(result is Failure)
+        assertEquals(listOf("step 1 executed"), output)
+    }
 }
