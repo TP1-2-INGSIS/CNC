@@ -1,7 +1,7 @@
 package cnc.lexer
 
 import cnc.common.Position
-import cnc.common.StrContent
+import cnc.common.StringContent
 import cnc.common.asCursor
 import cnc.common.openStream
 import cnc.lexer.rules.StandardRules
@@ -45,7 +45,7 @@ class LexerTest {
     private val lexer = Lexer(testRules)
 
     private fun lex(input: String): List<Token> {
-        val cursor = StrContent(input).openStream()
+        val cursor = StringContent(input).openStream()
         return lexer.tokenize(cursor).toList()
     }
 

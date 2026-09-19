@@ -4,7 +4,6 @@ import cnc.Compiler
 import cnc.common.ErrorType
 import cnc.common.Failure
 import cnc.common.FileContent
-import cnc.common.LanguageVersion
 import cnc.common.Result
 import cnc.common.Success
 
@@ -18,16 +17,9 @@ object RunCommand : Command {
 
     override fun execute(params: ArgsContainer): Result<Unit> {
         val file = params.getOption("file") ?: params.getPositional(0)
-            ?: return Failure<Unit>("Missing required source file. Usage: run <file> [--version=1.0|1.1]", ErrorType.CLI)
+            ?: return Failure<Unit>("Missing required source file. Usage: run <file>", ErrorType.CLI)
 
-        val versionStr = params.getOption("version") ?: params.getPositional(1) ?: "1.1"
-        val version = try {
-            LanguageVersion.fromString(versionStr)
-        } catch (e: IllegalArgumentException) {
-            return Failure<Unit>(e.message ?: "Invalid version", ErrorType.CLI)
-        }
-
-        val config = ConfigFactory.create(version)
+        val config = ConfigFactory.create()
         val compiler = Compiler(config)
         val result = compiler.execute(FileContent(file))
         return when (result) {
@@ -43,10 +35,9 @@ object RunCommand : Command {
 val RunWithHelp = HelpAttribute(
     wrapped = RunCommand,
     description = "Executes a PrintScript source file",
-    usage = "run <file> [--version=1.0|1.1]",
+    usage = "run <file>",
     paramHelp = mapOf(
-        "<file>" to "Source file path to run",
-        "--version=<ver>" to "PrintScript language version (1.0 or 1.1, default 1.1)"
+        "<file>" to "Source file path to run"
     )
 )
 
@@ -55,16 +46,9 @@ object ValidateCommand : Command {
 
     override fun execute(params: ArgsContainer): Result<Unit> {
         val file = params.getOption("file") ?: params.getPositional(0)
-            ?: return Failure<Unit>("Missing required source file. Usage: validate <file> [--version=1.0|1.1]", ErrorType.CLI)
+            ?: return Failure<Unit>("Missing required source file. Usage: validate <file>", ErrorType.CLI)
 
-        val versionStr = params.getOption("version") ?: params.getPositional(1) ?: "1.1"
-        val version = try {
-            LanguageVersion.fromString(versionStr)
-        } catch (e: IllegalArgumentException) {
-            return Failure<Unit>(e.message ?: "Invalid version", ErrorType.CLI)
-        }
-
-        val config = ConfigFactory.create(version)
+        val config = ConfigFactory.create()
         val compiler = Compiler(config)
         val result = compiler.validate(FileContent(file))
         return when (result) {
@@ -73,8 +57,8 @@ object ValidateCommand : Command {
                 Failure<Unit>(result.msg, result.type)
             }
             is Success -> {
-                println("VALID: '$file' is valid PrintScript ${version.label}")
-                Success("Valid PrintScript ${version.label}", Unit)
+                println("VALID: '$file' is valid PrintScript")
+                Success("Valid PrintScript", Unit)
             }
         }
     }
@@ -83,10 +67,9 @@ object ValidateCommand : Command {
 val ValidateWithHelp = HelpAttribute(
     wrapped = ValidateCommand,
     description = "Validates syntax and types of a PrintScript source file",
-    usage = "validate <file> [--version=1.0|1.1]",
+    usage = "validate <file>",
     paramHelp = mapOf(
-        "<file>" to "Source file path to validate",
-        "--version=<ver>" to "PrintScript language version (1.0 or 1.1, default 1.1)"
+        "<file>" to "Source file path to validate"
     )
 )
 

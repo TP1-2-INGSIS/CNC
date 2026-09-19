@@ -23,4 +23,4 @@ include(
     "formatter",
 )
 
-include("semantic", "linter")
+include("semantic", "linter", "printscript")
