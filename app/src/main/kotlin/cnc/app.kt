@@ -27,25 +27,23 @@ data class Compiler(
   fun execute(content: ContentManager): Result<Unit> {
     val cursor = content.openStream()
     val tokens = config.lexer.tokenize(cursor)
-    val parsedStatements = mutableListOf<Statement>()
-    for (result in config.parser.parse(tokens)) {
-      when (result) {
-        is Failure -> return Failure<Unit>(result.msg, result.type)
-        is Success -> parsedStatements.add(result.data)
-      }
-    }
-    val validatedStatements = mutableListOf<Statement>()
-    for (result in config.semantic.analyze(parsedStatements.asSequence())) {
-      when (result) {
-        is Failure -> return Failure<Unit>(result.msg, result.type)
-        is Success -> validatedStatements.add(result.data)
-      }
-    }
     val environment = Environment()
-    for (result in config.interpreter.interpretAll(validatedStatements, environment)) {
-      when (result) {
-        is Failure -> return Failure<Unit>(result.msg, result.type)
-        is Success -> { /* Statement executed successfully */ }
+
+    for (parseResult in config.parser.parse(tokens)) {
+      val statement = when (parseResult) {
+        is Failure -> return Failure(parseResult.msg, parseResult.type)
+        is Success -> parseResult.data
+      }
+
+      for (semanticResult in config.semantic.analyze(sequenceOf(statement))) {
+        if (semanticResult is Failure) {
+          return Failure(semanticResult.msg, semanticResult.type)
+        }
+      }
+
+      val interpretResult = config.interpreter.interpret(statement, environment)
+      if (interpretResult is Failure) {
+        return Failure(interpretResult.msg, interpretResult.type)
       }
     }
     return Success("ok", Unit)
@@ -54,17 +52,17 @@ data class Compiler(
   fun validate(content: ContentManager): Result<Unit> {
     val cursor = content.openStream()
     val tokens = config.lexer.tokenize(cursor)
-    val parsedStatements = mutableListOf<Statement>()
-    for (result in config.parser.parse(tokens)) {
-      when (result) {
-        is Failure -> return Failure<Unit>(result.msg, result.type)
-        is Success -> parsedStatements.add(result.data)
+
+    for (parseResult in config.parser.parse(tokens)) {
+      val statement = when (parseResult) {
+        is Failure -> return Failure(parseResult.msg, parseResult.type)
+        is Success -> parseResult.data
       }
-    }
-    for (result in config.semantic.analyze(parsedStatements.asSequence())) {
-      when (result) {
-        is Failure -> return Failure<Unit>(result.msg, result.type)
-        is Success -> { /* Statement validated successfully */ }
+
+      for (semanticResult in config.semantic.analyze(sequenceOf(statement))) {
+        if (semanticResult is Failure) {
+          return Failure(semanticResult.msg, semanticResult.type)
+        }
       }
     }
     return Success("Code is valid", Unit)
