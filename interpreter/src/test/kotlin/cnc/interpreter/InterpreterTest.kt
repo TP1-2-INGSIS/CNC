@@ -26,7 +26,7 @@ class InterpreterTest {
     @BeforeEach
     fun setUp() {
         outputBuffer.clear()
-        interpreter = InterpreterPresets.v1_0 { outputBuffer.add(it) }
+        interpreter = InterpreterPresets.default(output = { outputBuffer.add(it) })
         env = Environment()
     }
 
@@ -304,8 +304,8 @@ class InterpreterTest {
     }
 
     @Test
-    fun `v1_1 preset executes readInput in CallExpression`() {
-        val interp11 = InterpreterPresets.v1_1(
+    fun `default preset executes readInput in CallExpression`() {
+        val interp = InterpreterPresets.default(
             input = { "Bautista" },
             output = { outputBuffer.add(it) }
         )
@@ -315,17 +315,17 @@ class InterpreterTest {
             value = cnc.ast.CallExpression("readInput", listOf(StringLiteral("Tu nombre:"))),
             isMutable = true
         )
-        val result = interp11.interpret(decl, env)
+        val result = interp.interpret(decl, env)
         assertTrue(result is Success)
 
-        val evalResult = interp11.evaluate(Identifier("name"), env)
+        val evalResult = interp.evaluate(Identifier("name"), env)
         assertTrue(evalResult is Success)
         assertEquals("Bautista", (evalResult as Success).data)
     }
 
     @Test
-    fun `v1_1 preset executes readEnv in CallExpression`() {
-        val interp11 = InterpreterPresets.v1_1(
+    fun `default preset executes readEnv in CallExpression`() {
+        val interp = InterpreterPresets.default(
             envProvider = { if (it == "APP_ENV") "production" else null },
             output = { outputBuffer.add(it) }
         )
@@ -335,17 +335,17 @@ class InterpreterTest {
             value = cnc.ast.CallExpression("readEnv", listOf(StringLiteral("APP_ENV"))),
             isMutable = true
         )
-        val result = interp11.interpret(decl, env)
+        val result = interp.interpret(decl, env)
         assertTrue(result is Success)
 
-        val evalResult = interp11.evaluate(Identifier("envVal"), env)
+        val evalResult = interp.evaluate(Identifier("envVal"), env)
         assertTrue(evalResult is Success)
         assertEquals("production", (evalResult as Success).data)
     }
 
     @Test
-    fun `v1_1 executes IfStatement branching and block scoping`() {
-        val interp11 = InterpreterPresets.v1_1(output = { outputBuffer.add(it) })
+    fun `default executes IfStatement branching and block scoping`() {
+        val interp = InterpreterPresets.default(output = { outputBuffer.add(it) })
         val ifStmt = cnc.ast.IfStatement(
             condition = cnc.ast.BooleanLiteral(true),
             thenBlock = cnc.ast.BlockStatement(listOf(
@@ -356,7 +356,7 @@ class InterpreterTest {
             ))
         )
 
-        val result = interp11.interpret(ifStmt, env)
+        val result = interp.interpret(ifStmt, env)
         assertTrue(result is Success)
         assertEquals(listOf("in then block"), outputBuffer)
     }

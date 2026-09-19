@@ -1,6 +1,8 @@
 package cnc.common
 
 import java.io.File
+import java.io.InputStream
+import java.io.InputStreamReader
 import java.io.Reader
 import java.io.StringReader
 
@@ -11,6 +13,12 @@ const val DEFAULT_STREAM_BUFFER_SIZE = 8192
 
 interface ContentManager {
     fun getReader(): Reader
+
+    companion object {
+        fun of(string: String): ContentManager = StringContent(string)
+        fun of(file: File): ContentManager = FileContent(file.absolutePath)
+        fun of(stream: InputStream): ContentManager = InputStreamContent(stream)
+    }
 }
 
 class FileContent(val path: String) : ContentManager {
@@ -24,8 +32,12 @@ class FileContent(val path: String) : ContentManager {
     override fun getReader(): Reader = File(path).bufferedReader()
 }
 
-class StrContent(val content: String) : ContentManager {
+class StringContent(val content: String) : ContentManager {
     override fun getReader(): Reader = StringReader(content)
+}
+
+class InputStreamContent(val stream: InputStream) : ContentManager {
+    override fun getReader(): Reader = InputStreamReader(stream)
 }
 
 /**
