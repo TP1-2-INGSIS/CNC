@@ -330,8 +330,10 @@ internal class PrintScriptEngine(
             "camelCase" to CamelCaseValidator(),
             "snake_case" to SnakeCaseValidator()
         )
-        val linter = LinterFactory.build(configJson, validators)
-        return linter.lint(statements.asSequence())
+        return when (val linterResult = LinterFactory.build(configJson, validators)) {
+            is Failure -> listOf("Linter config error: ${linterResult.msg}")
+            is Success -> linterResult.data.lint(statements.asSequence())
+        }
     }
 
     override fun lint(content: ContentManager, configJson: String): List<String> {
