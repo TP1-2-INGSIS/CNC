@@ -8,11 +8,11 @@ fun interface NamingValidator {
 }
 
 class CamelCaseValidator : NamingValidator {
-    override fun isValid(name: String) = name.matches(Regex("^[a-z]+([A-Z][a-z0-9]+)*$"))
+    override fun isValid(name: String) = name.matches(Regex("^[a-z][a-z0-9]*([A-Z0-9][a-z0-9]*)*$"))
 }
 
 class SnakeCaseValidator : NamingValidator {
-    override fun isValid(name: String) = name.matches(Regex("^[a-z]+(_[a-z0-9]+)*$"))
+    override fun isValid(name: String) = name.matches(Regex("^[a-z][a-z0-9]*(_[a-z0-9]+)*$"))
 }
 
 class NamingConventionRule(

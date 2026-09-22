@@ -10,7 +10,7 @@
 - **Qué problema resuelve:** Realiza análisis estático de estilo sobre el AST ya parseado, emitiendo advertencias (*warnings*) sobre convenciones de código configurables, sin modificar el programa ni interrumpir su ejecución.
 - **Qué hace:**
   - Recorre recursivamente el AST (incluyendo bloques anidados y ramas de `if`/`else`) aplicando un conjunto de reglas (`LinterRule`).
-  - Provee reglas estándar: convención de nombres (`NamingConventionRule`) y restricción de expresiones complejas en `println` (`SimplePrintlnRule`).
+  - Provee reglas estándar: convención de nombres (`NamingConventionRule`) y restricción de llamadas con solo variable o literal (`SimpleFunctionCallRule`).
   - Construye el linter a partir de una configuración JSON (`LinterFactory`), inyectando validadores de nombres desacoplados (`NamingValidator`).
   - Provee validadores estándar: `CamelCaseValidator` y `SnakeCaseValidator`.
 - **Qué NO hace (Fronteras):**
@@ -25,13 +25,9 @@
 ### Diagrama de Componentes
 ```mermaid
 flowchart TD
-    JSON["Config JSON (naming-convention, simple-println)"] --> Factory["LinterFactory.build()"]
+    JSON["Config JSON (identifier_format, mandatory-variable-or-literal-*)"] --> Factory["LinterFactory.build()"]
     Validators["Map<String, NamingValidator>"] --> Factory
-    Factory --> Linter["CNCLinter (rules)"]
-    AST["Sequence<Statement>"] --> Linter
-    Linter --> Recurse["checkRecursively (Block / If anidados)"]
-    Recurse --> Rules["LinterRule.check(statement)"]
-    Rules --> Warnings["List<String> (advertencias)"]
+    Factory --> Linter["Result: Success(CNCLinter) / Failure"]
 ```
 
 ### Entidades de Dominio e Interfaces
@@ -39,21 +35,21 @@ flowchart TD
    - Orquestador: `fun lint(statements: Sequence<Statement>): List<String>`.
    - Recorre el AST de forma recursiva (`checkRecursively`), descendiendo en `BlockStatement` y en las ramas `thenBlock` / `elseBlock` de `IfStatement`.
 2. **`LinterRule`:**
-   - Interfaz funcional: `fun check(statement: Statement): List<String>`. Devuelve las advertencias que aplican a ese statement (o lista vacía).
+   - Interfaz: `fun check(statement: Statement): List<String>`. Devuelve las advertencias que aplican a ese statement (o lista vacía).
 3. **`NamingConventionRule`:**
    - Valida que las `Declaration` cumplan una convención de nombres delegando en un `NamingValidator` inyectado.
-4. **`SimplePrintlnRule`:**
-   - Advierte cuando una llamada a `println` recibe una `BinaryExpression` (expresión compleja) como argumento.
+4. **`SimpleFunctionCallRule`:**
+   - Verifica por composición que las llamadas a una función objetivo (ej: `println`, `readInput`) solo reciban variables o literales directos (sin expresiones complejas).
 5. **`NamingValidator` (fun interface):**
    - Contrato `fun isValid(name: String): Boolean`. Implementaciones estándar: `CamelCaseValidator`, `SnakeCaseValidator`. Extensible con validadores propios.
 6. **`LinterFactory`:**
-   - Construye un `CNCLinter` desde un JSON (`LinterConfigDto`) resolviendo el validador de nombres por clave contra el mapa de validadores inyectado.
+   - Construye un `Result<CNCLinter>` desde un JSON resolviendo el validador de nombres por clave contra el mapa de validadores inyectado y habilitando las reglas correspondientes.
 
 ---
 
 ## 3. Manejo de Errores y Pipeline Funcional
-- **Modelo de salida:** El linter no usa `Result<T>`; su salida es una `List<String>` de advertencias. Una lista vacía significa "sin observaciones".
-- **Errores de configuración:** Si la config referencia una convención sin validador registrado, `LinterFactory` lanza `IllegalArgumentException` (error de configuración del desarrollador, no del código analizado).
+- **Construcción del Linter:** `LinterFactory.build` retorna `Result<CNCLinter>`. Si la configuración contiene una convención desconocida o el JSON es inválido, retorna `Failure` en lugar de arrojar excepciones.
+- **Modelo de salida del análisis:** El linter genera una `List<String>` de advertencias. Una lista vacía significa "sin observaciones".
 
 ---
 
@@ -79,7 +75,10 @@ fun main() {
         }
     """.trimIndent()
 
-    val linter = LinterFactory.build(configJson, validators)
+    val linterResult = LinterFactory.build(configJson, validators)
+    if (linterResult !is Success) return
+
+    val linter = linterResult.data
 
     // 2. Analizar un AST con dos infracciones
     val programa = sequenceOf<Statement>(
@@ -94,9 +93,10 @@ fun main() {
 
     // 3. Validador personalizado inyectado (notación húngara)
     val custom = mapOf<String, NamingValidator>("hungarian" to NamingValidator { it.startsWith("m_") })
-    val linterCustom = LinterFactory.build("""{ "naming-convention": "hungarian" }""", custom)
-    println(linterCustom.lint(sequenceOf(Declaration("count", "number", NumberLiteral(1.0)))))
-    // [La variable 'count' debería estar en formato hungarian.]
+    val linterCustomResult = LinterFactory.build("""{ "naming-convention": "hungarian" }""", custom)
+    if (linterCustomResult is Success) {
+        println(linterCustomResult.data.lint(sequenceOf(Declaration("count", "number", NumberLiteral(1.0)))))
+    }
 }
 ```
 
