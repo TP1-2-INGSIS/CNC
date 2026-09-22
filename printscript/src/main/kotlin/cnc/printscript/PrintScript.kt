@@ -15,6 +15,7 @@ import cnc.common.Success
 import cnc.common.flatMap
 import cnc.common.openStream
 import cnc.config.ConfigFactory
+import cnc.config.FormatterFactory
 import cnc.config.LanguageVersion
 import cnc.config.printScriptFormatter
 import cnc.interpreter.Environment
@@ -70,11 +71,11 @@ interface PrintScriptFacade {
     fun validate(content: ContentManager): Result<Unit>
     fun validate(statements: List<Statement>): Result<Unit>
 
-    fun format(source: String): String
-    fun format(file: File): String
-    fun format(stream: InputStream): String
-    fun format(content: ContentManager): String
-    fun format(statements: List<Statement>): String
+    fun format(source: String, configJson: String? = null): String
+    fun format(file: File, configJson: String? = null): String
+    fun format(stream: InputStream, configJson: String? = null): String
+    fun format(content: ContentManager, configJson: String? = null): String
+    fun format(statements: List<Statement>, configJson: String? = null): String
 
     fun lint(source: String, configJson: String): List<String>
     fun lint(file: File, configJson: String): List<String>
@@ -311,19 +312,20 @@ internal class PrintScriptEngine(
         }
     }
 
-    override fun format(statements: List<Statement>): String {
-        return printScriptFormatter.format(statements)
+    override fun format(statements: List<Statement>, configJson: String?): String {
+        val formatter = FormatterFactory.create(configJson)
+        return formatter.format(statements)
     }
 
-    override fun format(content: ContentManager): String {
+    override fun format(content: ContentManager, configJson: String?): String {
         val parseResult = parse(content)
         val statements = if (parseResult is Success) parseResult.data else emptyList()
-        return format(statements)
+        return format(statements, configJson)
     }
 
-    override fun format(source: String): String = format(StringContent(source))
-    override fun format(file: File): String = format(FileContent(file.absolutePath))
-    override fun format(stream: InputStream): String = format(InputStreamContent(stream))
+    override fun format(source: String, configJson: String?): String = format(StringContent(source), configJson)
+    override fun format(file: File, configJson: String?): String = format(FileContent(file.absolutePath), configJson)
+    override fun format(stream: InputStream, configJson: String?): String = format(InputStreamContent(stream), configJson)
 
     override fun lint(statements: List<Statement>, configJson: String): List<String> {
         val validators: Map<String, NamingValidator> = mapOf(
