@@ -31,6 +31,7 @@ dependencies {
 
     // This dependency is used by the application.
     implementation(libs.guava)
+    implementation(libs.gson)
 
     // las dependecias de los otros modulos
     implementation(project(":lexer"))
