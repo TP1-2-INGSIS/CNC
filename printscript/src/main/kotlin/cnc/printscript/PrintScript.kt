@@ -318,9 +318,14 @@ internal class PrintScriptEngine(
     }
 
     override fun format(content: ContentManager, configJson: String?): String {
-        val parseResult = parse(content)
-        val statements = if (parseResult is Success) parseResult.data else emptyList()
-        return format(statements, configJson)
+        return if (configJson.isNullOrBlank()) {
+            val parseResult = parse(content)
+            val statements = if (parseResult is Success) parseResult.data else emptyList()
+            format(statements, null)
+        } else {
+            val text = content.getReader().use { it.readText() }
+            FormatterFactory.formatSource(text, configJson)
+        }
     }
 
     override fun format(source: String, configJson: String?): String = format(StringContent(source), configJson)

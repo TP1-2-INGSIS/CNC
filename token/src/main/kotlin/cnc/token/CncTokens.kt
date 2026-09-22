@@ -71,6 +71,6 @@ object CncSymbols {
 
 object CncPatterns {
     val IDENTIFIER = RegexTokenDef("identifier", "[a-zA-Z_][a-zA-Z0-9_]*")
-    val NUMBER = RegexTokenDef("number_exp", "[0-9]+")
+    val NUMBER = RegexTokenDef("number_exp", "[0-9]+(\\.[0-9]+)?")
     val STRING = RegexTokenDef("string_exp", "\".*?\"")
 }

@@ -27,7 +27,10 @@ object FormatterFactory {
     private val colonAfterKeys = listOf("enforce-spacing-after-colon-in-declaration", "space-after-colon")
     private val singleSpaceSeparationKeys = listOf("mandatory-single-space-separation", "single-space-separation")
     private val printlnLineBreaksKeys = listOf("line-breaks-after-println", "line-break-after-println")
+    private val lineBreakAfterStatementKeys = listOf("mandatory-line-break-after-statement", "line-break-after-statement")
+    private val spaceOpsKeys = listOf("mandatory-space-surrounding-operations", "enforce-spacing-around-operations")
     private val ifBraceBelowLineKeys = listOf("if-brace-below-line")
+    private val ifBraceSameLineKeys = listOf("if-brace-same-line")
     private val indentInsideIfKeys = listOf("indent-inside-if")
 
     private val spaceAround: FormatRule<String> = FormatRule { s, _ -> " $s " }
@@ -50,7 +53,7 @@ object FormatterFactory {
         val singleSpace = isRuleEnabled(root, singleSpaceSeparationKeys)
         val lineBreaksAfterPrintln = readIntProperty(root, printlnLineBreaksKeys)
         val ifBraceBelowLine = isRuleEnabled(root, ifBraceBelowLineKeys)
-        val indentInsideIf = readIntProperty(root, indentInsideIfKeys) ?: 4
+        val indentInsideIf = readIntProperty(root, indentInsideIfKeys) ?: 2
 
         // 1. Símbolos
         val equalsRule = when {
@@ -184,5 +187,118 @@ object FormatterFactory {
     private fun isRuleEnabled(json: JsonObject, candidateKeys: List<String>): Boolean {
         val matchingKey = candidateKeys.firstOrNull { json.has(it) && !json.get(it).isJsonNull } ?: return false
         return runCatching { json.get(matchingKey).asBoolean }.getOrDefault(false)
+    }
+
+    fun formatSource(rawSource: String, configJson: String?): String {
+        if (configJson.isNullOrBlank()) {
+            return rawSource
+        }
+
+        val root = runCatching {
+            Gson().fromJson(configJson, JsonObject::class.java)
+        }.getOrNull() ?: return rawSource
+
+        var text = rawSource.replace("\r\n", "\n")
+
+        // 1. mandatory-line-break-after-statement
+        if (isRuleEnabled(root, lineBreakAfterStatementKeys)) {
+            text = text.replace(Regex(";[ \\t]*(?=\\S)"), ";\n")
+        }
+
+        // 2. enforce-no-spacing-around-equals / enforce-spacing-around-equals
+        val noSpaceAroundEquals = isRuleEnabled(root, equalsNoSpaceAroundKeys)
+        val spaceAroundEquals = isRuleEnabled(root, equalsSpaceAroundKeys)
+        if (noSpaceAroundEquals) {
+            text = text.replace(Regex("[ \\t]*=[ \\t]*"), "=")
+        } else if (spaceAroundEquals) {
+            text = text.replace(Regex("[ \\t]*=[ \\t]*"), " = ")
+        }
+
+        // 3. enforce-spacing-before-colon-in-declaration
+        val spaceBeforeColon = isRuleEnabled(root, colonBeforeKeys)
+        if (spaceBeforeColon) {
+            text = text.replace(Regex("""\b(let|const)\s+([a-zA-Z_]\w*)\s*:""")) { match ->
+                "${match.groupValues[1]} ${match.groupValues[2]} :"
+            }
+        }
+
+        // 4. enforce-spacing-after-colon-in-declaration
+        val spaceAfterColon = isRuleEnabled(root, colonAfterKeys)
+        if (spaceAfterColon) {
+            text = text.replace(Regex("""\b(let|const)\s+([a-zA-Z_]\w*(?:\s*)):\s*([a-zA-Z_]\w*)""")) { match ->
+                "${match.groupValues[1]} ${match.groupValues[2]}: ${match.groupValues[3]}"
+            }
+        }
+
+        // 5. mandatory-space-surrounding-operations
+        val spaceOps = isRuleEnabled(root, spaceOpsKeys)
+        if (spaceOps) {
+            text = text.replace(Regex("""(?<=[a-zA-Z0-9_\)])\s*([+\-*/])\s*(?=[a-zA-Z0-9_\(])"""), " $1 ")
+        }
+
+        // 6. mandatory-single-space-separation
+        val singleSpace = isRuleEnabled(root, singleSpaceSeparationKeys)
+        if (singleSpace) {
+            text = text.replace(Regex("""\b(let|const)\s+([a-zA-Z_]\w*)\s*:\s*([a-zA-Z_]\w*)\s*=""")) { m ->
+                "${m.groupValues[1]} ${m.groupValues[2]} : ${m.groupValues[3]} ="
+            }
+            text = text.replace(Regex("""\b(let|const)\s+([a-zA-Z_]\w*)\s*:\s*([a-zA-Z_]\w*)""")) { m ->
+                "${m.groupValues[1]} ${m.groupValues[2]} : ${m.groupValues[3]}"
+            }
+            text = text.replace(Regex("""[ \t]*=[ \t]*"""), " = ")
+            text = text.replace(Regex("""\b([a-zA-Z_]\w*)\s*\(\s*(.*?)\s*\)""")) { m ->
+                "${m.groupValues[1]} ( ${m.groupValues[2]} )"
+            }
+        }
+
+        // 7. if-brace-below-line / if-brace-same-line
+        val ifBraceBelowLine = isRuleEnabled(root, ifBraceBelowLineKeys)
+        val ifBraceSameLine = isRuleEnabled(root, ifBraceSameLineKeys)
+        if (ifBraceBelowLine) {
+            text = text.replace(Regex("""\bif\s*\((.*?)\)[ \t]*\{"""), "if ($1)\n{")
+        } else if (ifBraceSameLine) {
+            text = text.replace(Regex("""\bif\s*\((.*?)\)\s*\n\s*\{"""), "if ($1) {")
+        }
+
+        // 8. indent-inside-if
+        val indentInsideIf = readIntProperty(root, indentInsideIfKeys)
+        if (indentInsideIf != null) {
+            val indentStr = " ".repeat(indentInsideIf)
+            val lines = text.lines()
+            val formattedLines = mutableListOf<String>()
+            var depth = 0
+            for (line in lines) {
+                val trimmed = line.trim()
+                if (trimmed.startsWith("}")) {
+                    depth = (depth - 1).coerceAtLeast(0)
+                }
+                val currentIndent = indentStr.repeat(depth)
+                if (trimmed.isNotEmpty()) {
+                    formattedLines.add(currentIndent + trimmed)
+                } else {
+                    formattedLines.add("")
+                }
+                if (trimmed.endsWith("{")) {
+                    depth++
+                }
+            }
+            text = formattedLines.joinToString("\n")
+        }
+
+        // 9. line-breaks-after-println
+        val lineBreaksAfterPrintln = readIntProperty(root, printlnLineBreaksKeys)
+        if (lineBreaksAfterPrintln != null) {
+            text = text.replace(Regex("""(println\s*\([^)]*\)\s*;)[ \t]*(\n\s*)*""")) { match ->
+                val stmt = match.groupValues[1]
+                val remaining = text.substring(match.range.last + 1).trim()
+                if (remaining.isEmpty()) {
+                    stmt
+                } else {
+                    stmt + "\n".repeat(1 + lineBreaksAfterPrintln)
+                }
+            }
+        }
+
+        return text
     }
 }
