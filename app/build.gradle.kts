@@ -33,17 +33,8 @@ dependencies {
     implementation(libs.guava)
     implementation(libs.gson)
 
-    // las dependecias de los otros modulos
-    implementation(project(":lexer"))
-    implementation(project(":parser"))
-    implementation(project(":token"))
-    implementation(project(":common"))
-    implementation(project(":ast"))
-    implementation(project(":interpreter"))
+    implementation(project(":printscript"))
     implementation(project(":cli"))
-    implementation(project(":semantic"))
-    implementation(project(":linter"))
-    implementation(project(":formatter"))
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
