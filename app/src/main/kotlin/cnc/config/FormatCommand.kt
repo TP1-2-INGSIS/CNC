@@ -39,7 +39,7 @@ object FormatCommand : Command {
                     is Failure -> error(result.msg)
                 }
             }.toList()
-            printScriptFormatter.format(statements)
+            cnc.formatter.StandardFormatRules.defaultFormatter().format(statements)
         }.fold(
             onSuccess = { formatted -> Success(formatted, Unit) },
             onFailure = { e -> Failure(e.message ?: "Formatting failed", ErrorType.CLI) }

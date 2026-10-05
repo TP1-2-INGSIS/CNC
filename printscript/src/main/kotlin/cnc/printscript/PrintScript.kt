@@ -15,9 +15,9 @@ import cnc.common.Success
 import cnc.common.flatMap
 import cnc.common.openStream
 import cnc.config.ConfigFactory
-import cnc.config.FormatterFactory
+import cnc.formatter.FormatterFactory
 import cnc.config.LanguageVersion
-import cnc.config.printScriptFormatter
+import cnc.formatter.StandardFormatRules
 import cnc.interpreter.Environment
 import cnc.interpreter.InterpreterPresets
 import cnc.linter.CamelCaseValidator

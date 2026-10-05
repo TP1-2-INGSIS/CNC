@@ -21,6 +21,7 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     implementation(libs.guava)
+    implementation(libs.gson)
 
     // El formatter es un consumidor del AST (hermano del interpreter/semantic).
     // Solo depende de :ast y :common — nunca de :parser ni :interpreter.
