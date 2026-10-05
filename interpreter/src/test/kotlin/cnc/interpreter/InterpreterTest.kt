@@ -26,7 +26,7 @@ class InterpreterTest {
     @BeforeEach
     fun setUp() {
         outputBuffer.clear()
-        interpreter = InterpreterPresets.default(output = { outputBuffer.add(it) })
+        interpreter = TestInterpreterFactory.create(output = { outputBuffer.add(it) })
         env = Environment()
     }
 
@@ -292,10 +292,12 @@ class InterpreterTest {
             }
             .build()
 
-        val customInterpreter = InterpreterPresets.builder()
-            .registerBuiltin(customBuiltin)
-            .registerBuiltin(customPrint)
-            .build()
+        val customInterpreter = TestInterpreterFactory.create(
+            customBuiltins = mapOf(
+                customBuiltin.name to customBuiltin,
+                customPrint.name to customPrint
+            )
+        )
 
         val call = Call("record", listOf(StringLiteral("hello world")))
         val result = customInterpreter.interpret(call, env)
@@ -305,7 +307,7 @@ class InterpreterTest {
 
     @Test
     fun `default preset executes readInput in CallExpression`() {
-        val interp = InterpreterPresets.default(
+        val interp = TestInterpreterFactory.create(
             input = { "Bautista" },
             output = { outputBuffer.add(it) }
         )
@@ -325,7 +327,7 @@ class InterpreterTest {
 
     @Test
     fun `default preset executes readEnv in CallExpression`() {
-        val interp = InterpreterPresets.default(
+        val interp = TestInterpreterFactory.create(
             envProvider = { if (it == "APP_ENV") "production" else null },
             output = { outputBuffer.add(it) }
         )
@@ -345,7 +347,7 @@ class InterpreterTest {
 
     @Test
     fun `default executes IfStatement branching and block scoping`() {
-        val interp = InterpreterPresets.default(output = { outputBuffer.add(it) })
+        val interp = TestInterpreterFactory.create(output = { outputBuffer.add(it) })
         val ifStmt = cnc.ast.IfStatement(
             condition = cnc.ast.BooleanLiteral(true),
             thenBlock = cnc.ast.BlockStatement(listOf(
