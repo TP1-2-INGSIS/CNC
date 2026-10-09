@@ -9,19 +9,19 @@ enum class ErrorType {
   RUNTIME
 }
 
-sealed interface Result<T> {
+sealed interface Result<out T> {
   val msg: String
   fun isOk(): Boolean
 }
 
-data class Success<T>(
+data class Success<out T>(
   override val msg: String,
   val data: T
 ) : Result<T> {
   override fun isOk() : Boolean = true
 }
 
-data class Failure<T>(
+data class Failure<out T>(
   override val msg: String,
   val type: ErrorType
 ) : Result<T> {

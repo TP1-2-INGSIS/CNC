@@ -9,8 +9,13 @@ import cnc.ast.IfStatement
 import cnc.ast.Statement
 import cnc.common.ErrorType
 import cnc.common.Failure
+import cnc.common.Success
+import cnc.parser.cursor.flow
+import cnc.parser.cursor.matches
+import cnc.parser.flow.OkFlow
 import cnc.token.CncKeywords
 import cnc.token.CncSymbols
+import cnc.token.Token
 import cnc.token.TokenDefinition
 import cnc.token.TokenType
 
@@ -20,9 +25,8 @@ import cnc.token.TokenType
 class StatementRulesBuilder {
     private val rules = mutableListOf<StatementRule<Statement>>()
 
-    fun addRule(rule: StatementRule<out Statement>): StatementRulesBuilder = apply {
-        @Suppress("UNCHECKED_CAST")
-        rules.add(rule as StatementRule<Statement>)
+    fun addRule(rule: StatementRule<Statement>): StatementRulesBuilder = apply {
+        rules.add(rule)
     }
 
     fun addDeclaration(vararg keywords: TokenDefinition): StatementRulesBuilder = apply {
@@ -45,7 +49,8 @@ class StatementRulesBuilder {
 }
 
 /**
- * Factory and presets for standard language statement rules, fully driven by [TokenDefinition].
+ * Factory and presets for standard language statement rules, fully driven by [TokenDefinition]
+ * and functional [ParseFlow] without exceptions.
  */
 object StandardStatementRules {
 
@@ -53,95 +58,134 @@ object StandardStatementRules {
 
     fun createDeclarationRule(vararg keywords: TokenDefinition): StatementRule<Declaration> {
         val keywordList = if (keywords.isEmpty()) listOf(CncKeywords.LET, CncKeywords.CONST) else keywords.toList()
-        return StatementRule.builder<Declaration>("declaration")
-            .canStartWith(*keywordList.toTypedArray(), type = TokenType.KEYWORD)
-            .parse {
-                val kw = expect(TokenType.KEYWORD)
-                if (keywordList.none { it.match(kw.text) }) {
-                    throw ParseAbortException(
-                        Failure("Syntax error at row ${kw.pos.row}, col ${kw.pos.col}: unexpected keyword '${kw.text}'", ErrorType.PARSER)
-                    )
-                }
-                val isMutable = CncKeywords.LET.match(kw.text)
-                val name = expect(TokenType.IDENTIFIER).text
-                expect(CncSymbols.COLON)
-                val type = expect(TokenType.VARIABLE_TYPE).text
 
-                val initializer = if (match(CncSymbols.ASSIGN)) {
-                    parseExpression()
-                } else null
+        return StatementRule.builder<Declaration>()
+            .withName("declaration")
+            .starts { cursor ->
+                cursor.matches(TokenType.KEYWORD, keywordList)
+            }
+            .parse { cursor, expressionParser ->
+                var isMutable = true
+                var name = ""
+                var type = ""
+                var initializer: Expression? = null
+                var unexpectedKw: Token? = null
 
-                if (!isMutable && initializer == null) {
-                    throw ParseAbortException(
-                        Failure("Syntax error: const declaration '$name' must have an initializer", ErrorType.PARSER)
-                    )
-                }
-
-                expect(CncSymbols.SEMICOLON)
-
-                Declaration(
-                    name = name,
-                    type = type,
-                    value = initializer,
-                    isMutable = isMutable
-                )
+                cursor.flow()
+                    .capture(TokenType.KEYWORD) { kw ->
+                        if (keywordList.none { it.match(kw.text) }) {
+                            unexpectedKw = kw
+                        }
+                        isMutable = CncKeywords.LET.match(kw.text)
+                    }
+                    .capture(TokenType.IDENTIFIER) { name = it.text }
+                    .expect(CncSymbols.COLON)
+                    .capture(TokenType.VARIABLE_TYPE) { type = it.text }
+                    .optional(CncSymbols.ASSIGN) {
+                        initializer = expressionParser.parse(cursor)
+                    }
+                    .expect(CncSymbols.SEMICOLON)
+                    .thenResult {
+                        if (unexpectedKw != null) {
+                            Failure(
+                                "Syntax error at row ${unexpectedKw.pos.row}, col ${unexpectedKw.pos.col}: unexpected keyword '${unexpectedKw.text}'",
+                                ErrorType.PARSER
+                            )
+                        } else if (!isMutable && initializer == null) {
+                            Failure("Syntax error: const declaration '$name' must have an initializer", ErrorType.PARSER)
+                        } else {
+                            Success("Parsed declaration", Declaration(name, type, initializer, isMutable))
+                        }
+                    }
             }
             .build()
     }
 
-    fun createAssignmentRule(): StatementRule<Assignment> = StatementRule.builder<Assignment>("assignment")
-        .canStart { cursor ->
-            cursor.peek(0)?.type == TokenType.IDENTIFIER && cursor.peek(1)?.let { CncSymbols.ASSIGN.match(it.text) } == true
+    fun createAssignmentRule(): StatementRule<Assignment> = StatementRule.builder<Assignment>()
+        .withName("assignment")
+        .starts { cursor ->
+            cursor.matches(TokenType.IDENTIFIER, CncSymbols.ASSIGN)
         }
-        .parse {
-            val target = expect(TokenType.IDENTIFIER).text
-            expect(CncSymbols.ASSIGN)
-            val value = parseExpression()
-            expect(CncSymbols.SEMICOLON)
+        .parse { cursor, expressionParser ->
+            var target = ""
+            var value: Expression? = null
 
-            Assignment(target = target, value = value)
+            cursor.flow()
+                .capture(TokenType.IDENTIFIER) { target = it.text }
+                .expect(CncSymbols.ASSIGN)
+                .parseExpression(expressionParser) { value = it }
+                .expect(CncSymbols.SEMICOLON)
+                .then("Parsed assignment") {
+                    Assignment(target = target, value = value!!)
+                }
         }
         .build()
 
-    fun createCallRule(): StatementRule<Call> = StatementRule.builder<Call>("call")
-        .canStart { cursor ->
-            cursor.peek(0)?.type == TokenType.IDENTIFIER && cursor.peek(1)?.let { CncSymbols.OPEN_PAREN.match(it.text) } == true
+    fun createCallRule(): StatementRule<Call> = StatementRule.builder<Call>()
+        .withName("call")
+        .starts { cursor ->
+            cursor.matches(TokenType.IDENTIFIER, CncSymbols.OPEN_PAREN)
         }
-        .parse {
-            val function = expect(TokenType.IDENTIFIER).text
-            expect(CncSymbols.OPEN_PAREN)
-
+        .parse { cursor, expressionParser ->
+            var function = ""
             val arguments = mutableListOf<Expression>()
-            if (peek()?.let { CncSymbols.CLOSE_PAREN.match(it.text) } != true) {
-                arguments.add(parseExpression())
-                while (match(CncSymbols.COMMA)) {
-                    arguments.add(parseExpression())
+
+            val flow = cursor.flow()
+                .capture(TokenType.IDENTIFIER) { function = it.text }
+                .expect(CncSymbols.OPEN_PAREN)
+
+            if (flow is OkFlow) {
+                val next = cursor.peek()
+                if (next != null && !CncSymbols.CLOSE_PAREN.match(next.text)) {
+                    flow.parseExpression(expressionParser) { arguments.add(it) }
+                    while (cursor.matches(CncSymbols.COMMA)) {
+                        flow.expect(CncSymbols.COMMA)
+                        flow.parseExpression(expressionParser) { arguments.add(it) }
+                    }
                 }
             }
 
-            expect(CncSymbols.CLOSE_PAREN)
-            expect(CncSymbols.SEMICOLON)
-
-            Call(function = function, arguments = arguments)
+            flow.expect(CncSymbols.CLOSE_PAREN)
+                .expect(CncSymbols.SEMICOLON)
+                .then("Parsed call") {
+                    Call(function = function, arguments = arguments)
+                }
         }
         .build()
 
-    fun createIfRule(): StatementRule<IfStatement> = StatementRule.builder<IfStatement>("if")
-        .canStartWith(CncKeywords.IF, type = TokenType.KEYWORD)
-        .parse {
-            expect(CncKeywords.IF)
-            expect(CncSymbols.OPEN_PAREN)
-            val condition = parseExpression()
-            expect(CncSymbols.CLOSE_PAREN)
-
-            val thenBlock = parseBlock()
-
+    fun createIfRule(): StatementRule<IfStatement> = StatementRule.builder<IfStatement>()
+        .withName("if")
+        .starts { cursor ->
+            cursor.matches(CncKeywords.IF)
+        }
+        .parseWithStatements { cursor, expressionParser, nextStatement ->
+            var condition: Expression? = null
+            var thenBlock: BlockStatement? = null
             var elseBlock: BlockStatement? = null
-            if (match(CncKeywords.ELSE)) {
-                elseBlock = parseBlock()
+
+            val flow = cursor.flow()
+                .expect(CncKeywords.IF)
+                .expect(CncSymbols.OPEN_PAREN)
+                .parseExpression(expressionParser) { condition = it }
+                .expect(CncSymbols.CLOSE_PAREN)
+                .parseBlock(
+                    openBrace = CncSymbols.OPEN_BRACE,
+                    closeBrace = CncSymbols.CLOSE_BRACE,
+                    statementParser = nextStatement
+                ) { thenBlock = it }
+
+            if (cursor.matches(CncKeywords.ELSE)) {
+                flow.expect(CncKeywords.ELSE)
+                    .parseBlock(
+                        openBrace = CncSymbols.OPEN_BRACE,
+                        closeBrace = CncSymbols.CLOSE_BRACE,
+                        statementParser = nextStatement
+                    ) { elseBlock = it }
             }
 
-            IfStatement(condition, thenBlock, elseBlock)
+            flow.then("Parsed if") {
+                IfStatement(condition!!, thenBlock!!, elseBlock)
+            }
         }
         .build()
 

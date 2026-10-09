@@ -43,6 +43,7 @@ sealed interface ParseFlow {
 
     fun <T> then(transform: () -> T): Result<T>
     fun <T> then(tag: String, transform: () -> T): Result<T>
+    fun <T> thenResult(transform: () -> Result<T>): Result<T>
 
     fun catch(handler: (Failure<Nothing>) -> Failure<Nothing>): ParseFlow
 }
@@ -245,6 +246,9 @@ class OkFlow(override val cursor: Cursor<Token>) : ParseFlow {
     override fun <T> then(tag: String, transform: () -> T): Result<T> =
         Success(tag, transform())
 
+    override fun <T> thenResult(transform: () -> Result<T>): Result<T> =
+        transform()
+
     override fun catch(handler: (Failure<Nothing>) -> Failure<Nothing>): ParseFlow = this
 }
 
@@ -276,6 +280,9 @@ class FailedFlow(
         Failure(failure.msg, failure.type)
 
     override fun <T> then(tag: String, transform: () -> T): Result<T> =
+        Failure(failure.msg, failure.type)
+
+    override fun <T> thenResult(transform: () -> Result<T>): Result<T> =
         Failure(failure.msg, failure.type)
 
     override fun catch(handler: (Failure<Nothing>) -> Failure<Nothing>): ParseFlow =

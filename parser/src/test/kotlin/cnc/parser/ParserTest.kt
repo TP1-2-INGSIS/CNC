@@ -11,6 +11,8 @@ import cnc.ast.UnaryExpression
 import cnc.common.Failure
 import cnc.common.Position
 import cnc.common.Success
+import cnc.parser.cursor.flow
+import cnc.parser.cursor.matches
 import cnc.parser.expression.Associativity
 import cnc.parser.expression.ExpressionBuilder
 import cnc.parser.expression.OperatorDef
@@ -414,5 +416,42 @@ class ParserTest {
             assertEquals(1, results.size)
             assertTrue(results[0] is Success)
         }
+
+        @Test
+        fun `statement rule can be built with fluent StatementRule builder`() {
+            val rule = cnc.parser.rule.StatementRule.builder<Declaration>()
+                .withName("custom_let")
+                .starts { it.matches(cnc.token.CncKeywords.LET) }
+                .parse { cursor, exprParser ->
+                    var name = ""
+                    var type = ""
+                    cursor.flow()
+                        .expect(cnc.token.CncKeywords.LET)
+                        .capture(TokenType.IDENTIFIER) { name = it.text }
+                        .expect(cnc.token.CncSymbols.COLON)
+                        .capture(TokenType.VARIABLE_TYPE) { type = it.text }
+                        .expect(cnc.token.CncSymbols.SEMICOLON)
+                        .then("custom_let") {
+                            Declaration(name, type, null)
+                        }
+                }
+                .build()
+
+            val customParser = Parser(listOf(rule), testExprBuilder)
+            val tokens = sequenceOf(
+                tok(TokenType.KEYWORD, "let"),
+                tok(TokenType.IDENTIFIER, "foo"),
+                tok(TokenType.SYMBOL, ":"),
+                tok(TokenType.VARIABLE_TYPE, "string"),
+                tok(TokenType.SYMBOL, ";")
+            )
+            val results = customParser.parse(tokens).toList()
+            assertEquals(1, results.size)
+            assertTrue(results[0] is Success)
+            val decl = (results[0] as Success).data as Declaration
+            assertEquals("foo", decl.name)
+            assertEquals("string", decl.type)
+        }
     }
 }
+
