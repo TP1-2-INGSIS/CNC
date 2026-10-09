@@ -10,10 +10,11 @@
 - **Qué problema resuelve:** Transforma el flujo secuencial de tokens (`Sequence<Token>`) en un flujo estructurado de sentencias sintácticas (`Sequence<Result<Statement>>`). Combina un motor predictivo $LL(2)$ para sentencias con un algoritmo de precedencia de operadores (Pratt Parser) para expresiones aritméticas y compuestas.
 - **Qué hace:**
   - Implementa el parser continuo con semántica *fail-fast* sobre `Cursor<Token>`.
-  - Provee la interfaz extensible `StatementRule<T>` con predicados de inicio `canStart(cursor)`.
-  - Expone el contexto de parseo `ParseContext` con operaciones de coincidencia declarativas (`expect`, `match`, `parseExpression`).
-  - Provee las reglas estándar de PrintScript 1.0 (`declarationRule`, `assignmentRule`, `callRule`).
-  - Construye expresiones respetando precedencia y asociatividad mediante `ExpressionBuilder` (Pratt).
+  - Provee la interfaz extensible y covariante `StatementRule<out T : Statement>` con predicados de inicio predictivos $LL(2)$ `canStart(cursor)`.
+  - Expone el builder fluido `StatementRule.builder<T>()` para construir reglas declarativas sin clases manuales.
+  - Expone el flujo monádico `ParseFlow` (`cursor.flow()`) con operaciones de coincidencia tipo *railroad* (`expect`, `capture`, `optional`, `parseExpression`, `then`, `catch`) sin excepciones para control de flujo.
+  - Provee las reglas estándar de PrintScript 1.0 y 1.1 (`StandardStatementRules.v1_0`, `StandardStatementRules.v1_1`).
+  - Construye expresiones respetando precedencia y asociatividad mediante `ExpressionBuilder` (Pratt) retornando puros `Result<Expression>`.
 - **Qué NO hace (Fronteras):**
   - No valida tipos estáticos ni existencia de variables en la tabla de símbolos (responsabilidad de `:semantic`).
   - No evalúa ni ejecuta código (responsabilidad de `:interpreter`).
@@ -27,11 +28,12 @@
 flowchart TD
     Toks["Tokens (Cursor Token)"] --> Parser["Parser.parse()"]
     Parser --> MatchRule{"rules.firstOrNull { canStart }"}
-    MatchRule -- Coincide --> Rule["StatementRule.parse(ParseContext)"]
-    Rule --> Primitives["ParseContext (expect, match)"]
-    Rule --> Pratt["ExpressionBuilder.parse() (Pratt)"]
-    Pratt --> Expr["Expression AST"]
-    Rule --> Stmt["Statement AST"]
+    MatchRule -- Coincide --> Flow["cursor.flow()"]
+    Flow --> Primitives[".expect() / .capture() / .optional()"]
+    Primitives --> Pratt["ExpressionBuilder.parse() (Pratt)"]
+    Pratt --> Expr["Result Success(Expression)"]
+    Flow --> Then[".then { Statement }"]
+    Then --> Stmt["Result Success(Statement)"]
     MatchRule -- No coincide --> SynErr["Failure(Syntax error, PARSER)"]
     Stmt --> Res["yield Success(Statement)"]
     SynErr --> YieldFail["yield Failure & break"]
@@ -40,25 +42,31 @@ flowchart TD
 ### Entidades de Dominio e Interfaces
 1. **`Parser`:**
    - Orquestador del análisis sintáctico: `fun parse(tokens: Sequence<Token>): Sequence<Result<Statement>>`.
-   - Si una sentencia falla sintácticamente, emite `Failure` y finaliza la secuencia limpiamente.
-2. **`StatementRule<T : Statement>`:**
+   - Si una sentencia falla sintácticamente, emite `Failure` y finaliza la secuencia limpiamente (*fail-fast*).
+2. **`StatementRule<out T : Statement>`:**
    - Contrato declarativo de regla de sentencia:
      - `val tag: String`: Identificador de la regla.
-     - `fun canStart(cursor: Cursor<Token>): Boolean`: Predicado $LL(2)$ que inspecciona `peek(0)` y `peek(1)` sin consumir.
-     - `fun parse(cursor, expressionParser): Result<T>`.
-3. **`ParseContext`:**
-   - DSL dentro de `statementRule { ... }`:
-     - `expect(type, text)`: Consume el token si coincide; si no coincide, aborta la regla con un `Failure` contextualizado.
-     - `match(type, text)`: Consume y retorna `true` si coincide; `false` si no.
-     - `parseExpression()`: Invoca recursivamente al motor Pratt.
-4. **`ExpressionBuilder`:**
-   - Motor Pratt: configura recetas para hojas (`NUMBER`, `STRING`, `IDENTIFIER`) y operadores con precedencia y asociatividad (`LEFT` / `RIGHT`).
+     - `fun canStart(cursor: Cursor<Token>): Boolean`: Predicado $LL(2)$ que inspecciona tokens con `cursor.matches(...)` sin consumirlos.
+     - `fun parse(cursor, expressionParser, nextStatement): Result<T>`.
+3. **`StatementRuleBuilder<T : Statement>`:**
+   - API fluida para declarar reglas sin sobrecarga de clases:
+     `StatementRule.builder<Declaration>().withName("let").starts { ... }.parse { cursor, exprParser -> ... }.build()`
+4. **`ParseFlow` (`OkFlow` / `FailedFlow`):**
+   - Máquina de estados monádica sobre `Cursor<Token>`:
+     - `expect(def / type, text)`: Valida y consume el token esperado; ante error transiciona a `FailedFlow`.
+     - `capture(type, text) { ... }`: Captura el valor del token.
+     - `optional(def / type) { ... }`: Consume si coincide, sin fallar si no.
+     - `parseExpression(expressionParser) { ... }`: Ejecuta el Pratt parser funcionalmente.
+     - `optionalExpression(trigger, expressionParser) { ... }`: Maneja expresiones opcionales (ej. asignación inicial).
+     - `then { ... }`: Produce `Success(Statement)` si todo el flujo fue exitoso.
+5. **`ExpressionBuilder`:**
+   - Motor Pratt funcional: configura recetas para hojas, operadores con precedencia y asociatividad, y expresiones de llamada (`CallExpression`) configurables, retornando `Result<Expression>` puro.
 
 ---
 
 ## 3. Manejo de Errores y Pipeline Funcional
 - **ErrorType asociado:** `ErrorType.PARSER`.
-- **Garantías:** Cero excepciones no capturadas. Los abortos sintácticos (`ParseAbortException`) son internos y se capturan dentro de la regla para emitir `Failure(msg, ErrorType.PARSER)`.
+- **Garantías:** Cero excepciones para control de flujo. Los fallos sintácticos transicionan monádicamente a `FailedFlow` y retornan directamente como `Failure(msg, ErrorType.PARSER)` preservando la posición exacta de fila y columna.
 
 ---
 
