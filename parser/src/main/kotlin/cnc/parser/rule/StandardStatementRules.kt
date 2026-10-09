@@ -81,9 +81,7 @@ object StandardStatementRules {
                     .capture(TokenType.IDENTIFIER) { name = it.text }
                     .expect(CncSymbols.COLON)
                     .capture(TokenType.VARIABLE_TYPE) { type = it.text }
-                    .optional(CncSymbols.ASSIGN) {
-                        initializer = expressionParser.parse(cursor)
-                    }
+                    .optionalExpression(CncSymbols.ASSIGN, expressionParser) { initializer = it }
                     .expect(CncSymbols.SEMICOLON)
                     .thenResult {
                         if (unexpectedKw != null) {

@@ -8,10 +8,6 @@ import cnc.common.Result
 import cnc.parser.expression.ExpressionParser
 import cnc.token.Token
 
-/**
- * Exception retained for backwards compatibility with ExpressionBuilder until Phase 5.
- */
-class ParseAbortException(val failure: Failure<Nothing>) : RuntimeException(failure.msg)
 
 /**
  * Contract for a predictive statement parsing rule.

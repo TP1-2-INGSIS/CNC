@@ -33,6 +33,7 @@ sealed interface ParseFlow {
     fun optional(type: TokenType, action: (Token) -> Unit = {}): ParseFlow
 
     fun parseExpression(expressionParser: ExpressionParser, action: (Expression) -> Unit): ParseFlow
+    fun optionalExpression(trigger: TokenDefinition, expressionParser: ExpressionParser, action: (Expression) -> Unit): ParseFlow
 
     fun parseBlock(
         openBrace: TokenDefinition = CncSymbols.OPEN_BRACE,
@@ -166,18 +167,28 @@ class OkFlow(override val cursor: Cursor<Token>) : ParseFlow {
     }
 
     override fun parseExpression(expressionParser: ExpressionParser, action: (Expression) -> Unit): ParseFlow {
-        return try {
-            val expr = expressionParser.parse(cursor)
-            action(expr)
-            this
-        } catch (e: Exception) {
-            val current = cursor.peek()
-            val posStr = if (current?.pos != null) " at row ${current.pos.row}, col ${current.pos.col}" else ""
-            FailedFlow(
-                cursor,
-                Failure("Syntax error in expression$posStr: ${e.message}", ErrorType.PARSER)
-            )
+        return when (val res = expressionParser.parse(cursor)) {
+            is Success -> {
+                action(res.data)
+                this
+            }
+            is Failure -> FailedFlow(cursor, Failure(res.msg, res.type))
         }
+    }
+
+    override fun optionalExpression(trigger: TokenDefinition, expressionParser: ExpressionParser, action: (Expression) -> Unit): ParseFlow {
+        val next = cursor.peek()
+        if (next != null && trigger.match(next.text)) {
+            cursor.advance()
+            return when (val res = expressionParser.parse(cursor)) {
+                is Success -> {
+                    action(res.data)
+                    this
+                }
+                is Failure -> FailedFlow(cursor, Failure(res.msg, res.type))
+            }
+        }
+        return this
     }
 
     override fun parseBlock(
@@ -268,6 +279,7 @@ class FailedFlow(
     override fun optional(type: TokenType, action: (Token) -> Unit): ParseFlow = this
 
     override fun parseExpression(expressionParser: ExpressionParser, action: (Expression) -> Unit): ParseFlow = this
+    override fun optionalExpression(trigger: TokenDefinition, expressionParser: ExpressionParser, action: (Expression) -> Unit): ParseFlow = this
 
     override fun parseBlock(
         openBrace: TokenDefinition,
