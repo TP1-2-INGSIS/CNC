@@ -13,6 +13,7 @@ import cnc.common.Success
 import cnc.parser.cursor.flow
 import cnc.parser.cursor.matches
 import cnc.parser.flow.OkFlow
+import cnc.parser.flow.parseBlock
 import cnc.token.CncKeywords
 import cnc.token.CncSymbols
 import cnc.token.Token
@@ -81,7 +82,7 @@ object StandardStatementRules {
                     .capture(TokenType.IDENTIFIER) { name = it.text }
                     .expect(CncSymbols.COLON)
                     .capture(TokenType.VARIABLE_TYPE) { type = it.text }
-                    .optionalExpression(CncSymbols.ASSIGN, expressionParser) { initializer = it }
+                    .optionalStep(CncSymbols.ASSIGN, expressionParser::parse) { initializer = it }
                     .expect(CncSymbols.SEMICOLON)
                     .thenResult {
                         if (unexpectedKw != null) {
@@ -111,7 +112,7 @@ object StandardStatementRules {
             cursor.flow()
                 .capture(TokenType.IDENTIFIER) { target = it.text }
                 .expect(CncSymbols.ASSIGN)
-                .parseExpression(expressionParser) { value = it }
+                .step(expressionParser::parse) { value = it }
                 .expect(CncSymbols.SEMICOLON)
                 .then("Parsed assignment") {
                     Assignment(target = target, value = value!!)
@@ -135,10 +136,10 @@ object StandardStatementRules {
             if (flow is OkFlow) {
                 val next = cursor.peek()
                 if (next != null && !CncSymbols.CLOSE_PAREN.match(next.text)) {
-                    flow.parseExpression(expressionParser) { arguments.add(it) }
+                    flow.step(expressionParser::parse) { arguments.add(it) }
                     while (cursor.matches(CncSymbols.COMMA)) {
                         flow.expect(CncSymbols.COMMA)
-                        flow.parseExpression(expressionParser) { arguments.add(it) }
+                        flow.step(expressionParser::parse) { arguments.add(it) }
                     }
                 }
             }
@@ -164,7 +165,7 @@ object StandardStatementRules {
             val flow = cursor.flow()
                 .expect(CncKeywords.IF)
                 .expect(CncSymbols.OPEN_PAREN)
-                .parseExpression(expressionParser) { condition = it }
+                .step(expressionParser::parse) { condition = it }
                 .expect(CncSymbols.CLOSE_PAREN)
                 .parseBlock(
                     openBrace = CncSymbols.OPEN_BRACE,

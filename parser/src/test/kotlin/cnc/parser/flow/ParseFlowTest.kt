@@ -187,5 +187,89 @@ class ParseFlowTest {
         assertEquals(1, capturedBlock?.statements?.size)
         assertEquals(dummyStmt, capturedBlock?.statements?.first())
     }
+
+    @Test
+    fun `step executes sub-parser and captures result on Success`() {
+        val tokens = listOf(
+            tok(TokenType.NUMBER, "42"),
+            tok(TokenType.SYMBOL, ";")
+        ).asCursor()
+
+        var capturedVal = 0
+        val result = tokens.flow()
+            .step({ cur ->
+                val tok = cur.advance()!!
+                Success("parsed number", tok.text.toInt())
+            }) { capturedVal = it }
+            .expect(semicolon)
+            .then { capturedVal }
+
+        assertTrue(result is Success)
+        assertEquals(42, (result as Success).data)
+    }
+
+    @Test
+    fun `step transitions to FailedFlow on sub-parser Failure`() {
+        val tokens = listOf(
+            tok(TokenType.KEYWORD, "invalid"),
+            tok(TokenType.SYMBOL, ";")
+        ).asCursor()
+
+        var capturedVal = 0
+        val result = tokens.flow()
+            .step({ _ ->
+                Failure<Int>("Sub-parser error", cnc.common.ErrorType.PARSER)
+            }) { capturedVal = it }
+            .expect(semicolon)
+            .then { capturedVal }
+
+        assertTrue(result is Failure)
+        assertEquals(0, capturedVal)
+        assertEquals("Sub-parser error", (result as Failure).msg)
+    }
+
+    @Test
+    fun `optionalStep executes sub-parser when trigger matches`() {
+        val tokens = listOf(
+            tok(TokenType.SYMBOL, "="),
+            tok(TokenType.NUMBER, "99"),
+            tok(TokenType.SYMBOL, ";")
+        ).asCursor()
+
+        val assignDef = SymbolTokenDef("assign", "=")
+        var capturedVal: Int? = null
+
+        val result = tokens.flow()
+            .optionalStep(assignDef, { cur ->
+                val tok = cur.advance()!!
+                Success("parsed num", tok.text.toInt())
+            }) { capturedVal = it }
+            .expect(semicolon)
+            .then { capturedVal }
+
+        assertTrue(result is Success)
+        assertEquals(99, (result as Success).data)
+    }
+
+    @Test
+    fun `optionalStep skips execution without error when trigger does not match`() {
+        val tokens = listOf(
+            tok(TokenType.SYMBOL, ";")
+        ).asCursor()
+
+        val assignDef = SymbolTokenDef("assign", "=")
+        var capturedVal: Int? = null
+
+        val result = tokens.flow()
+            .optionalStep(assignDef, { cur ->
+                val tok = cur.advance()!!
+                Success("parsed num", tok.text.toInt())
+            }) { capturedVal = it }
+            .expect(semicolon)
+            .then { capturedVal }
+
+        assertTrue(result is Success)
+        assertEquals(null, (result as Success).data)
+    }
 }
 
