@@ -50,8 +50,6 @@ sealed interface ParseFlow {
     fun optionalExpression(trigger: TokenDefinition, expressionParser: ExpressionParser, action: (Expression) -> Unit): ParseFlow
 
     fun parseBlock(
-        openBrace: TokenDefinition = CncSymbols.OPEN_BRACE,
-        closeBrace: TokenDefinition = CncSymbols.CLOSE_BRACE,
         statementParser: (Cursor<Token>) -> Result<Statement>,
         action: (BlockStatement) -> Unit
     ): ParseFlow
@@ -241,60 +239,22 @@ class OkFlow(override val cursor: Cursor<Token>) : ParseFlow {
     ): ParseFlow = optionalStep(trigger, expressionParser::parse, action)
 
     override fun parseBlock(
-        openBrace: TokenDefinition,
-        closeBrace: TokenDefinition,
         statementParser: (Cursor<Token>) -> Result<Statement>,
         action: (BlockStatement) -> Unit
     ): ParseFlow {
-        val next = cursor.peek()
-        val expectedOpen = openBrace.symbols.firstOrNull() ?: openBrace.alias
-        if (next == null) {
-            return FailedFlow(
-                cursor,
-                Failure("Syntax error: unexpected end of file, expected '$expectedOpen'", ErrorType.PARSER)
-            )
-        }
-        if (!openBrace.match(next.text)) {
-            return FailedFlow(
-                cursor,
-                Failure(
-                    "Syntax error at row ${next.pos.row}, col ${next.pos.col}: expected '$expectedOpen' but found '${next.text}'",
-                    ErrorType.PARSER
-                )
-            )
-        }
-        cursor.advance()
+        val openFlow = expect(CncSymbols.OPEN_BRACE)
+        if (openFlow is FailedFlow) return openFlow
 
         val statements = mutableListOf<Statement>()
-        while (cursor.hasMore()) {
-            val peeked = cursor.peek() ?: break
-            if (closeBrace.match(peeked.text)) {
-                break
-            }
+        while (cursor.hasMore() && cursor.peek()?.let { CncSymbols.CLOSE_BRACE.match(it.text) } != true) {
             when (val res = statementParser(cursor)) {
                 is Success -> statements.add(res.data)
                 is Failure -> return FailedFlow(cursor, Failure(res.msg, res.type))
             }
         }
 
-        val closing = cursor.peek()
-        val expectedClose = closeBrace.symbols.firstOrNull() ?: closeBrace.alias
-        if (closing == null) {
-            return FailedFlow(
-                cursor,
-                Failure("Syntax error: unexpected end of file, expected '$expectedClose'", ErrorType.PARSER)
-            )
-        }
-        if (!closeBrace.match(closing.text)) {
-            return FailedFlow(
-                cursor,
-                Failure(
-                    "Syntax error at row ${closing.pos.row}, col ${closing.pos.col}: expected '$expectedClose' but found '${closing.text}'",
-                    ErrorType.PARSER
-                )
-            )
-        }
-        cursor.advance()
+        val closeFlow = expect(CncSymbols.CLOSE_BRACE)
+        if (closeFlow is FailedFlow) return closeFlow
 
         action(BlockStatement(statements))
         return this
@@ -334,8 +294,6 @@ class FailedFlow(
     override fun parseExpression(expressionParser: ExpressionParser, action: (Expression) -> Unit): ParseFlow = this
     override fun optionalExpression(trigger: TokenDefinition, expressionParser: ExpressionParser, action: (Expression) -> Unit): ParseFlow = this
     override fun parseBlock(
-        openBrace: TokenDefinition,
-        closeBrace: TokenDefinition,
         statementParser: (Cursor<Token>) -> Result<Statement>,
         action: (BlockStatement) -> Unit
     ): ParseFlow = this

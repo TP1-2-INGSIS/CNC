@@ -166,19 +166,11 @@ object StandardStatementRules {
                 .expect(CncSymbols.OPEN_PAREN)
                 .step(expressionParser::parse) { condition = it }
                 .expect(CncSymbols.CLOSE_PAREN)
-                .parseBlock(
-                    openBrace = CncSymbols.OPEN_BRACE,
-                    closeBrace = CncSymbols.CLOSE_BRACE,
-                    statementParser = nextStatement
-                ) { thenBlock = it }
+                .parseBlock(nextStatement) { thenBlock = it }
 
             if (cursor.matches(CncKeywords.ELSE)) {
                 flow.expect(CncKeywords.ELSE)
-                    .parseBlock(
-                        openBrace = CncSymbols.OPEN_BRACE,
-                        closeBrace = CncSymbols.CLOSE_BRACE,
-                        statementParser = nextStatement
-                    ) { elseBlock = it }
+                    .parseBlock(nextStatement) { elseBlock = it }
             }
 
             flow.then("Parsed if") {

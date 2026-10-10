@@ -172,8 +172,6 @@ class ParseFlowTest {
         var capturedBlock: cnc.ast.BlockStatement? = null
         val result = tokens.flow()
             .parseBlock(
-                openBrace = openBrace,
-                closeBrace = closeBrace,
                 statementParser = { cur ->
                     cur.advance() // consume "test"
                     Success("ok", dummyStmt)
