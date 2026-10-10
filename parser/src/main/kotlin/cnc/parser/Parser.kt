@@ -9,26 +9,35 @@ import cnc.common.Failure
 import cnc.common.Result
 import cnc.common.Success
 import cnc.common.asCursor
+import cnc.parser.cursor.flow
 import cnc.parser.expression.ExpressionParser
 import cnc.parser.flow.FailedFlow
-import cnc.parser.cursor.flow
 import cnc.parser.rule.StatementParser
 import cnc.parser.rule.StatementRule
-import cnc.token.CncSymbols
 import cnc.token.Token
+import cnc.token.TokenDefinition
 
 /**
- * Predictive, streaming parser for PrintScript statements.
+ * Predictive, streaming parser for statements.
  */
 class Parser(
     val rules: List<StatementRule<Statement>>,
-    val expressionParser: ExpressionParser
+    val expressionParser: ExpressionParser,
+    val blockOpen: TokenDefinition? = null,
+    val blockClose: TokenDefinition? = null
 ) : StatementParser {
 
     constructor(
         vararg rules: StatementRule<Statement>,
         expressionParser: ExpressionParser
     ) : this(rules.toList(), expressionParser)
+
+    constructor(
+        vararg rules: StatementRule<Statement>,
+        expressionParser: ExpressionParser,
+        blockOpen: TokenDefinition?,
+        blockClose: TokenDefinition?
+    ) : this(rules.toList(), expressionParser, blockOpen, blockClose)
 
     /**
      * Parses a lazy sequence of [Token]s into a lazy sequence of [Result] containing [Statement]s.
@@ -54,18 +63,23 @@ class Parser(
     }
 
     override fun parseBlock(cursor: Cursor<Token>): Result<BlockStatement> {
-        val openFlow = cursor.flow().expect(CncSymbols.OPEN_BRACE)
+        val openDef = blockOpen
+            ?: return Failure("No block open delimiter configured in Parser", ErrorType.PARSER)
+        val closeDef = blockClose
+            ?: return Failure("No block close delimiter configured in Parser", ErrorType.PARSER)
+
+        val openFlow = cursor.flow().expect(openDef)
         if (openFlow is FailedFlow) return Failure(openFlow.failure.msg, openFlow.failure.type)
 
         val statements = mutableListOf<Statement>()
-        while (cursor.hasMore() && cursor.peek()?.let { CncSymbols.CLOSE_BRACE.match(it.text) } != true) {
+        while (cursor.hasMore() && cursor.peek()?.let { closeDef.match(it.text) } != true) {
             when (val res = parseStatement(cursor)) {
                 is Success -> statements.add(res.data)
                 is Failure -> return Failure(res.msg, res.type)
             }
         }
 
-        val closeFlow = cursor.flow().expect(CncSymbols.CLOSE_BRACE)
+        val closeFlow = cursor.flow().expect(closeDef)
         if (closeFlow is FailedFlow) return Failure(closeFlow.failure.msg, closeFlow.failure.type)
 
         return Success("Parsed block", BlockStatement(statements))
@@ -80,6 +94,8 @@ class Parser(
 
     fun copy(
         rules: List<StatementRule<Statement>> = this.rules,
-        expressionParser: ExpressionParser = this.expressionParser
-    ): Parser = Parser(rules, expressionParser)
+        expressionParser: ExpressionParser = this.expressionParser,
+        blockOpen: TokenDefinition? = this.blockOpen,
+        blockClose: TokenDefinition? = this.blockClose
+    ): Parser = Parser(rules, expressionParser, blockOpen, blockClose)
 }

@@ -1,4 +1,4 @@
-package cnc.parser.rule
+package cnc.printscript.parser
 
 import cnc.ast.Assignment
 import cnc.ast.BlockStatement
@@ -13,48 +13,16 @@ import cnc.common.Success
 import cnc.parser.cursor.flow
 import cnc.parser.cursor.matches
 import cnc.parser.flow.OkFlow
+import cnc.parser.rule.StatementRule
 import cnc.token.CncKeywords
 import cnc.token.CncSymbols
-import cnc.token.Token
 import cnc.token.TokenDefinition
 import cnc.token.TokenType
 
 /**
- * Fluent builder for assembling a cohesive, versioned list of [StatementRule]s.
+ * Statement parsing rules specific to the PrintScript language.
  */
-class StatementRulesBuilder {
-    private val rules = mutableListOf<StatementRule<Statement>>()
-
-    fun addRule(rule: StatementRule<Statement>): StatementRulesBuilder = apply {
-        rules.add(rule)
-    }
-
-    fun addDeclaration(vararg keywords: TokenDefinition): StatementRulesBuilder = apply {
-        addRule(StandardStatementRules.createDeclarationRule(*keywords))
-    }
-
-    fun addAssignment(): StatementRulesBuilder = apply {
-        addRule(StandardStatementRules.createAssignmentRule())
-    }
-
-    fun addCall(): StatementRulesBuilder = apply {
-        addRule(StandardStatementRules.createCallRule())
-    }
-
-    fun addIf(): StatementRulesBuilder = apply {
-        addRule(StandardStatementRules.createIfRule())
-    }
-
-    fun build(): List<StatementRule<Statement>> = rules.toList()
-}
-
-/**
- * Factory and presets for standard language statement rules, fully driven by [TokenDefinition]
- * and functional [ParseFlow] without exceptions.
- */
-object StandardStatementRules {
-
-    fun builder(): StatementRulesBuilder = StatementRulesBuilder()
+object PrintScriptStatementRules {
 
     fun createDeclarationRule(vararg keywords: TokenDefinition): StatementRule<Declaration> {
         val keywordList = if (keywords.isEmpty()) listOf(CncKeywords.LET, CncKeywords.CONST) else keywords.toList()
@@ -166,22 +134,16 @@ object StandardStatementRules {
         }
         .build()
 
-    val declaration: StatementRule<Declaration> = createDeclarationRule(CncKeywords.LET, CncKeywords.CONST)
-    val declarationV10: StatementRule<Declaration> = createDeclarationRule(CncKeywords.LET)
-    val assignment: StatementRule<Assignment> = createAssignmentRule()
-    val call: StatementRule<Call> = createCallRule()
-    val ifStatement: StatementRule<IfStatement> = createIfRule()
+    val v1_0: List<StatementRule<Statement>> = listOf(
+        createDeclarationRule(CncKeywords.LET),
+        createAssignmentRule(),
+        createCallRule()
+    )
 
-    val v1_0: List<StatementRule<Statement>> = builder()
-        .addDeclaration(CncKeywords.LET)
-        .addAssignment()
-        .addCall()
-        .build()
-
-    val v1_1: List<StatementRule<Statement>> = builder()
-        .addDeclaration(CncKeywords.LET, CncKeywords.CONST)
-        .addAssignment()
-        .addCall()
-        .addIf()
-        .build()
+    val v1_1: List<StatementRule<Statement>> = listOf(
+        createDeclarationRule(CncKeywords.LET, CncKeywords.CONST),
+        createAssignmentRule(),
+        createCallRule(),
+        createIfRule()
+    )
 }

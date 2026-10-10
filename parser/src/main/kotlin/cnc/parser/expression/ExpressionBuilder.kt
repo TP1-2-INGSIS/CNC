@@ -43,7 +43,7 @@ class ExpressionBuilder(
     private val groupClose: TokenDefinition? = null,
     private val callOpen: TokenDefinition? = groupOpen,
     private val callClose: TokenDefinition? = groupClose,
-    private val callSeparator: TokenDefinition? = cnc.token.CncSymbols.COMMA
+    private val callSeparator: TokenDefinition? = null
 ) : ExpressionParser {
 
     fun build(token: Token): Result<Expression> {

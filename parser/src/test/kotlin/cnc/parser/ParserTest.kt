@@ -17,7 +17,8 @@ import cnc.parser.expression.Associativity
 import cnc.parser.expression.ExpressionBuilder
 import cnc.parser.expression.OperatorDef
 import cnc.parser.expression.PrefixOperatorDef
-import cnc.parser.rule.StandardStatementRules
+import cnc.parser.fixture.TestStatementRules
+import cnc.token.CncSymbols
 import cnc.token.RegexTokenDef
 import cnc.token.SymbolTokenDef
 import cnc.token.Token
@@ -69,7 +70,7 @@ private fun tok(type: TokenType, text: String, row: Int = 0, col: Int = 0) =
 
 class ParserTest {
 
-    private val parser = Parser(StandardStatementRules.v1_1, testExprBuilder)
+    private val parser = Parser(TestStatementRules.v1_1, testExprBuilder, blockOpen = CncSymbols.OPEN_BRACE, blockClose = CncSymbols.CLOSE_BRACE)
 
     @Nested
     inner class DeclarationTests {
@@ -325,7 +326,7 @@ class ParserTest {
 
         @Test
         fun `if statement with then and else blocks parsed correctly in v1_1`() {
-            val v11Parser = Parser(StandardStatementRules.v1_1, testExprBuilder)
+            val v11Parser = Parser(TestStatementRules.v1_1, testExprBuilder, blockOpen = CncSymbols.OPEN_BRACE, blockClose = CncSymbols.CLOSE_BRACE)
             val tokens = sequenceOf(
                 tok(TokenType.KEYWORD, "if"),
                 tok(TokenType.SYMBOL, "("),
@@ -359,7 +360,7 @@ class ParserTest {
 
         @Test
         fun `v1_0 parser rejects const declaration`() {
-            val v10Parser = Parser(StandardStatementRules.v1_0, testExprBuilder)
+            val v10Parser = Parser(TestStatementRules.v1_0, testExprBuilder, blockOpen = CncSymbols.OPEN_BRACE, blockClose = CncSymbols.CLOSE_BRACE)
             val tokens = sequenceOf(
                 tok(TokenType.KEYWORD, "const"),
                 tok(TokenType.IDENTIFIER, "x"),
@@ -378,7 +379,7 @@ class ParserTest {
 
         @Test
         fun `v1_0 parser rejects if statement`() {
-            val v10Parser = Parser(StandardStatementRules.v1_0, testExprBuilder)
+            val v10Parser = Parser(TestStatementRules.v1_0, testExprBuilder, blockOpen = CncSymbols.OPEN_BRACE, blockClose = CncSymbols.CLOSE_BRACE)
             val tokens = sequenceOf(
                 tok(TokenType.KEYWORD, "if"),
                 tok(TokenType.SYMBOL, "("),
@@ -398,11 +399,11 @@ class ParserTest {
     @Nested
     inner class BuilderTests {
         @Test
-        fun `custom rules can be built with StatementRulesBuilder`() {
-            val customRules = StandardStatementRules.builder()
-                .addDeclaration(cnc.token.CncKeywords.LET)
-                .addAssignment()
-                .build()
+        fun `custom rules can be configured and parsed`() {
+            val customRules = listOf(
+                TestStatementRules.createDeclarationRule(cnc.token.CncKeywords.LET),
+                TestStatementRules.createAssignmentRule()
+            )
 
             val customParser = Parser(customRules, testExprBuilder)
             val tokens = sequenceOf(

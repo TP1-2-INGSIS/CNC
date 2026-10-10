@@ -28,7 +28,7 @@ import cnc.parser.Parser
 import cnc.parser.expression.Associativity
 import cnc.parser.expression.ExpressionBuilder
 import cnc.parser.expression.OperatorDef
-import cnc.parser.rule.StandardStatementRules
+import cnc.printscript.parser.PrintScriptStatementRules
 import cnc.printscript.LanguageVersion
 import cnc.printscript.profile.InterpreterIO
 import cnc.printscript.profile.PrintScriptProfile
@@ -71,9 +71,15 @@ object PrintScript10Profile : PrintScriptProfile {
                 OperatorDef(CncSymbols.EXPONENT, precedence = 3, associativity = Associativity.RIGHT)
             ),
             groupOpen = CncSymbols.OPEN_PAREN,
-            groupClose = CncSymbols.CLOSE_PAREN
+            groupClose = CncSymbols.CLOSE_PAREN,
+            callSeparator = CncSymbols.COMMA
         )
-        return Parser(StandardStatementRules.v1_0, expressionBuilder)
+        return Parser(
+            rules = PrintScriptStatementRules.v1_0,
+            expressionParser = expressionBuilder,
+            blockOpen = CncSymbols.OPEN_BRACE,
+            blockClose = CncSymbols.CLOSE_BRACE
+        )
     }
 
     override fun createSemanticAnalyzer(): SemanticAnalyzer {
