@@ -157,34 +157,6 @@ class ParseFlowTest {
         assertTrue((result as Failure).msg.startsWith("Custom error:"))
     }
 
-    @Test
-    fun `parseBlock parses statements inside braces and captures BlockStatement`() {
-        val openBrace = SymbolTokenDef("open_brace", "{")
-        val closeBrace = SymbolTokenDef("close_brace", "}")
-
-        val dummyStmt = cnc.ast.Call("test", emptyList())
-        val tokens = listOf(
-            tok(TokenType.SYMBOL, "{", row = 1, col = 0),
-            tok(TokenType.IDENTIFIER, "test", row = 1, col = 2),
-            tok(TokenType.SYMBOL, "}", row = 1, col = 7)
-        ).asCursor()
-
-        var capturedBlock: cnc.ast.BlockStatement? = null
-        val result = tokens.flow()
-            .parseBlock(
-                statementParser = { cur ->
-                    cur.advance() // consume "test"
-                    Success("ok", dummyStmt)
-                }
-            ) { block ->
-                capturedBlock = block
-            }
-            .then { "blockOk" }
-
-        assertTrue(result is Success)
-        assertEquals(1, capturedBlock?.statements?.size)
-        assertEquals(dummyStmt, capturedBlock?.statements?.first())
-    }
 
     @Test
     fun `step executes sub-parser and captures result on Success`() {

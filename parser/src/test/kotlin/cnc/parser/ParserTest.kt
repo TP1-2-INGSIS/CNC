@@ -422,7 +422,7 @@ class ParserTest {
             val rule = cnc.parser.rule.StatementRule.builder<Declaration>()
                 .withName("custom_let")
                 .starts { it.matches(cnc.token.CncKeywords.LET) }
-                .parse { cursor, exprParser ->
+                .parse { cursor, parser ->
                     var name = ""
                     var type = ""
                     cursor.flow()

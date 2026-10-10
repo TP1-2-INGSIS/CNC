@@ -64,7 +64,7 @@ object StandardStatementRules {
             .starts { cursor ->
                 cursor.matches(TokenType.KEYWORD, keywordList)
             }
-            .parse { cursor, expressionParser ->
+            .parse { cursor, parser ->
                 var isMutable = true
                 var name = ""
                 var type = ""
@@ -81,7 +81,7 @@ object StandardStatementRules {
                     .capture(TokenType.IDENTIFIER) { name = it.text }
                     .expect(CncSymbols.COLON)
                     .capture(TokenType.VARIABLE_TYPE) { type = it.text }
-                    .optionalStep(CncSymbols.ASSIGN, expressionParser::parse) { initializer = it }
+                    .optionalStep(CncSymbols.ASSIGN, parser::parseExpression) { initializer = it }
                     .expect(CncSymbols.SEMICOLON)
                     .thenResult {
                         if (unexpectedKw != null) {
@@ -104,14 +104,14 @@ object StandardStatementRules {
         .starts { cursor ->
             cursor.matches(TokenType.IDENTIFIER, CncSymbols.ASSIGN)
         }
-        .parse { cursor, expressionParser ->
+        .parse { cursor, parser ->
             var target = ""
             var value: Expression? = null
 
             cursor.flow()
                 .capture(TokenType.IDENTIFIER) { target = it.text }
                 .expect(CncSymbols.ASSIGN)
-                .step(expressionParser::parse) { value = it }
+                .step(parser::parseExpression) { value = it }
                 .expect(CncSymbols.SEMICOLON)
                 .then("Parsed assignment") {
                     Assignment(target = target, value = value!!)
@@ -124,7 +124,7 @@ object StandardStatementRules {
         .starts { cursor ->
             cursor.matches(TokenType.IDENTIFIER, CncSymbols.OPEN_PAREN)
         }
-        .parse { cursor, expressionParser ->
+        .parse { cursor, parser ->
             var function = ""
             val arguments = mutableListOf<Expression>()
 
@@ -135,10 +135,10 @@ object StandardStatementRules {
             if (flow is OkFlow) {
                 val next = cursor.peek()
                 if (next != null && !CncSymbols.CLOSE_PAREN.match(next.text)) {
-                    flow.step(expressionParser::parse) { arguments.add(it) }
+                    flow.step(parser::parseExpression) { arguments.add(it) }
                     while (cursor.matches(CncSymbols.COMMA)) {
                         flow.expect(CncSymbols.COMMA)
-                        flow.step(expressionParser::parse) { arguments.add(it) }
+                        flow.step(parser::parseExpression) { arguments.add(it) }
                     }
                 }
             }
@@ -156,7 +156,7 @@ object StandardStatementRules {
         .starts { cursor ->
             cursor.matches(CncKeywords.IF)
         }
-        .parseWithStatements { cursor, expressionParser, nextStatement ->
+        .parse { cursor, parser ->
             var condition: Expression? = null
             var thenBlock: BlockStatement? = null
             var elseBlock: BlockStatement? = null
@@ -164,14 +164,10 @@ object StandardStatementRules {
             val flow = cursor.flow()
                 .expect(CncKeywords.IF)
                 .expect(CncSymbols.OPEN_PAREN)
-                .step(expressionParser::parse) { condition = it }
+                .step(parser::parseExpression) { condition = it }
                 .expect(CncSymbols.CLOSE_PAREN)
-                .parseBlock(nextStatement) { thenBlock = it }
-
-            if (cursor.matches(CncKeywords.ELSE)) {
-                flow.expect(CncKeywords.ELSE)
-                    .parseBlock(nextStatement) { elseBlock = it }
-            }
+                .step(parser::parseBlock) { thenBlock = it }
+                .optionalStep(CncKeywords.ELSE, parser::parseBlock) { elseBlock = it }
 
             flow.then("Parsed if") {
                 IfStatement(condition!!, thenBlock!!, elseBlock)

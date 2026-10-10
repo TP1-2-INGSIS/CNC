@@ -1,15 +1,10 @@
 package cnc.parser.flow
 
-import cnc.ast.BlockStatement
-import cnc.ast.Expression
-import cnc.ast.Statement
 import cnc.common.Cursor
 import cnc.common.ErrorType
 import cnc.common.Failure
 import cnc.common.Result
 import cnc.common.Success
-import cnc.parser.expression.ExpressionParser
-import cnc.token.CncSymbols
 import cnc.token.Token
 import cnc.token.TokenDefinition
 import cnc.token.TokenType
@@ -45,14 +40,6 @@ sealed interface ParseFlow {
      */
     fun <R> optionalStep(trigger: TokenDefinition, operation: (Cursor<Token>) -> Result<R>, action: (R) -> Unit): ParseFlow
     fun <R> optionalStep(triggerType: TokenType, triggerText: String? = null, operation: (Cursor<Token>) -> Result<R>, action: (R) -> Unit): ParseFlow
-
-    fun parseExpression(expressionParser: ExpressionParser, action: (Expression) -> Unit): ParseFlow
-    fun optionalExpression(trigger: TokenDefinition, expressionParser: ExpressionParser, action: (Expression) -> Unit): ParseFlow
-
-    fun parseBlock(
-        statementParser: (Cursor<Token>) -> Result<Statement>,
-        action: (BlockStatement) -> Unit
-    ): ParseFlow
 
     fun <T> then(transform: () -> T): Result<T>
     fun <T> then(tag: String, transform: () -> T): Result<T>
@@ -229,37 +216,6 @@ class OkFlow(override val cursor: Cursor<Token>) : ParseFlow {
         return this
     }
 
-    override fun parseExpression(expressionParser: ExpressionParser, action: (Expression) -> Unit): ParseFlow =
-        step(expressionParser::parse, action)
-
-    override fun optionalExpression(
-        trigger: TokenDefinition,
-        expressionParser: ExpressionParser,
-        action: (Expression) -> Unit
-    ): ParseFlow = optionalStep(trigger, expressionParser::parse, action)
-
-    override fun parseBlock(
-        statementParser: (Cursor<Token>) -> Result<Statement>,
-        action: (BlockStatement) -> Unit
-    ): ParseFlow {
-        val openFlow = expect(CncSymbols.OPEN_BRACE)
-        if (openFlow is FailedFlow) return openFlow
-
-        val statements = mutableListOf<Statement>()
-        while (cursor.hasMore() && cursor.peek()?.let { CncSymbols.CLOSE_BRACE.match(it.text) } != true) {
-            when (val res = statementParser(cursor)) {
-                is Success -> statements.add(res.data)
-                is Failure -> return FailedFlow(cursor, Failure(res.msg, res.type))
-            }
-        }
-
-        val closeFlow = expect(CncSymbols.CLOSE_BRACE)
-        if (closeFlow is FailedFlow) return closeFlow
-
-        action(BlockStatement(statements))
-        return this
-    }
-
     override fun <T> then(transform: () -> T): Result<T> =
         Success("ok", transform())
 
@@ -290,13 +246,6 @@ class FailedFlow(
     override fun <R> step(operation: (Cursor<Token>) -> Result<R>, action: (R) -> Unit): ParseFlow = this
     override fun <R> optionalStep(trigger: TokenDefinition, operation: (Cursor<Token>) -> Result<R>, action: (R) -> Unit): ParseFlow = this
     override fun <R> optionalStep(triggerType: TokenType, triggerText: String?, operation: (Cursor<Token>) -> Result<R>, action: (R) -> Unit): ParseFlow = this
-
-    override fun parseExpression(expressionParser: ExpressionParser, action: (Expression) -> Unit): ParseFlow = this
-    override fun optionalExpression(trigger: TokenDefinition, expressionParser: ExpressionParser, action: (Expression) -> Unit): ParseFlow = this
-    override fun parseBlock(
-        statementParser: (Cursor<Token>) -> Result<Statement>,
-        action: (BlockStatement) -> Unit
-    ): ParseFlow = this
 
     override fun <T> then(transform: () -> T): Result<T> =
         Failure(failure.msg, failure.type)

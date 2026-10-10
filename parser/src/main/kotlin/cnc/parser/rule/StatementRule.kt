@@ -1,13 +1,20 @@
 package cnc.parser.rule
 
+import cnc.ast.BlockStatement
+import cnc.ast.Expression
 import cnc.ast.Statement
 import cnc.common.Cursor
-import cnc.common.ErrorType
-import cnc.common.Failure
 import cnc.common.Result
-import cnc.parser.expression.ExpressionParser
 import cnc.token.Token
 
+/**
+ * Capability contract representing the parsing environment provided to statement rules.
+ */
+interface StatementParser {
+    fun parseExpression(cursor: Cursor<Token>): Result<Expression>
+    fun parseStatement(cursor: Cursor<Token>): Result<Statement>
+    fun parseBlock(cursor: Cursor<Token>): Result<BlockStatement>
+}
 
 /**
  * Contract for a predictive statement parsing rule.
@@ -16,13 +23,7 @@ interface StatementRule<out T : Statement> {
     val tag: String
 
     fun canStart(cursor: Cursor<Token>): Boolean
-    fun parse(
-        cursor: Cursor<Token>,
-        expressionParser: ExpressionParser,
-        nextStatement: (Cursor<Token>) -> Result<Statement> = {
-            Failure("No statement parser provided", ErrorType.PARSER)
-        }
-    ): Result<T>
+    fun parse(cursor: Cursor<Token>, parser: StatementParser): Result<T>
 
     companion object {
         fun <T : Statement> builder(): StatementRuleBuilder<T> = StatementRuleBuilder()
@@ -36,7 +37,7 @@ interface StatementRule<out T : Statement> {
 class StatementRuleBuilder<T : Statement> {
     private var name: String = ""
     private var startsPredicate: ((Cursor<Token>) -> Boolean)? = null
-    private var parseBlock: ((cursor: Cursor<Token>, expressionParser: ExpressionParser, nextStatement: (Cursor<Token>) -> Result<Statement>) -> Result<T>)? = null
+    private var parseBlock: ((cursor: Cursor<Token>, parser: StatementParser) -> Result<T>)? = null
 
     fun withName(name: String): StatementRuleBuilder<T> = apply {
         this.name = name
@@ -48,13 +49,7 @@ class StatementRuleBuilder<T : Statement> {
 
     fun canStart(predicate: (Cursor<Token>) -> Boolean): StatementRuleBuilder<T> = starts(predicate)
 
-    fun parse(block: (cursor: Cursor<Token>, expressionParser: ExpressionParser) -> Result<T>): StatementRuleBuilder<T> = apply {
-        this.parseBlock = { cursor, expressionParser, _ -> block(cursor, expressionParser) }
-    }
-
-    fun parseWithStatements(
-        block: (cursor: Cursor<Token>, expressionParser: ExpressionParser, nextStatement: (Cursor<Token>) -> Result<Statement>) -> Result<T>
-    ): StatementRuleBuilder<T> = apply {
+    fun parse(block: (cursor: Cursor<Token>, parser: StatementParser) -> Result<T>): StatementRuleBuilder<T> = apply {
         this.parseBlock = block
     }
 
@@ -69,12 +64,8 @@ class StatementRuleBuilder<T : Statement> {
 class SimpleStatementRule<T : Statement>(
     override val tag: String,
     private val startsPredicate: (Cursor<Token>) -> Boolean,
-    private val parseBlock: (Cursor<Token>, ExpressionParser, (Cursor<Token>) -> Result<Statement>) -> Result<T>
+    private val parseBlock: (Cursor<Token>, StatementParser) -> Result<T>
 ) : StatementRule<T> {
     override fun canStart(cursor: Cursor<Token>): Boolean = startsPredicate(cursor)
-    override fun parse(
-        cursor: Cursor<Token>,
-        expressionParser: ExpressionParser,
-        nextStatement: (Cursor<Token>) -> Result<Statement>
-    ): Result<T> = parseBlock(cursor, expressionParser, nextStatement)
+    override fun parse(cursor: Cursor<Token>, parser: StatementParser): Result<T> = parseBlock(cursor, parser)
 }
