@@ -36,15 +36,35 @@ interface ExpressionParser {
  * returning pure [Result]s with zero exceptions for control flow.
  */
 class ExpressionBuilder(
-    private val recipes: Map<TokenDefinition, (Token) -> Expression>,
-    private val operators: List<OperatorDef> = emptyList(),
-    private val prefixOperators: List<PrefixOperatorDef> = emptyList(),
-    private val groupOpen: TokenDefinition? = null,
-    private val groupClose: TokenDefinition? = null,
-    private val callOpen: TokenDefinition? = groupOpen,
-    private val callClose: TokenDefinition? = groupClose,
-    private val callSeparator: TokenDefinition? = null
+    val recipes: Map<TokenDefinition, (Token) -> Expression>,
+    val operators: List<OperatorDef> = emptyList(),
+    val prefixOperators: List<PrefixOperatorDef> = emptyList(),
+    val groupOpen: TokenDefinition? = null,
+    val groupClose: TokenDefinition? = null,
+    val callOpen: TokenDefinition? = groupOpen,
+    val callClose: TokenDefinition? = groupClose,
+    val callSeparator: TokenDefinition? = null
 ) : ExpressionParser {
+
+    fun copy(
+        recipes: Map<TokenDefinition, (Token) -> Expression> = this.recipes,
+        operators: List<OperatorDef> = this.operators,
+        prefixOperators: List<PrefixOperatorDef> = this.prefixOperators,
+        groupOpen: TokenDefinition? = this.groupOpen,
+        groupClose: TokenDefinition? = this.groupClose,
+        callOpen: TokenDefinition? = this.callOpen,
+        callClose: TokenDefinition? = this.callClose,
+        callSeparator: TokenDefinition? = this.callSeparator
+    ): ExpressionBuilder = ExpressionBuilder(
+        recipes = recipes,
+        operators = operators,
+        prefixOperators = prefixOperators,
+        groupOpen = groupOpen,
+        groupClose = groupClose,
+        callOpen = callOpen,
+        callClose = callClose,
+        callSeparator = callSeparator
+    )
 
     fun build(token: Token): Result<Expression> {
         val (_, builder) = recipes.entries.firstOrNull { (definition, _) ->

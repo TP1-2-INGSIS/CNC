@@ -5,10 +5,8 @@ import cnc.ast.BlockStatement
 import cnc.ast.BooleanLiteral
 import cnc.ast.Call
 import cnc.ast.Declaration
-import cnc.ast.Identifier
+import cnc.ast.Expression
 import cnc.ast.IfStatement
-import cnc.ast.NumberLiteral
-import cnc.ast.StringLiteral
 import cnc.formatter.Formatter
 import cnc.formatter.FormatterFactory
 import cnc.interpreter.AssignmentEvaluator
@@ -27,9 +25,7 @@ import cnc.lexer.rules.StandardRules
 import cnc.lexer.rules.TrieRule
 import cnc.linter.CNCLinter
 import cnc.parser.Parser
-import cnc.parser.expression.Associativity
 import cnc.parser.expression.ExpressionBuilder
-import cnc.parser.expression.OperatorDef
 import cnc.printscript.parser.PrintScriptStatementRules
 import cnc.printscript.LanguageVersion
 import cnc.printscript.profile.InterpreterIO
@@ -41,9 +37,10 @@ import cnc.semantic.StandardExpressionTypeRules
 import cnc.semantic.SymbolTable
 import cnc.semantic.TypeResolvers
 import cnc.token.CncKeywords
-import cnc.token.CncPatterns
 import cnc.token.CncSymbols
 import cnc.token.SymbolTokenDef
+import cnc.token.Token
+import cnc.token.TokenDefinition
 import cnc.token.TokenType
 
 object PrintScript11Profile : PrintScriptProfile {
@@ -61,30 +58,18 @@ object PrintScript11Profile : PrintScriptProfile {
     }
 
     override fun createParser(): Parser {
-        val expressionBuilder = ExpressionBuilder(
-            recipes = mapOf(
-                SymbolTokenDef("true", "true") to { _ -> BooleanLiteral(true) },
-                SymbolTokenDef("false", "false") to { _ -> BooleanLiteral(false) },
-                CncPatterns.NUMBER to { token -> NumberLiteral(token.text.toDouble()) },
-                CncPatterns.STRING to { token -> StringLiteral(token.text.removeSurrounding("\"")) },
-                CncPatterns.IDENTIFIER to { token -> Identifier(token.text) }
-            ),
-            operators = listOf(
-                OperatorDef(CncSymbols.PLUS, precedence = 1),
-                OperatorDef(CncSymbols.MINUS, precedence = 1),
-                OperatorDef(CncSymbols.MULTIPLICATION, precedence = 2),
-                OperatorDef(CncSymbols.DIVISION, precedence = 2),
-                OperatorDef(CncSymbols.EXPONENT, precedence = 3, associativity = Associativity.RIGHT)
-            ),
-            groupOpen = CncSymbols.OPEN_PAREN,
-            groupClose = CncSymbols.CLOSE_PAREN,
-            callSeparator = CncSymbols.COMMA
+        val baseParser = PrintScript10Profile.createParser()
+        val baseExprBuilder = baseParser.expressionParser as ExpressionBuilder
+        val booleanRecipes: Map<TokenDefinition, (Token) -> Expression> = mapOf(
+            SymbolTokenDef("true", "true") to { _ -> BooleanLiteral(true) },
+            SymbolTokenDef("false", "false") to { _ -> BooleanLiteral(false) }
         )
-        return Parser(
+        val expressionBuilder = baseExprBuilder.copy(
+            recipes = booleanRecipes + baseExprBuilder.recipes
+        )
+        return baseParser.copy(
             rules = PrintScriptStatementRules.v1_1,
-            expressionParser = expressionBuilder,
-            blockOpen = CncSymbols.OPEN_BRACE,
-            blockClose = CncSymbols.CLOSE_BRACE
+            expressionParser = expressionBuilder
         )
     }
 
