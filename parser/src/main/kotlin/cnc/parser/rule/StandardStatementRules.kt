@@ -69,13 +69,9 @@ object StandardStatementRules {
                 var name = ""
                 var type = ""
                 var initializer: Expression? = null
-                var unexpectedKw: Token? = null
 
                 cursor.flow()
-                    .capture(TokenType.KEYWORD) { kw ->
-                        if (keywordList.none { it.match(kw.text) }) {
-                            unexpectedKw = kw
-                        }
+                    .captureAny(keywordList) { kw ->
                         isMutable = CncKeywords.LET.match(kw.text)
                     }
                     .capture(TokenType.IDENTIFIER) { name = it.text }
@@ -84,12 +80,7 @@ object StandardStatementRules {
                     .optionalStep(CncSymbols.ASSIGN, parser::parseExpression) { initializer = it }
                     .expect(CncSymbols.SEMICOLON)
                     .thenResult {
-                        if (unexpectedKw != null) {
-                            Failure(
-                                "Syntax error at row ${unexpectedKw.pos.row}, col ${unexpectedKw.pos.col}: unexpected keyword '${unexpectedKw.text}'",
-                                ErrorType.PARSER
-                            )
-                        } else if (!isMutable && initializer == null) {
+                        if (!isMutable && initializer == null) {
                             Failure("Syntax error: const declaration '$name' must have an initializer", ErrorType.PARSER)
                         } else {
                             Success("Parsed declaration", Declaration(name, type, initializer, isMutable))

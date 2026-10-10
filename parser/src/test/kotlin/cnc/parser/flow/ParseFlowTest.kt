@@ -241,5 +241,65 @@ class ParseFlowTest {
         assertTrue(result is Success)
         assertEquals(null, (result as Success).data)
     }
+
+    @Test
+    fun `captureAny captures matching token from list of definitions`() {
+        val tokens = listOf(
+            tok(TokenType.KEYWORD, "let"),
+            tok(TokenType.SYMBOL, ";")
+        ).asCursor()
+
+        val defLet = SymbolTokenDef("let", "let")
+        val defConst = SymbolTokenDef("const", "const")
+
+        var capturedKw = ""
+        val result = tokens.flow()
+            .captureAny(listOf(defLet, defConst)) { capturedKw = it.text }
+            .expect(semicolon)
+            .then { capturedKw }
+
+        assertTrue(result is Success)
+        assertEquals("let", (result as Success).data)
+    }
+
+    @Test
+    fun `captureAny fails immediately when token does not match any definition`() {
+        val tokens = listOf(
+            tok(TokenType.KEYWORD, "while"),
+            tok(TokenType.SYMBOL, ";")
+        ).asCursor()
+
+        val defLet = SymbolTokenDef("let", "let")
+        val defConst = SymbolTokenDef("const", "const")
+
+        var capturedKw = ""
+        val result = tokens.flow()
+            .captureAny(listOf(defLet, defConst)) { capturedKw = it.text }
+            .expect(semicolon)
+            .then { capturedKw }
+
+        assertTrue(result is Failure)
+        assertEquals("", capturedKw)
+        assertTrue((result as Failure).msg.contains("expected 'let or const' but found 'while'"))
+    }
+
+    @Test
+    fun `expectAny matches and advances cursor`() {
+        val tokens = listOf(
+            tok(TokenType.KEYWORD, "const"),
+            tok(TokenType.SYMBOL, ";")
+        ).asCursor()
+
+        val defLet = SymbolTokenDef("let", "let")
+        val defConst = SymbolTokenDef("const", "const")
+
+        val result = tokens.flow()
+            .expectAny(defLet, defConst)
+            .expect(semicolon)
+            .then { "ok" }
+
+        assertTrue(result is Success)
+        assertEquals("ok", (result as Success).data)
+    }
 }
 

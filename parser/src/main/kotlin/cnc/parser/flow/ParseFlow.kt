@@ -19,10 +19,14 @@ sealed interface ParseFlow {
 
     fun expect(def: TokenDefinition): ParseFlow
     fun expect(type: TokenType, text: String? = null): ParseFlow
+    fun expectAny(defs: List<TokenDefinition>): ParseFlow
+    fun expectAny(vararg defs: TokenDefinition): ParseFlow = expectAny(defs.toList())
 
     fun capture(def: TokenDefinition, action: (Token) -> Unit): ParseFlow
     fun capture(type: TokenType, action: (Token) -> Unit): ParseFlow
     fun capture(type: TokenType, text: String?, action: (Token) -> Unit): ParseFlow
+    fun captureAny(defs: List<TokenDefinition>, action: (Token) -> Unit): ParseFlow
+    fun captureAny(vararg defs: TokenDefinition, action: (Token) -> Unit): ParseFlow = captureAny(defs.toList(), action)
 
     fun optional(def: TokenDefinition, action: (Token) -> Unit = {}): ParseFlow
     fun optional(type: TokenType, action: (Token) -> Unit = {}): ParseFlow
@@ -96,6 +100,9 @@ class OkFlow(override val cursor: Cursor<Token>) : ParseFlow {
         return this
     }
 
+    override fun expectAny(defs: List<TokenDefinition>): ParseFlow =
+        captureAny(defs) { /* no-op */ }
+
     override fun capture(def: TokenDefinition, action: (Token) -> Unit): ParseFlow {
         val next = cursor.peek()
         val expected = def.symbols.firstOrNull() ?: def.alias
@@ -146,6 +153,30 @@ class OkFlow(override val cursor: Cursor<Token>) : ParseFlow {
 
     override fun capture(type: TokenType, action: (Token) -> Unit): ParseFlow =
         capture(type, null, action)
+
+    override fun captureAny(defs: List<TokenDefinition>, action: (Token) -> Unit): ParseFlow {
+        val next = cursor.peek()
+        val expected = defs.joinToString(" or ") { it.symbols.firstOrNull() ?: it.alias }
+        if (next == null) {
+            return FailedFlow(
+                cursor,
+                Failure("Syntax error: unexpected end of file, expected '$expected'", ErrorType.PARSER)
+            )
+        }
+        val matched = defs.firstOrNull { it.match(next.text) }
+        if (matched == null) {
+            return FailedFlow(
+                cursor,
+                Failure(
+                    "Syntax error at row ${next.pos.row}, col ${next.pos.col}: expected '$expected' but found '${next.text}'",
+                    ErrorType.PARSER
+                )
+            )
+        }
+        val token = cursor.advance()!!
+        action(token)
+        return this
+    }
 
     override fun optional(def: TokenDefinition, action: (Token) -> Unit): ParseFlow {
         val next = cursor.peek()
@@ -235,10 +266,12 @@ class FailedFlow(
 
     override fun expect(def: TokenDefinition): ParseFlow = this
     override fun expect(type: TokenType, text: String?): ParseFlow = this
+    override fun expectAny(defs: List<TokenDefinition>): ParseFlow = this
 
     override fun capture(def: TokenDefinition, action: (Token) -> Unit): ParseFlow = this
     override fun capture(type: TokenType, action: (Token) -> Unit): ParseFlow = this
     override fun capture(type: TokenType, text: String?, action: (Token) -> Unit): ParseFlow = this
+    override fun captureAny(defs: List<TokenDefinition>, action: (Token) -> Unit): ParseFlow = this
 
     override fun optional(def: TokenDefinition, action: (Token) -> Unit): ParseFlow = this
     override fun optional(type: TokenType, action: (Token) -> Unit): ParseFlow = this
