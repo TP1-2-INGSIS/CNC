@@ -13,7 +13,6 @@ import cnc.common.Success
 import cnc.parser.cursor.flow
 import cnc.parser.cursor.matches
 import cnc.parser.flow.OkFlow
-import cnc.parser.flow.parseBlock
 import cnc.token.CncKeywords
 import cnc.token.CncSymbols
 import cnc.token.Token
