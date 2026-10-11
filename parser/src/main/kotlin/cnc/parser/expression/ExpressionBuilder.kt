@@ -11,8 +11,13 @@ import cnc.common.Failure
 import cnc.common.Result
 import cnc.common.Success
 import cnc.common.asCursor
+import cnc.token.SymbolTokenDef
 import cnc.token.Token
 import cnc.token.TokenDefinition
+
+private val DEFAULT_GROUP_OPEN = SymbolTokenDef("group_open", "(")
+private val DEFAULT_GROUP_CLOSE = SymbolTokenDef("group_close", ")")
+private val DEFAULT_CALL_SEPARATOR = SymbolTokenDef("call_separator", ",")
 
 enum class Associativity { LEFT, RIGHT }
 
@@ -36,15 +41,42 @@ interface ExpressionParser {
  * returning pure [Result]s with zero exceptions for control flow.
  */
 class ExpressionBuilder(
-    val recipes: Map<TokenDefinition, (Token) -> Expression>,
+    val recipes: Map<TokenDefinition, (Token) -> Expression> = emptyMap(),
     val operators: List<OperatorDef> = emptyList(),
     val prefixOperators: List<PrefixOperatorDef> = emptyList(),
-    val groupOpen: TokenDefinition? = null,
-    val groupClose: TokenDefinition? = null,
+    val groupOpen: TokenDefinition? = DEFAULT_GROUP_OPEN,
+    val groupClose: TokenDefinition? = DEFAULT_GROUP_CLOSE,
     val callOpen: TokenDefinition? = groupOpen,
     val callClose: TokenDefinition? = groupClose,
-    val callSeparator: TokenDefinition? = null
+    val callSeparator: TokenDefinition? = DEFAULT_CALL_SEPARATOR
 ) : ExpressionParser {
+
+    fun addRecipe(tokenDef: TokenDefinition, recipe: (Token) -> Expression): ExpressionBuilder =
+        copy(recipes = recipes + (tokenDef to recipe))
+
+    fun addRecipeFirst(tokenDef: TokenDefinition, recipe: (Token) -> Expression): ExpressionBuilder =
+        copy(recipes = mapOf(tokenDef to recipe) + recipes)
+
+    fun addRecipes(newRecipes: Map<TokenDefinition, (Token) -> Expression>): ExpressionBuilder =
+        copy(recipes = recipes + newRecipes)
+
+    fun addRecipesFirst(newRecipes: Map<TokenDefinition, (Token) -> Expression>): ExpressionBuilder =
+        copy(recipes = newRecipes + recipes)
+
+    fun addOperator(operator: OperatorDef): ExpressionBuilder =
+        copy(operators = operators + operator)
+
+    fun addOperators(newOperators: List<OperatorDef>): ExpressionBuilder =
+        copy(operators = operators + newOperators)
+
+    fun addPrefixOperator(operator: PrefixOperatorDef): ExpressionBuilder =
+        copy(prefixOperators = prefixOperators + operator)
+
+    fun withGrouping(open: TokenDefinition?, close: TokenDefinition?): ExpressionBuilder =
+        copy(groupOpen = open, groupClose = close)
+
+    fun withCalls(open: TokenDefinition?, close: TokenDefinition?, separator: TokenDefinition?): ExpressionBuilder =
+        copy(callOpen = open, callClose = close, callSeparator = separator)
 
     fun copy(
         recipes: Map<TokenDefinition, (Token) -> Expression> = this.recipes,

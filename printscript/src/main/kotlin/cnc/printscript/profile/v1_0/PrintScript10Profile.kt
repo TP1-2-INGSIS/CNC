@@ -14,6 +14,7 @@ import cnc.interpreter.BuiltinMethodFactory
 import cnc.interpreter.CallEvaluator
 import cnc.interpreter.DeclarationEvaluator
 import cnc.interpreter.Interpreter
+import cnc.interpreter.InterpreterBuilder
 import cnc.interpreter.StandardBinaryOperations
 import cnc.interpreter.StandardUnaryOperations
 import cnc.interpreter.UnaryOperation
@@ -45,35 +46,33 @@ import cnc.token.TokenType
 object PrintScript10Profile : PrintScriptProfile {
     override val version: LanguageVersion = LanguageVersion.V1_0
 
-    override fun createLexer(): Lexer {
+    fun createLexer(keywords: Map<String, TokenType> = CncKeywords.v1_0): Lexer {
         val rules = listOf(
             StandardRules.whitespace(),
             StandardRules.doubleQuotedString(TokenType.STRING),
             StandardRules.decimalNumber(TokenType.NUMBER),
-            StandardRules.standardIdentifier(keywords = CncKeywords.v1_0),
+            StandardRules.standardIdentifier(keywords = keywords),
             TrieRule(CncSymbols.all)
         )
         return Lexer(rules)
     }
 
+    override fun createLexer(): Lexer = createLexer(CncKeywords.v1_0)
+
     override fun createParser(): Parser {
-        val expressionBuilder = ExpressionBuilder(
-            recipes = mapOf(
+        val expressionBuilder = ExpressionBuilder()
+            .addRecipes(mapOf(
                 CncPatterns.NUMBER to { token -> NumberLiteral(token.text.toDouble()) },
                 CncPatterns.STRING to { token -> StringLiteral(token.text.removeSurrounding("\"")) },
                 CncPatterns.IDENTIFIER to { token -> Identifier(token.text) }
-            ),
-            operators = listOf(
+            ))
+            .addOperators(listOf(
                 OperatorDef(CncSymbols.PLUS, precedence = 1),
                 OperatorDef(CncSymbols.MINUS, precedence = 1),
                 OperatorDef(CncSymbols.MULTIPLICATION, precedence = 2),
                 OperatorDef(CncSymbols.DIVISION, precedence = 2),
                 OperatorDef(CncSymbols.EXPONENT, precedence = 3, associativity = Associativity.RIGHT)
-            ),
-            groupOpen = CncSymbols.OPEN_PAREN,
-            groupClose = CncSymbols.CLOSE_PAREN,
-            callSeparator = CncSymbols.COMMA
-        )
+            ))
         return Parser(
             rules = PrintScriptStatementRules.v1_0,
             expressionParser = expressionBuilder,
@@ -82,7 +81,7 @@ object PrintScript10Profile : PrintScriptProfile {
         )
     }
 
-    override fun createSemanticAnalyzer(): SemanticAnalyzer {
+    fun createSemanticContext(): DefaultSemanticContext {
         val symbolTable = SymbolTable(validTypes = setOf("number", "string"))
         val binaryRules = mapOf(
             "+" to TypeResolvers.additionOrConcat,
@@ -93,16 +92,18 @@ object PrintScript10Profile : PrintScriptProfile {
         val unaryRules = mapOf(
             "-" to TypeResolvers.unaryNumeric("-")
         )
-        val context = DefaultSemanticContext(
+        return DefaultSemanticContext(
             symbolTable = symbolTable,
             binaryRules = binaryRules,
             unaryRules = unaryRules,
             expressionRules = StandardExpressionTypeRules.v1_0
         )
-        return SemanticAnalyzer(context)
     }
 
-    override fun createInterpreter(io: InterpreterIO): Interpreter {
+    override fun createSemanticAnalyzer(): SemanticAnalyzer =
+        SemanticAnalyzer(createSemanticContext())
+
+    fun createInterpreterBuilder(io: InterpreterIO): InterpreterBuilder {
         val builtins = mapOf(
             "println" to BuiltinMethodFactory.println(io.output)
         )
@@ -123,8 +124,10 @@ object PrintScript10Profile : PrintScriptProfile {
                 "+" to UnaryOperation(StandardUnaryOperations::positive)
             ))
             .registerBuiltins(builtins)
-            .build()
     }
+
+    override fun createInterpreter(io: InterpreterIO): Interpreter =
+        createInterpreterBuilder(io).build()
 
     override fun createFormatter(configJson: String?): Formatter =
         FormatterFactory.create(configJson)

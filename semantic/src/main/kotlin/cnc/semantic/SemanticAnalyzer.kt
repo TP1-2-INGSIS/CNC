@@ -30,11 +30,23 @@ interface SemanticContext {
  * Implementación de SemanticContext que envuelve SymbolTable y ExpressionTypeResolver.
  */
 class DefaultSemanticContext(
-    private val symbolTable: SymbolTable,
-    private val binaryRules: Map<String, BinaryOpResolver>,
-    private val unaryRules: Map<String, UnaryOpResolver> = mapOf("-" to TypeResolvers.unaryNumeric("-")),
-    private val expressionRules: Map<kotlin.reflect.KClass<out Expression>, ExpressionTypeRule<out Expression>> = StandardExpressionTypeRules.v1_1
+    val symbolTable: SymbolTable,
+    val binaryRules: Map<String, BinaryOpResolver>,
+    val unaryRules: Map<String, UnaryOpResolver> = mapOf("-" to TypeResolvers.unaryNumeric("-")),
+    val expressionRules: Map<kotlin.reflect.KClass<out Expression>, ExpressionTypeRule<out Expression>> = StandardExpressionTypeRules.v1_1
 ) : SemanticContext {
+
+    fun copy(
+        symbolTable: SymbolTable = this.symbolTable,
+        binaryRules: Map<String, BinaryOpResolver> = this.binaryRules,
+        unaryRules: Map<String, UnaryOpResolver> = this.unaryRules,
+        expressionRules: Map<kotlin.reflect.KClass<out Expression>, ExpressionTypeRule<out Expression>> = this.expressionRules
+    ): DefaultSemanticContext = DefaultSemanticContext(
+        symbolTable = symbolTable,
+        binaryRules = binaryRules,
+        unaryRules = unaryRules,
+        expressionRules = expressionRules
+    )
 
     override fun isValidType(type: String): Boolean = symbolTable.isValidType(type)
     override fun isDeclared(name: String): Boolean = symbolTable.isDeclared(name)

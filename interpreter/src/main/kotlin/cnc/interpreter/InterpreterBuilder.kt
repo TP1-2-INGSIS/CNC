@@ -41,6 +41,15 @@ class InterpreterBuilder {
         builtins.putAll(builtinsMap)
     }
 
+    fun copy(): InterpreterBuilder {
+        val copy = InterpreterBuilder()
+        copy.statementEvaluators.putAll(this.statementEvaluators)
+        copy.binaryOperations.putAll(this.binaryOperations)
+        copy.unaryOperations.putAll(this.unaryOperations)
+        copy.builtins.putAll(this.builtins)
+        return copy
+    }
+
     fun build(): Interpreter {
         val exprEvaluator = ExpressionEvaluator(
             binaryOperations = binaryOperations.toMap(),
