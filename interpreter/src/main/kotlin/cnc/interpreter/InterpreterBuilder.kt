@@ -1,6 +1,7 @@
 package cnc.interpreter
 
 import cnc.ast.Statement
+import cnc.common.BuiltinMethod
 import kotlin.reflect.KClass
 
 class InterpreterBuilder {

@@ -5,6 +5,7 @@ import cnc.ast.BlockStatement
 import cnc.ast.Call
 import cnc.ast.Declaration
 import cnc.ast.IfStatement
+import cnc.common.BuiltinMethod
 
 internal object TestInterpreterFactory {
     fun create(

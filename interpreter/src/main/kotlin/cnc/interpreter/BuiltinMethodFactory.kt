@@ -7,9 +7,6 @@ import cnc.common.Failure
 import cnc.common.Result
 import cnc.common.Success
 
-typealias BuiltinMethod = cnc.common.BuiltinMethod
-typealias BuiltinMethodBuilder = cnc.common.BuiltinMethodBuilder
-
 object BuiltinMethodFactory {
 
     fun builder(): BuiltinMethodBuilder = BuiltinMethodBuilder()
