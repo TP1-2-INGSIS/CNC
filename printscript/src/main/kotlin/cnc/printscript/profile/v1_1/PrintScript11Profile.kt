@@ -44,21 +44,29 @@ object PrintScript11Profile : PrintScriptProfile {
         )
     }
 
-    override fun createSemanticAnalyzer(): SemanticAnalyzer {
-        val baseContext = PrintScript10Profile.createSemanticContext()
-        val context = baseContext.copy(
-            symbolTable = SymbolTable(baseContext.symbolTable.validTypes + "boolean"),
-            expressionRules = StandardExpressionTypeRules.v1_1
-        )
-        return SemanticAnalyzer(context)
-    }
-
-    override fun createInterpreter(io: InterpreterIO): Interpreter {
-        val builtins = mapOf(
-            "println" to BuiltinMethodFactory.println(io.output),
+    fun createBuiltins(io: InterpreterIO = InterpreterIO()): Map<String, cnc.common.BuiltinMethod> =
+        PrintScript10Profile.createBuiltins(io) + mapOf(
             "readInput" to BuiltinMethodFactory.readInput(io.input),
             "readEnv" to BuiltinMethodFactory.readEnv(io.envProvider)
         )
+
+    override fun createSemanticAnalyzer(): SemanticAnalyzer {
+        val builtins = createBuiltins()
+        val baseContext = PrintScript10Profile.createSemanticContext(builtins)
+        val context = baseContext.copy(
+            symbolTable = SymbolTable(baseContext.symbolTable.validTypes + "boolean"),
+            unaryRules = baseContext.unaryRules + mapOf("!" to cnc.semantic.TypeResolvers.booleanNot),
+            expressionRules = StandardExpressionTypeRules.v1_1,
+            builtins = builtins
+        )
+        return SemanticAnalyzer(
+            context = context,
+            statementValidators = cnc.semantic.StandardStatementValidators.v1_1
+        )
+    }
+
+    override fun createInterpreter(io: InterpreterIO): Interpreter {
+        val builtins = createBuiltins(io)
         return PrintScript10Profile.createInterpreterBuilder(io)
             .registerBuiltins(builtins)
             .registerEvaluator(Call::class, CallEvaluator(builtins))

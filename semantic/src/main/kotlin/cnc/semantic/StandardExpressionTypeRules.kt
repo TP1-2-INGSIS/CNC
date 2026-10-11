@@ -14,6 +14,8 @@ fun interface ExpressionTypeRule<T : Expression> {
 
 interface ExpressionTypeContext {
     fun typeOf(name: String): String?
+    fun isFunctionDeclared(name: String): Boolean = true
+    fun functionReturnType(name: String): String? = null
     fun resolve(expr: Expression): Result<String>
     fun resolveBinary(operator: String, leftType: String, rightType: String): Result<String>
     fun resolveUnary(operator: String, operandType: String): Result<String>
@@ -54,10 +56,16 @@ object StandardExpressionTypeRules {
             val res = ctx.resolve(arg)
             if (res is Failure) return@ExpressionTypeRule res
         }
-        if (expr.function == "readInput" || expr.function == "readEnv") {
-            Success("ok", "string")
+        if (!ctx.isFunctionDeclared(expr.function)) {
+            return@ExpressionTypeRule Failure("Función no declarada o desconocida: '${expr.function}'", ErrorType.SEMANTIC)
+        }
+        val returnType = ctx.functionReturnType(expr.function)
+            ?: if (expr.function == "readInput" || expr.function == "readEnv") "string" else null
+
+        if (returnType != null) {
+            Success("ok", returnType)
         } else {
-            Failure("Función no reconocida o no retorna valor: '${expr.function}'", ErrorType.SEMANTIC)
+            Failure("La función '${expr.function}' no retorna un valor y no puede usarse en una expresión", ErrorType.SEMANTIC)
         }
     }
 

@@ -81,13 +81,18 @@ object PrintScript10Profile : PrintScriptProfile {
         )
     }
 
-    fun createSemanticContext(): DefaultSemanticContext {
+    fun createBuiltins(io: InterpreterIO = InterpreterIO()): Map<String, cnc.common.BuiltinMethod> = mapOf(
+        "println" to BuiltinMethodFactory.println(io.output)
+    )
+
+    fun createSemanticContext(builtins: Map<String, cnc.common.BuiltinMethod> = createBuiltins()): DefaultSemanticContext {
         val symbolTable = SymbolTable(validTypes = setOf("number", "string"))
         val binaryRules = mapOf(
             "+" to TypeResolvers.additionOrConcat,
             "-" to TypeResolvers.numericOnly("-"),
             "*" to TypeResolvers.numericOnly("*"),
-            "/" to TypeResolvers.numericOnly("/")
+            "/" to TypeResolvers.numericOnly("/"),
+            "**" to TypeResolvers.numericOnly("**")
         )
         val unaryRules = mapOf(
             "-" to TypeResolvers.unaryNumeric("-")
@@ -96,17 +101,19 @@ object PrintScript10Profile : PrintScriptProfile {
             symbolTable = symbolTable,
             binaryRules = binaryRules,
             unaryRules = unaryRules,
-            expressionRules = StandardExpressionTypeRules.v1_0
+            expressionRules = StandardExpressionTypeRules.v1_0,
+            builtins = builtins
         )
     }
 
     override fun createSemanticAnalyzer(): SemanticAnalyzer =
-        SemanticAnalyzer(createSemanticContext())
+        SemanticAnalyzer(
+            context = createSemanticContext(),
+            statementValidators = cnc.semantic.StandardStatementValidators.v1_0
+        )
 
     fun createInterpreterBuilder(io: InterpreterIO): InterpreterBuilder {
-        val builtins = mapOf(
-            "println" to BuiltinMethodFactory.println(io.output)
-        )
+        val builtins = createBuiltins(io)
         return Interpreter.builder()
             .registerEvaluators(mapOf(
                 Declaration::class to DeclarationEvaluator(),

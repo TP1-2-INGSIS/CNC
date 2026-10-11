@@ -257,4 +257,118 @@ class SemanticAnalyzerTest {
         assertTrue(results[1] is Failure)
         assertTrue((results[1] as Failure).msg.contains("Variable 'secret' no declarada"))
     }
+
+    @Test
+    fun `unknown function in Call fails when builtins are registered`() {
+        val testBuiltins = mapOf(
+            "println" to object : cnc.common.BuiltinMethod {
+                override val name = "println"
+                override fun execute(arguments: List<Any?>) = Success("ok", Unit)
+            }
+        )
+        val strictContext = DefaultSemanticContext(symbolTable, binaryRules, builtins = testBuiltins)
+        val strictAnalyzer = SemanticAnalyzer(strictContext)
+
+        val call = Call("unknownFunc", listOf(NumberLiteral(42.0)))
+        val results = strictAnalyzer.analyze(sequenceOf(call)).toList()
+
+        assertEquals(1, results.size)
+        assertTrue(results[0] is Failure)
+        assertTrue((results[0] as Failure).msg.contains("Función desconocida o no declarada: 'unknownFunc'"))
+    }
+
+    @Test
+    fun `calling void function in CallExpression fails`() {
+        val testBuiltins = mapOf(
+            "println" to object : cnc.common.BuiltinMethod {
+                override val name = "println"
+                override val returnType: String? = null
+                override fun execute(arguments: List<Any?>) = Success("ok", Unit)
+            }
+        )
+        val strictContext = DefaultSemanticContext(symbolTable, binaryRules, builtins = testBuiltins)
+        val strictAnalyzer = SemanticAnalyzer(strictContext)
+
+        val decl = Declaration("x", "string", CallExpression("println", listOf(StringLiteral("hi"))))
+        val results = strictAnalyzer.analyze(sequenceOf(decl)).toList()
+
+        assertEquals(1, results.size)
+        assertTrue(results[0] is Failure)
+        assertTrue((results[0] as Failure).msg.contains("no retorna un valor"))
+    }
+
+    @Test
+    fun `calling returning function in CallExpression succeeds`() {
+        val testBuiltins = mapOf(
+            "readInput" to object : cnc.common.BuiltinMethod {
+                override val name = "readInput"
+                override val returnType = "string"
+                override fun execute(arguments: List<Any?>) = Success("ok", "test")
+            }
+        )
+        val strictContext = DefaultSemanticContext(symbolTable, binaryRules, builtins = testBuiltins)
+        val strictAnalyzer = SemanticAnalyzer(strictContext)
+
+        val decl = Declaration("name", "string", CallExpression("readInput", listOf(StringLiteral("prompt:"))))
+        val results = strictAnalyzer.analyze(sequenceOf(decl)).toList()
+
+        assertEquals(1, results.size)
+        assertTrue(results[0] is Success)
+    }
+
+    @Test
+    fun `logical not operator succeeds on boolean and fails on non-boolean`() {
+        val table = SymbolTable(validTypes = setOf("number", "string", "boolean"))
+        val unaryWithNot = mapOf(
+            "-" to TypeResolvers.unaryNumeric("-"),
+            "!" to TypeResolvers.booleanNot
+        )
+        val ctx = DefaultSemanticContext(table, binaryRules, unaryRules = unaryWithNot)
+        val notAnalyzer = SemanticAnalyzer(ctx)
+
+        val validNot = Declaration("flag", "boolean", UnaryExpression("!", BooleanLiteral(false)))
+        val resultsValid = notAnalyzer.analyze(sequenceOf(validNot)).toList()
+        assertEquals(1, resultsValid.size)
+        assertTrue(resultsValid[0] is Success)
+
+        val invalidNot = Declaration("badFlag", "boolean", UnaryExpression("!", NumberLiteral(10.0)))
+        val resultsInvalid = notAnalyzer.analyze(sequenceOf(invalidNot)).toList()
+        assertEquals(1, resultsInvalid.size)
+        assertTrue(resultsInvalid[0] is Failure)
+        assertTrue((resultsInvalid[0] as Failure).msg.contains("Operador unario '!' requiere 'boolean'"))
+    }
+
+    @Test
+    fun `PrintScript 1_0 analyzer rejects IfStatement because validator is not registered`() {
+        val v10Analyzer = SemanticAnalyzer(context, statementValidators = StandardStatementValidators.v1_0)
+        val ifStmt = IfStatement(
+            condition = BooleanLiteral(true),
+            thenBlock = BlockStatement(emptyList())
+        )
+        val results = v10Analyzer.analyze(sequenceOf(ifStmt)).toList()
+        assertEquals(1, results.size)
+        assertTrue(results[0] is Failure)
+        assertTrue((results[0] as Failure).msg.contains("No hay validador semántico registrado para la sentencia: IfStatement"))
+    }
+
+    @Test
+    fun `custom statement validator can be composed into SemanticAnalyzer`() {
+        var customValidatorCalled = false
+        val customCallValidator = StatementValidator<Call> { _, _, _ ->
+            customValidatorCalled = true
+            Success("ok", Unit)
+        }
+
+        val customValidators = StandardStatementValidators.v1_1 + mapOf(
+            Call::class to customCallValidator
+        )
+        val customAnalyzer = SemanticAnalyzer(context, statementValidators = customValidators)
+
+        val call = Call("anyCall", emptyList())
+        val results = customAnalyzer.analyze(sequenceOf(call)).toList()
+
+        assertEquals(1, results.size)
+        assertTrue(results[0] is Success)
+        assertTrue(customValidatorCalled)
+    }
 }
