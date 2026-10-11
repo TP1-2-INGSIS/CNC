@@ -13,15 +13,16 @@ import cnc.common.Success
 import kotlin.reflect.KClass
 
 fun interface StatementValidator<T : Statement> {
-    fun validate(statement: T, context: SemanticContext, analyzer: SemanticAnalyzer): Result<Unit>
+    fun validate(statement: T, context: SemanticContext): Result<Unit>
 }
 
 class DeclarationValidator : StatementValidator<Declaration> {
-    override fun validate(statement: Declaration, context: SemanticContext, analyzer: SemanticAnalyzer): Result<Unit> {
-        if (context.isDeclaredInCurrentScope(statement.name)) {
+    override fun validate(statement: Declaration, context: SemanticContext): Result<Unit> {
+        val symbolTable = context.symbolTable
+        if (symbolTable.isDeclaredInCurrentScope(statement.name)) {
             return Failure("Variable '${statement.name}' ya fue declarada en este ámbito", ErrorType.SEMANTIC)
         }
-        if (!context.isValidType(statement.type)) {
+        if (!symbolTable.isValidType(statement.type)) {
             return Failure("Tipo '${statement.type}' no reconocido", ErrorType.SEMANTIC)
         }
         val value = statement.value
@@ -36,16 +37,17 @@ class DeclarationValidator : StatementValidator<Declaration> {
                 }
             }
         }
-        return context.declare(statement.name, statement.type, statement.isMutable)
+        return symbolTable.declare(statement.name, statement.type, statement.isMutable)
     }
 }
 
 class AssignmentValidator : StatementValidator<Assignment> {
-    override fun validate(statement: Assignment, context: SemanticContext, analyzer: SemanticAnalyzer): Result<Unit> {
-        val targetType = context.typeOf(statement.target)
+    override fun validate(statement: Assignment, context: SemanticContext): Result<Unit> {
+        val symbolTable = context.symbolTable
+        val targetType = symbolTable.typeOf(statement.target)
             ?: return Failure("Variable '${statement.target}' no declarada", ErrorType.SEMANTIC)
 
-        val isMutable = context.isMutable(statement.target) ?: true
+        val isMutable = symbolTable.isMutable(statement.target) ?: true
         if (!isMutable) {
             return Failure("No se puede reasignar la constante '${statement.target}'", ErrorType.SEMANTIC)
         }
@@ -65,8 +67,8 @@ class AssignmentValidator : StatementValidator<Assignment> {
 }
 
 class CallValidator : StatementValidator<Call> {
-    override fun validate(statement: Call, context: SemanticContext, analyzer: SemanticAnalyzer): Result<Unit> {
-        if (!context.isFunctionDeclared(statement.function)) {
+    override fun validate(statement: Call, context: SemanticContext): Result<Unit> {
+        if (!context.analyzer.isFunctionDeclared(statement.function)) {
             return Failure("Función desconocida o no declarada: '${statement.function}'", ErrorType.SEMANTIC)
         }
         for (arg in statement.arguments) {
@@ -78,10 +80,10 @@ class CallValidator : StatementValidator<Call> {
 }
 
 class BlockValidator : StatementValidator<BlockStatement> {
-    override fun validate(statement: BlockStatement, context: SemanticContext, analyzer: SemanticAnalyzer): Result<Unit> {
+    override fun validate(statement: BlockStatement, context: SemanticContext): Result<Unit> {
         val childContext = context.createChildScope()
         for (stmt in statement.statements) {
-            val res = analyzer.validate(stmt, childContext)
+            val res = childContext.analyzer.validate(stmt, childContext)
             if (res is Failure) return res
         }
         return Success("ok", Unit)
@@ -89,19 +91,19 @@ class BlockValidator : StatementValidator<BlockStatement> {
 }
 
 class IfValidator : StatementValidator<IfStatement> {
-    override fun validate(statement: IfStatement, context: SemanticContext, analyzer: SemanticAnalyzer): Result<Unit> {
+    override fun validate(statement: IfStatement, context: SemanticContext): Result<Unit> {
         val condType = context.resolveExpressionType(statement.condition)
         if (condType is Failure) return Failure(condType.msg, condType.type)
         if ((condType as Success).data != "boolean") {
             return Failure("La condición del 'if' debe ser de tipo 'boolean', pero se obtuvo '${condType.data}'", ErrorType.SEMANTIC)
         }
 
-        val thenResult = analyzer.validate(statement.thenBlock, context)
+        val thenResult = context.analyzer.validate(statement.thenBlock, context)
         if (thenResult is Failure) return thenResult
 
         val elseBlock = statement.elseBlock
         if (elseBlock != null) {
-            val elseResult = analyzer.validate(elseBlock, context)
+            val elseResult = context.analyzer.validate(elseBlock, context)
             if (elseResult is Failure) return elseResult
         }
 

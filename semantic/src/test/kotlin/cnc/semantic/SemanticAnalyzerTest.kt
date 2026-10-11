@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
 class SemanticAnalyzerTest {
 
     private lateinit var symbolTable: SymbolTable
-    private lateinit var context: DefaultSemanticContext
+    private lateinit var expressionResolver: ExpressionTypeResolver
     private lateinit var analyzer: SemanticAnalyzer
 
     private val binaryRules = mapOf(
@@ -23,8 +23,15 @@ class SemanticAnalyzerTest {
     @BeforeEach
     fun setUp() {
         symbolTable = SymbolTable(validTypes = setOf("number", "string"))
-        context = DefaultSemanticContext(symbolTable, binaryRules)
-        analyzer = SemanticAnalyzer(context)
+        expressionResolver = ExpressionTypeResolver(
+            rules = StandardExpressionTypeRules.v1_1,
+            binaryRules = binaryRules,
+            unaryRules = mapOf("-" to TypeResolvers.unaryNumeric("-"))
+        )
+        analyzer = SemanticAnalyzer(
+            symbolTable = symbolTable,
+            expressionResolver = expressionResolver
+        )
     }
 
     @Test
@@ -141,8 +148,14 @@ class SemanticAnalyzerTest {
         val extendedRules = StandardExpressionTypeRules.v1_1 + mapOf(
             CustomBooleanLiteral::class to booleanRule
         )
-        val customContext = DefaultSemanticContext(extendedTable, binaryRules, expressionRules = extendedRules)
-        val customAnalyzer = SemanticAnalyzer(customContext)
+        val customResolver = ExpressionTypeResolver(
+            rules = extendedRules,
+            binaryRules = binaryRules
+        )
+        val customAnalyzer = SemanticAnalyzer(
+            symbolTable = extendedTable,
+            expressionResolver = customResolver
+        )
 
         val decl = Declaration("flag", "boolean", CustomBooleanLiteral(true))
         val results = customAnalyzer.analyze(sequenceOf(decl)).toList()
@@ -174,8 +187,7 @@ class SemanticAnalyzerTest {
     @Test
     fun `same variable name declared in then and else blocks succeeds`() {
         val table = SymbolTable(validTypes = setOf("number", "string", "boolean"))
-        val ctx = DefaultSemanticContext(table, binaryRules)
-        val ifAnalyzer = SemanticAnalyzer(ctx)
+        val ifAnalyzer = SemanticAnalyzer(symbolTable = table, expressionResolver = expressionResolver)
 
         val ifStmt = IfStatement(
             condition = BooleanLiteral(true),
@@ -196,8 +208,7 @@ class SemanticAnalyzerTest {
     @Test
     fun `shadowing of outer variable inside block succeeds`() {
         val table = SymbolTable(validTypes = setOf("number", "string", "boolean"))
-        val ctx = DefaultSemanticContext(table, binaryRules)
-        val ifAnalyzer = SemanticAnalyzer(ctx)
+        val ifAnalyzer = SemanticAnalyzer(symbolTable = table, expressionResolver = expressionResolver)
 
         val outerDecl = Declaration("x", "number", NumberLiteral(1.0))
         val ifStmt = IfStatement(
@@ -266,8 +277,8 @@ class SemanticAnalyzerTest {
                 override fun execute(arguments: List<Any?>) = Success("ok", Unit)
             }
         )
-        val strictContext = DefaultSemanticContext(symbolTable, binaryRules, builtins = testBuiltins)
-        val strictAnalyzer = SemanticAnalyzer(strictContext)
+        val strictResolver = ExpressionTypeResolver(binaryRules = binaryRules, builtins = testBuiltins)
+        val strictAnalyzer = SemanticAnalyzer(symbolTable = symbolTable, expressionResolver = strictResolver)
 
         val call = Call("unknownFunc", listOf(NumberLiteral(42.0)))
         val results = strictAnalyzer.analyze(sequenceOf(call)).toList()
@@ -286,8 +297,8 @@ class SemanticAnalyzerTest {
                 override fun execute(arguments: List<Any?>) = Success("ok", Unit)
             }
         )
-        val strictContext = DefaultSemanticContext(symbolTable, binaryRules, builtins = testBuiltins)
-        val strictAnalyzer = SemanticAnalyzer(strictContext)
+        val strictResolver = ExpressionTypeResolver(binaryRules = binaryRules, builtins = testBuiltins)
+        val strictAnalyzer = SemanticAnalyzer(symbolTable = symbolTable, expressionResolver = strictResolver)
 
         val decl = Declaration("x", "string", CallExpression("println", listOf(StringLiteral("hi"))))
         val results = strictAnalyzer.analyze(sequenceOf(decl)).toList()
@@ -306,8 +317,8 @@ class SemanticAnalyzerTest {
                 override fun execute(arguments: List<Any?>) = Success("ok", "test")
             }
         )
-        val strictContext = DefaultSemanticContext(symbolTable, binaryRules, builtins = testBuiltins)
-        val strictAnalyzer = SemanticAnalyzer(strictContext)
+        val strictResolver = ExpressionTypeResolver(binaryRules = binaryRules, builtins = testBuiltins)
+        val strictAnalyzer = SemanticAnalyzer(symbolTable = symbolTable, expressionResolver = strictResolver)
 
         val decl = Declaration("name", "string", CallExpression("readInput", listOf(StringLiteral("prompt:"))))
         val results = strictAnalyzer.analyze(sequenceOf(decl)).toList()
@@ -323,8 +334,8 @@ class SemanticAnalyzerTest {
             "-" to TypeResolvers.unaryNumeric("-"),
             "!" to TypeResolvers.booleanNot
         )
-        val ctx = DefaultSemanticContext(table, binaryRules, unaryRules = unaryWithNot)
-        val notAnalyzer = SemanticAnalyzer(ctx)
+        val notResolver = ExpressionTypeResolver(binaryRules = binaryRules, unaryRules = unaryWithNot)
+        val notAnalyzer = SemanticAnalyzer(symbolTable = table, expressionResolver = notResolver)
 
         val validNot = Declaration("flag", "boolean", UnaryExpression("!", BooleanLiteral(false)))
         val resultsValid = notAnalyzer.analyze(sequenceOf(validNot)).toList()
@@ -340,7 +351,11 @@ class SemanticAnalyzerTest {
 
     @Test
     fun `PrintScript 1_0 analyzer rejects IfStatement because validator is not registered`() {
-        val v10Analyzer = SemanticAnalyzer(context, statementValidators = StandardStatementValidators.v1_0)
+        val v10Analyzer = SemanticAnalyzer(
+            symbolTable = symbolTable,
+            expressionResolver = expressionResolver,
+            statementValidators = StandardStatementValidators.v1_0
+        )
         val ifStmt = IfStatement(
             condition = BooleanLiteral(true),
             thenBlock = BlockStatement(emptyList())
@@ -354,7 +369,7 @@ class SemanticAnalyzerTest {
     @Test
     fun `custom statement validator can be composed into SemanticAnalyzer`() {
         var customValidatorCalled = false
-        val customCallValidator = StatementValidator<Call> { _, _, _ ->
+        val customCallValidator = StatementValidator<Call> { _, _ ->
             customValidatorCalled = true
             Success("ok", Unit)
         }
@@ -362,7 +377,11 @@ class SemanticAnalyzerTest {
         val customValidators = StandardStatementValidators.v1_1 + mapOf(
             Call::class to customCallValidator
         )
-        val customAnalyzer = SemanticAnalyzer(context, statementValidators = customValidators)
+        val customAnalyzer = SemanticAnalyzer(
+            symbolTable = symbolTable,
+            expressionResolver = expressionResolver,
+            statementValidators = customValidators
+        )
 
         val call = Call("anyCall", emptyList())
         val results = customAnalyzer.analyze(sequenceOf(call)).toList()
@@ -370,5 +389,16 @@ class SemanticAnalyzerTest {
         assertEquals(1, results.size)
         assertTrue(results[0] is Success)
         assertTrue(customValidatorCalled)
+    }
+
+    @Test
+    fun `SemanticContext encapsulates symbolTable and analyzer and branches scopes cleanly`() {
+        val rootContext = SemanticContext(symbolTable, analyzer)
+        assertEquals(symbolTable, rootContext.symbolTable)
+        assertEquals(analyzer, rootContext.analyzer)
+
+        val childContext = rootContext.createChildScope()
+        assertEquals(analyzer, childContext.analyzer)
+        assertNotEquals(rootContext.symbolTable, childContext.symbolTable)
     }
 }

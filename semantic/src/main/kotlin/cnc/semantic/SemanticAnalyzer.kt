@@ -2,7 +2,6 @@ package cnc.semantic
 
 import cnc.ast.Expression
 import cnc.ast.Statement
-import cnc.common.BuiltinMethod
 import cnc.common.ErrorType
 import cnc.common.Failure
 import cnc.common.Result
@@ -10,88 +9,31 @@ import cnc.common.Success
 import kotlin.reflect.KClass
 
 /**
- * Contexto accesible durante la fase de análisis semántico.
+ * Contexto de ejecución pasado a cada [StatementValidator] durante el análisis semántico.
+ * Encapsula la tabla de símbolos (estado mutable / scope) y el analizador semántico (motor).
  */
-interface SemanticContext {
-    fun isValidType(type: String): Boolean
-    fun isDeclared(name: String): Boolean
-    fun isDeclaredInCurrentScope(name: String): Boolean
-    fun declare(name: String, type: String, isMutable: Boolean = true): Result<Unit>
-    fun typeOf(name: String): String?
-    fun isMutable(name: String): Boolean?
-    fun resolveExpressionType(expr: Expression): Result<String>
-    fun createChildScope(): SemanticContext
-    fun isFunctionDeclared(name: String): Boolean = true
-    fun functionReturnType(name: String): String? = null
-}
-
-/**
- * Implementación de SemanticContext que envuelve SymbolTable y ExpressionTypeResolver.
- */
-class DefaultSemanticContext(
+data class SemanticContext(
     val symbolTable: SymbolTable,
-    val binaryRules: Map<String, BinaryOpResolver>,
-    val unaryRules: Map<String, UnaryOpResolver> = mapOf("-" to TypeResolvers.unaryNumeric("-")),
-    val expressionRules: Map<KClass<out Expression>, ExpressionTypeRule<out Expression>> = StandardExpressionTypeRules.v1_1,
-    val builtins: Map<String, BuiltinMethod> = emptyMap()
-) : SemanticContext {
+    val analyzer: SemanticAnalyzer
+) {
+    fun createChildScope(): SemanticContext =
+        copy(symbolTable = symbolTable.createChild())
 
-    private val expressionTypeResolver = ExpressionTypeResolver(
-        rules = expressionRules,
-        typeLookup = symbolTable::typeOf,
-        binaryRules = binaryRules,
-        unaryRules = unaryRules,
-        builtins = builtins
-    )
-
-    fun copy(
-        symbolTable: SymbolTable = this.symbolTable,
-        binaryRules: Map<String, BinaryOpResolver> = this.binaryRules,
-        unaryRules: Map<String, UnaryOpResolver> = this.unaryRules,
-        expressionRules: Map<KClass<out Expression>, ExpressionTypeRule<out Expression>> = this.expressionRules,
-        builtins: Map<String, BuiltinMethod> = this.builtins
-    ): DefaultSemanticContext = DefaultSemanticContext(
-        symbolTable = symbolTable,
-        binaryRules = binaryRules,
-        unaryRules = unaryRules,
-        expressionRules = expressionRules,
-        builtins = builtins
-    )
-
-    override fun isValidType(type: String): Boolean = symbolTable.isValidType(type)
-    override fun isDeclared(name: String): Boolean = symbolTable.isDeclared(name)
-    override fun isDeclaredInCurrentScope(name: String): Boolean = symbolTable.isDeclaredInCurrentScope(name)
-    override fun declare(name: String, type: String, isMutable: Boolean): Result<Unit> =
-        symbolTable.declare(name, type, isMutable)
-    override fun typeOf(name: String): String? = symbolTable.typeOf(name)
-    override fun isMutable(name: String): Boolean? = symbolTable.isMutable(name)
-
-    override fun isFunctionDeclared(name: String): Boolean =
-        if (builtins.isEmpty()) true else builtins.containsKey(name)
-
-    override fun functionReturnType(name: String): String? =
-        builtins[name]?.returnType
-
-    override fun resolveExpressionType(expr: Expression): Result<String> =
-        expressionTypeResolver.resolve(expr)
-
-    override fun createChildScope(): SemanticContext = DefaultSemanticContext(
-        symbolTable = symbolTable.createChild(),
-        binaryRules = binaryRules,
-        unaryRules = unaryRules,
-        expressionRules = expressionRules,
-        builtins = builtins
-    )
+    fun resolveExpressionType(expr: Expression): Result<String> =
+        analyzer.resolveExpressionType(expr, symbolTable)
 }
 
 /**
- * Analiza semánticamente una secuencia de Statements tipados utilizando StatementValidators desacoplados.
+ * Orquestador principal de la fase de análisis semántico.
+ * Contiene el motor de resolución de expresiones, la tabla de símbolos y el registro de validadores de sentencias.
  */
 class SemanticAnalyzer(
-    private val context: SemanticContext,
-    private val statementValidators: Map<KClass<out Statement>, StatementValidator<*>> = StandardStatementValidators.v1_1
+    val expressionResolver: ExpressionTypeResolver,
+    val statementValidators: Map<KClass<out Statement>, StatementValidator<*>> = StandardStatementValidators.v1_1,
+    val symbolTable: SymbolTable = SymbolTable(setOf("number", "string", "boolean"))
 ) {
     fun analyze(statements: Sequence<Statement>): Sequence<Result<Statement>> = sequence {
+        val context = SemanticContext(symbolTable, this@SemanticAnalyzer)
         for (statement in statements) {
             val result = validate(statement, context)
             yield(when (result) {
@@ -102,10 +44,19 @@ class SemanticAnalyzer(
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun validate(statement: Statement, ctx: SemanticContext = context): Result<Unit> {
+    fun validate(statement: Statement, context: SemanticContext): Result<Unit> {
         val validator = statementValidators[statement::class] as? StatementValidator<Statement>
             ?: return Failure("No hay validador semántico registrado para la sentencia: ${statement::class.simpleName}", ErrorType.SEMANTIC)
 
-        return validator.validate(statement, ctx, this)
+        return validator.validate(statement, context)
     }
+
+    fun resolveExpressionType(expr: Expression, table: SymbolTable = symbolTable): Result<String> =
+        expressionResolver.resolve(expr, table::typeOf)
+
+    fun isFunctionDeclared(name: String): Boolean =
+        expressionResolver.isFunctionDeclared(name)
+
+    fun functionReturnType(name: String): String? =
+        expressionResolver.functionReturnType(name)
 }

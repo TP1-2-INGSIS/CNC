@@ -8,50 +8,41 @@ import cnc.common.Result
 import kotlin.reflect.KClass
 
 class ExpressionTypeResolver(
-    private val rules: Map<KClass<out Expression>, ExpressionTypeRule<out Expression>>,
-    private val typeLookup: (String) -> String?,
-    private val binaryRules: Map<String, BinaryOpResolver>,
-    private val unaryRules: Map<String, UnaryOpResolver> = emptyMap(),
-    private val builtins: Map<String, BuiltinMethod> = emptyMap()
-) : ExpressionTypeContext {
-
-    constructor(
-        rules: Map<KClass<out Expression>, ExpressionTypeRule<out Expression>>,
-        declaredVars: Map<String, String>,
-        binaryRules: Map<String, BinaryOpResolver>,
-        unaryRules: Map<String, UnaryOpResolver> = emptyMap(),
-        builtins: Map<String, BuiltinMethod> = emptyMap()
-    ) : this(
-        rules = rules,
-        typeLookup = { declaredVars[it] },
-        binaryRules = binaryRules,
-        unaryRules = unaryRules,
-        builtins = builtins
-    )
-
-    override fun typeOf(name: String): String? = typeLookup(name)
-
-    override fun isFunctionDeclared(name: String): Boolean =
+    val rules: Map<KClass<out Expression>, ExpressionTypeRule<out Expression>> = StandardExpressionTypeRules.v1_1,
+    val binaryRules: Map<String, BinaryOpResolver> = emptyMap(),
+    val unaryRules: Map<String, UnaryOpResolver> = mapOf("-" to TypeResolvers.unaryNumeric("-")),
+    val builtins: Map<String, BuiltinMethod> = emptyMap()
+) {
+    fun isFunctionDeclared(name: String): Boolean =
         if (builtins.isEmpty()) true else builtins.containsKey(name)
 
-    override fun functionReturnType(name: String): String? =
+    fun functionReturnType(name: String): String? =
         builtins[name]?.returnType
 
-    override fun resolveBinary(operator: String, leftType: String, rightType: String): Result<String> {
-        return binaryRules[operator]?.resolve(leftType, rightType)
-            ?: Failure("Operador '$operator' no soportado", ErrorType.SEMANTIC)
+    fun resolve(expr: Expression, typeLookup: (String) -> String?): Result<String> {
+        val context = object : ExpressionTypeContext {
+            override fun typeOf(name: String): String? = typeLookup(name)
+            override fun isFunctionDeclared(name: String): Boolean = this@ExpressionTypeResolver.isFunctionDeclared(name)
+            override fun functionReturnType(name: String): String? = this@ExpressionTypeResolver.functionReturnType(name)
+            override fun resolve(expr: Expression): Result<String> = this@ExpressionTypeResolver.resolve(expr, this)
+            override fun resolveBinary(operator: String, leftType: String, rightType: String): Result<String> =
+                binaryRules[operator]?.resolve(leftType, rightType)
+                    ?: Failure("Operador '$operator' no soportado", ErrorType.SEMANTIC)
+            override fun resolveUnary(operator: String, operandType: String): Result<String> =
+                unaryRules[operator]?.resolve(operandType)
+                    ?: Failure("Operador unario '$operator' no soportado", ErrorType.SEMANTIC)
+        }
+        return resolve(expr, context)
     }
 
-    override fun resolveUnary(operator: String, operandType: String): Result<String> {
-        return unaryRules[operator]?.resolve(operandType)
-            ?: Failure("Operador unario '$operator' no soportado", ErrorType.SEMANTIC)
-    }
+    fun resolve(expr: Expression, declaredVars: Map<String, String>): Result<String> =
+        resolve(expr) { declaredVars[it] }
 
     @Suppress("UNCHECKED_CAST")
-    override fun resolve(expr: Expression): Result<String> {
+    fun resolve(expr: Expression, context: ExpressionTypeContext): Result<String> {
         val rule = rules[expr::class] as? ExpressionTypeRule<Expression>
             ?: return Failure("No hay regla de tipos registrada para expresión: ${expr::class.simpleName}", ErrorType.SEMANTIC)
 
-        return rule.resolve(expr, this)
+        return rule.resolve(expr, context)
     }
 }

@@ -51,12 +51,11 @@ flowchart TD
    - Orquestador desacoplado: `fun analyze(statements: Sequence<Statement>): Sequence<Result<Statement>>`.
    - Despacha cada sentencia a su `StatementValidator<Statement>` registrado en un mapa de configuración, logrando simetría total con el `:interpreter` y `:parser` y eliminando cualquier bloque cerrado `when`.
 2. **`StatementValidator<T : Statement>`:**
-   - Interfaz funcional: `fun validate(statement: T, context: SemanticContext, analyzer: SemanticAnalyzer): Result<Unit>`.
+   - Interfaz funcional: `fun validate(statement: T, context: SemanticContext): Result<Unit>`.
    - `StandardStatementValidators.v1_0`: Soporta `Declaration`, `Assignment` y `Call`.
    - `StandardStatementValidators.v1_1`: Extiende con `BlockStatement` e `IfStatement`.
 3. **`SemanticContext`:**
-   - Interfaz de contexto: `isValidType`, `isDeclaredInCurrentScope`, `declare`, `typeOf`, `isMutable`, `resolveExpressionType`, `createChildScope`, `isFunctionDeclared`, `functionReturnType`.
-   - `DefaultSemanticContext`: Conecta `SymbolTable`, `BinaryOpResolver`, `UnaryOpResolver`, `ExpressionTypeRule` y `BuiltinMethod`.
+   - Contexto de ejecución que encapsula de forma limpia `symbolTable: SymbolTable` (estado/scope léxico) y `analyzer: SemanticAnalyzer` (motor/orquestador). Provee métodos de conveniencia como `createChildScope()` y delegación a `resolveExpressionType()`.
 4. **`SymbolTable`:**
    - Almacén de tipos válidos y variables registradas con mutabilidad. Soporta ámbitos anidados mediante `createChild()`, resolviendo variables subiendo por la cadena de padres en $O(\text{profundidad})$ sin alocaciones de memoria.
 5. **`ExpressionTypeResolver`:**
@@ -89,18 +88,19 @@ El tipo `BuiltinMethod` reside en `:common` y contiene tanto la metadata semánt
 ---
 
 ## 5. Extensibilidad (Open/Closed Principle)
-Para agregar una nueva sentencia (ej: `WhileStatement`) o nueva expresión (ej: `TernaryExpression`):
+Para agregar una nueva sentencia (ej: `WhileStatement`):
 ```kotlin
 // 1. Crear el validador
-val whileValidator = StatementValidator<WhileStatement> { stmt, ctx, analyzer ->
+val whileValidator = StatementValidator<WhileStatement> { stmt, ctx ->
     val condRes = ctx.resolveExpressionType(stmt.condition)
     if (condRes is Failure) return@StatementValidator condRes
-    analyzer.validate(stmt.body, ctx)
+    ctx.analyzer.validate(stmt.body, ctx)
 }
 
 // 2. Componer en el analizador sin tocar el código fuente existente
 val customAnalyzer = SemanticAnalyzer(
-    context = customContext,
+    expressionResolver = customResolver,
+    symbolTable = customTable,
     statementValidators = StandardStatementValidators.v1_1 + mapOf(
         WhileStatement::class to whileValidator
     )

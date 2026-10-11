@@ -52,15 +52,16 @@ object PrintScript11Profile : PrintScriptProfile {
 
     override fun createSemanticAnalyzer(): SemanticAnalyzer {
         val builtins = createBuiltins()
-        val baseContext = PrintScript10Profile.createSemanticContext(builtins)
-        val context = baseContext.copy(
-            symbolTable = SymbolTable(baseContext.symbolTable.validTypes + "boolean"),
-            unaryRules = baseContext.unaryRules + mapOf("!" to cnc.semantic.TypeResolvers.booleanNot),
-            expressionRules = StandardExpressionTypeRules.v1_1,
+        val baseResolver = PrintScript10Profile.createExpressionResolver(builtins)
+        val expressionResolver = cnc.semantic.ExpressionTypeResolver(
+            rules = StandardExpressionTypeRules.v1_1,
+            binaryRules = baseResolver.binaryRules,
+            unaryRules = baseResolver.unaryRules + mapOf("!" to cnc.semantic.TypeResolvers.booleanNot),
             builtins = builtins
         )
         return SemanticAnalyzer(
-            context = context,
+            symbolTable = SymbolTable(validTypes = setOf("number", "string", "boolean")),
+            expressionResolver = expressionResolver,
             statementValidators = cnc.semantic.StandardStatementValidators.v1_1
         )
     }

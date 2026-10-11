@@ -33,7 +33,7 @@ import cnc.printscript.parser.PrintScriptStatementRules
 import cnc.printscript.LanguageVersion
 import cnc.printscript.profile.InterpreterIO
 import cnc.printscript.profile.PrintScriptProfile
-import cnc.semantic.DefaultSemanticContext
+import cnc.semantic.ExpressionTypeResolver
 import cnc.semantic.SemanticAnalyzer
 import cnc.semantic.StandardExpressionTypeRules
 import cnc.semantic.SymbolTable
@@ -85,30 +85,26 @@ object PrintScript10Profile : PrintScriptProfile {
         "println" to BuiltinMethodFactory.println(io.output)
     )
 
-    fun createSemanticContext(builtins: Map<String, cnc.common.BuiltinMethod> = createBuiltins()): DefaultSemanticContext {
-        val symbolTable = SymbolTable(validTypes = setOf("number", "string"))
-        val binaryRules = mapOf(
-            "+" to TypeResolvers.additionOrConcat,
-            "-" to TypeResolvers.numericOnly("-"),
-            "*" to TypeResolvers.numericOnly("*"),
-            "/" to TypeResolvers.numericOnly("/"),
-            "**" to TypeResolvers.numericOnly("**")
-        )
-        val unaryRules = mapOf(
-            "-" to TypeResolvers.unaryNumeric("-")
-        )
-        return DefaultSemanticContext(
-            symbolTable = symbolTable,
-            binaryRules = binaryRules,
-            unaryRules = unaryRules,
-            expressionRules = StandardExpressionTypeRules.v1_0,
+    fun createExpressionResolver(builtins: Map<String, cnc.common.BuiltinMethod> = createBuiltins()): ExpressionTypeResolver =
+        ExpressionTypeResolver(
+            rules = StandardExpressionTypeRules.v1_0,
+            binaryRules = mapOf(
+                "+" to TypeResolvers.additionOrConcat,
+                "-" to TypeResolvers.numericOnly("-"),
+                "*" to TypeResolvers.numericOnly("*"),
+                "/" to TypeResolvers.numericOnly("/"),
+                "**" to TypeResolvers.numericOnly("**")
+            ),
+            unaryRules = mapOf(
+                "-" to TypeResolvers.unaryNumeric("-")
+            ),
             builtins = builtins
         )
-    }
 
     override fun createSemanticAnalyzer(): SemanticAnalyzer =
         SemanticAnalyzer(
-            context = createSemanticContext(),
+            symbolTable = SymbolTable(validTypes = setOf("number", "string")),
+            expressionResolver = createExpressionResolver(),
             statementValidators = cnc.semantic.StandardStatementValidators.v1_0
         )
 
