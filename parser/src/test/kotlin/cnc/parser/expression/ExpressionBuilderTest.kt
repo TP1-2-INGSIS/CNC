@@ -26,9 +26,6 @@ class ExpressionBuilderTest {
     private val testMul = SymbolTokenDef("mul", "*")
     private val testDiv = SymbolTokenDef("div", "/")
     private val testPow = SymbolTokenDef("pow", "**")
-    private val testOpenParen = SymbolTokenDef("open_paren", "(")
-    private val testCloseParen = SymbolTokenDef("close_paren", ")")
-    private val testComma = SymbolTokenDef("comma", ",")
     private val testIdentifier = RegexTokenDef("identifier", "[a-zA-Z_][a-zA-Z0-9_]*")
     private val testNumber = RegexTokenDef("number", "[0-9]+")
     private val testString = RegexTokenDef("string", "\".*?\"")
@@ -48,12 +45,7 @@ class ExpressionBuilderTest {
         ),
         prefixOperators = listOf(
             PrefixOperatorDef(testMinus, precedence = 4)
-        ),
-        groupOpen = testOpenParen,
-        groupClose = testCloseParen,
-        callOpen = testOpenParen,
-        callClose = testCloseParen,
-        callSeparator = testComma
+        )
     )
 
     private fun tok(type: TokenType, text: String, row: Int = 1, col: Int = 1) =

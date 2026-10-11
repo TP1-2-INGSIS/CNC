@@ -11,13 +11,8 @@ import cnc.common.Failure
 import cnc.common.Result
 import cnc.common.Success
 import cnc.common.asCursor
-import cnc.token.SymbolTokenDef
 import cnc.token.Token
 import cnc.token.TokenDefinition
-
-private val DEFAULT_GROUP_OPEN = SymbolTokenDef("group_open", "(")
-private val DEFAULT_GROUP_CLOSE = SymbolTokenDef("group_close", ")")
-private val DEFAULT_CALL_SEPARATOR = SymbolTokenDef("call_separator", ",")
 
 enum class Associativity { LEFT, RIGHT }
 
@@ -43,12 +38,7 @@ interface ExpressionParser {
 class ExpressionBuilder(
     val recipes: Map<TokenDefinition, (Token) -> Expression> = emptyMap(),
     val operators: List<OperatorDef> = emptyList(),
-    val prefixOperators: List<PrefixOperatorDef> = emptyList(),
-    val groupOpen: TokenDefinition? = DEFAULT_GROUP_OPEN,
-    val groupClose: TokenDefinition? = DEFAULT_GROUP_CLOSE,
-    val callOpen: TokenDefinition? = groupOpen,
-    val callClose: TokenDefinition? = groupClose,
-    val callSeparator: TokenDefinition? = DEFAULT_CALL_SEPARATOR
+    val prefixOperators: List<PrefixOperatorDef> = emptyList()
 ) : ExpressionParser {
 
     fun addRecipe(tokenDef: TokenDefinition, recipe: (Token) -> Expression): ExpressionBuilder =
@@ -72,30 +62,14 @@ class ExpressionBuilder(
     fun addPrefixOperator(operator: PrefixOperatorDef): ExpressionBuilder =
         copy(prefixOperators = prefixOperators + operator)
 
-    fun withGrouping(open: TokenDefinition?, close: TokenDefinition?): ExpressionBuilder =
-        copy(groupOpen = open, groupClose = close)
-
-    fun withCalls(open: TokenDefinition?, close: TokenDefinition?, separator: TokenDefinition?): ExpressionBuilder =
-        copy(callOpen = open, callClose = close, callSeparator = separator)
-
     fun copy(
         recipes: Map<TokenDefinition, (Token) -> Expression> = this.recipes,
         operators: List<OperatorDef> = this.operators,
-        prefixOperators: List<PrefixOperatorDef> = this.prefixOperators,
-        groupOpen: TokenDefinition? = this.groupOpen,
-        groupClose: TokenDefinition? = this.groupClose,
-        callOpen: TokenDefinition? = this.callOpen,
-        callClose: TokenDefinition? = this.callClose,
-        callSeparator: TokenDefinition? = this.callSeparator
+        prefixOperators: List<PrefixOperatorDef> = this.prefixOperators
     ): ExpressionBuilder = ExpressionBuilder(
         recipes = recipes,
         operators = operators,
-        prefixOperators = prefixOperators,
-        groupOpen = groupOpen,
-        groupClose = groupClose,
-        callOpen = callOpen,
-        callClose = callClose,
-        callSeparator = callSeparator
+        prefixOperators = prefixOperators
     )
 
     fun build(token: Token): Result<Expression> {
@@ -138,8 +112,8 @@ class ExpressionBuilder(
         while (cursor.hasMore()) {
             val token = cursor.peek() ?: break
 
-            // Postfix function call: identifier followed by callOpen
-            if (callOpen != null && callOpen.match(token.text) && left is Identifier) {
+            // Postfix function call: identifier followed by '('
+            if (token.text == "(" && left is Identifier) {
                 val callRes = parseCall(cursor, left)
                 if (callRes is Failure) return callRes
                 left = (callRes as Success).data
@@ -187,16 +161,15 @@ class ExpressionBuilder(
             }
         }
 
-        if (groupOpen != null && groupOpen.match(token.text)) {
+        if (token.text == "(") {
             cursor.advance()
             val exprRes = parseExpression(cursor, 0)
             if (exprRes is Failure) return exprRes
 
             val closing = cursor.peek()
-            if (closing == null || groupClose == null || !groupClose.match(closing.text)) {
-                val expected = groupClose?.symbols?.firstOrNull() ?: ")"
+            if (closing == null || closing.text != ")") {
                 return Failure(
-                    "Expected closing '$expected' after grouped expression",
+                    "Expected closing ')' after grouped expression",
                     ErrorType.PARSER
                 )
             }
@@ -215,17 +188,17 @@ class ExpressionBuilder(
     }
 
     private fun parseCall(cursor: Cursor<Token>, target: Identifier): Result<Expression> {
-        cursor.advance() // consume callOpen
+        cursor.advance() // consume '('
         val args = mutableListOf<Expression>()
 
         val firstToken = cursor.peek()
-        if (firstToken != null && (callClose == null || !callClose.match(firstToken.text))) {
+        if (firstToken != null && firstToken.text != ")") {
             val argRes = parseExpression(cursor, 0)
             if (argRes is Failure) return argRes
             args.add((argRes as Success).data)
 
-            while (cursor.peek()?.let { callSeparator?.match(it.text) } == true) {
-                cursor.advance() // consume separator (comma)
+            while (cursor.peek()?.text == ",") {
+                cursor.advance() // consume ','
                 val nextArgRes = parseExpression(cursor, 0)
                 if (nextArgRes is Failure) return nextArgRes
                 args.add((nextArgRes as Success).data)
@@ -233,11 +206,10 @@ class ExpressionBuilder(
         }
 
         val closeToken = cursor.peek()
-        if (closeToken == null || callClose == null || !callClose.match(closeToken.text)) {
-            val expected = callClose?.symbols?.firstOrNull() ?: ")"
-            return Failure("Expected closing '$expected' after arguments", ErrorType.PARSER)
+        if (closeToken == null || closeToken.text != ")") {
+            return Failure("Expected closing ')' after arguments", ErrorType.PARSER)
         }
-        cursor.advance() // consume callClose
+        cursor.advance() // consume ')'
 
         return Success("Parsed call expression", CallExpression(target.name, args))
     }
