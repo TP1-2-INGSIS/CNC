@@ -33,15 +33,23 @@ import cnc.printscript.parser.PrintScriptStatementRules
 import cnc.printscript.LanguageVersion
 import cnc.printscript.profile.InterpreterIO
 import cnc.printscript.profile.PrintScriptProfile
+import cnc.ast.BinaryExpression
+import cnc.ast.Expression
+import cnc.ast.Statement
+import cnc.ast.UnaryExpression
+import cnc.semantic.ExpressionRule
 import cnc.semantic.ExpressionTypeResolver
 import cnc.semantic.SemanticAnalyzer
-import cnc.semantic.StandardExpressionTypeRules
+import cnc.semantic.StandardExpressionRules
+import cnc.semantic.StandardStatementValidators
+import cnc.semantic.StatementValidator
 import cnc.semantic.SymbolTable
 import cnc.semantic.TypeResolvers
 import cnc.token.CncKeywords
 import cnc.token.CncPatterns
 import cnc.token.CncSymbols
 import cnc.token.TokenType
+import kotlin.reflect.KClass
 
 object PrintScript10Profile : PrintScriptProfile {
     override val version: LanguageVersion = LanguageVersion.V1_0
@@ -85,9 +93,26 @@ object PrintScript10Profile : PrintScriptProfile {
         "println" to BuiltinMethodFactory.println(io.output)
     )
 
-    fun createExpressionResolver(builtins: Map<String, cnc.common.BuiltinMethod> = createBuiltins()): ExpressionTypeResolver =
+    fun createExpressionRules(): Map<KClass<out Expression>, ExpressionRule<out Expression>> = mapOf(
+        NumberLiteral::class to StandardExpressionRules.numberLiteral,
+        StringLiteral::class to StandardExpressionRules.stringLiteral,
+        Identifier::class to StandardExpressionRules.identifier,
+        BinaryExpression::class to StandardExpressionRules.binaryExpression,
+        UnaryExpression::class to StandardExpressionRules.unaryExpression
+    )
+
+    fun createStatementValidators(): Map<KClass<out Statement>, StatementValidator<*>> = mapOf(
+        Declaration::class to StandardStatementValidators.declaration,
+        Assignment::class to StandardStatementValidators.assignment,
+        Call::class to StandardStatementValidators.call
+    )
+
+    fun createExpressionResolver(
+        builtins: Map<String, cnc.common.BuiltinMethod> = createBuiltins(),
+        rules: Map<KClass<out Expression>, ExpressionRule<out Expression>> = createExpressionRules()
+    ): ExpressionTypeResolver =
         ExpressionTypeResolver(
-            rules = StandardExpressionTypeRules.v1_0,
+            rules = rules,
             binaryRules = mapOf(
                 "+" to TypeResolvers.additionOrConcat,
                 "-" to TypeResolvers.numericOnly("-"),
@@ -105,7 +130,7 @@ object PrintScript10Profile : PrintScriptProfile {
         SemanticAnalyzer(
             symbolTable = SymbolTable(validTypes = setOf("number", "string")),
             expressionResolver = createExpressionResolver(),
-            statementValidators = cnc.semantic.StandardStatementValidators.v1_0
+            statementValidators = createStatementValidators()
         )
 
     fun createInterpreterBuilder(io: InterpreterIO): InterpreterBuilder {

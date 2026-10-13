@@ -50,17 +50,22 @@ flowchart TD
 1. **`SemanticAnalyzer`:**
    - Orquestador desacoplado: `fun analyze(statements: Sequence<Statement>): Sequence<Result<Statement>>`.
    - Despacha cada sentencia a su `StatementValidator<Statement>` registrado en un mapa de configuración, logrando simetría total con el `:interpreter` y `:parser` y eliminando cualquier bloque cerrado `when`.
+   - Construible mediante `SemanticAnalyzer.builder()`.
 2. **`StatementValidator<T : Statement>`:**
-   - Interfaz funcional: `fun validate(statement: T, context: SemanticContext): Result<Unit>`.
-   - `StandardStatementValidators.v1_0`: Soporta `Declaration`, `Assignment` y `Call`.
-   - `StandardStatementValidators.v1_1`: Extiende con `BlockStatement` e `IfStatement`.
+   - Interfaz funcional y builder: `fun validate(statement: T, context: SemanticContext): Result<Unit>`.
+   - Provee validadores atómicos estándar en `StandardStatementValidators` (`declaration`, `assignment`, `call`, `block`, `ifValidator`).
+   - Los conjuntos de reglas por versión (`v1_0`, `v1_1`) residen en sus respectivos perfiles en `:printscript`, manteniendo `:semantic` completamente agnóstico de la versión.
 3. **`SemanticContext`:**
-   - Contexto de ejecución que encapsula de forma limpia `symbolTable: SymbolTable` (estado/scope léxico) y `analyzer: SemanticAnalyzer` (motor/orquestador). Provee métodos de conveniencia como `createChildScope()` y delegación a `resolveExpressionType()`.
-4. **`SymbolTable`:**
-   - Almacén de tipos válidos y variables registradas con mutabilidad. Soporta ámbitos anidados mediante `createChild()`, resolviendo variables subiendo por la cadena de padres en $O(\text{profundidad})$ sin alocaciones de memoria.
-5. **`ExpressionTypeResolver`:**
-   - Infiere recursivamente el tipo estático de expresiones mediante reglas componibles `ExpressionTypeRule<T>`. Consulta tipos de variables delegando directamente a `symbolTable::typeOf` ($O(1)$ allocations) y valida funciones contra `BuiltinMethod`.
-6. **`TypeResolvers`:**
+   - Contexto de ejecución que desacopla la validación del orquestador global. Expone `symbolTable: SymbolTable`, `expressionResolver: ExpressionTypeResolver`, `validate(Statement)`, `validateInChildScope(...)` y creación de flows con `.flow()`.
+4. **`SemanticFlow`:**
+   - Monad / railroad-oriented flow que encadena verificaciones e inferencias de tipos con semántica de cortocircuito (`expect`, `step`, `stepAll`, `optionalStep`, `then`, `thenResult`).
+5. **`ExpressionRule<T : Expression>`:**
+   - Reglas atómicas de inferencia de tipo para expresiones, construibles con `ExpressionRule.builder<T>()` y evaluadas mediante `ExpressionContext`.
+6. **`SymbolTable`:**
+   - Almacén de tipos válidos y variables registradas con mutabilidad. Soporta ámbitos anidados mediante `createChild()`, resolviendo variables subiendo por la cadena de padres en $O(\text{profundidad})$ sin alocaciones de memoria innecesarias.
+7. **`ExpressionTypeResolver`:**
+   - Infiere recursivamente el tipo estático de expresiones mediante reglas componibles `ExpressionRule<T>`. Consulta tipos de variables delegando directamente a `symbolTable::typeOf` ($O(1)$ allocations) y valida funciones contra `BuiltinMethod`.
+8. **`TypeResolvers`:**
    - Reglas de compatibilidad de tipos:
      - `additionOrConcat`: `number + number = number`, `string + anything = string`.
      - `numericOnly(op)`: Operaciones aritméticas estrictas (`-`, `*`, `/`, `**`).
@@ -83,26 +88,27 @@ flowchart TD
 ---
 
 ## 4. Integración con Builtins Compartidos (`BuiltinMethod`)
-El tipo `BuiltinMethod` reside en `:common` y contiene tanto la metadata semántica (`name`, `returnType`) como la ejecución para el intérprete. Esto permite que los perfiles de lenguaje (v1.0, v1.1, v1.3) definan su conjunto de builtins **una única vez** y los compartan de manera idéntica entre el `SemanticAnalyzer` y el `Interpreter`.
+El tipo `BuiltinMethod` reside en `:common` y contiene tanto la metadata semántica (`name`, `returnType`) como la ejecución para el intérprete. Esto permite que los perfiles de lenguaje (v1.0, v1.1) definan su conjunto de builtins **una única vez** y los compartan de manera idéntica entre el `SemanticAnalyzer` y el `Interpreter`.
 
 ---
 
 ## 5. Extensibilidad (Open/Closed Principle)
 Para agregar una nueva sentencia (ej: `WhileStatement`):
 ```kotlin
-// 1. Crear el validador
-val whileValidator = StatementValidator<WhileStatement> { stmt, ctx ->
-    val condRes = ctx.resolveExpressionType(stmt.condition)
-    if (condRes is Failure) return@StatementValidator condRes
-    ctx.analyzer.validate(stmt.body, ctx)
-}
+// 1. Crear el validador con SemanticFlow
+val whileValidator = StatementValidator.builder<WhileStatement>("while")
+    .validate { stmt, ctx ->
+        var condType = ""
+        ctx.flow()
+            .step({ ctx.resolveExpressionType(stmt.condition) }) { condType = it }
+            .expect(condType == "boolean") { "La condición del 'while' debe ser de tipo 'boolean'" }
+            .thenResult { ctx.validateInChildScope(stmt.body) }
+    }
+    .build()
 
-// 2. Componer en el analizador sin tocar el código fuente existente
-val customAnalyzer = SemanticAnalyzer(
-    expressionResolver = customResolver,
-    symbolTable = customTable,
-    statementValidators = StandardStatementValidators.v1_1 + mapOf(
-        WhileStatement::class to whileValidator
-    )
-)
+// 2. Componer en el analizador mediante SemanticAnalyzer.builder()
+val customAnalyzer = SemanticAnalyzer.builder()
+    .withExpressionResolver(customResolver)
+    .registerStatementValidator(WhileStatement::class, whileValidator)
+    .build()
 ```

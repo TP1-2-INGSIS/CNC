@@ -3,7 +3,10 @@ package cnc.printscript.profile.v1_1
 import cnc.ast.BlockStatement
 import cnc.ast.BooleanLiteral
 import cnc.ast.Call
+import cnc.ast.CallExpression
+import cnc.ast.Expression
 import cnc.ast.IfStatement
+import cnc.ast.Statement
 import cnc.formatter.Formatter
 import cnc.formatter.FormatterFactory
 import cnc.interpreter.BlockEvaluator
@@ -20,11 +23,15 @@ import cnc.printscript.LanguageVersion
 import cnc.printscript.profile.InterpreterIO
 import cnc.printscript.profile.PrintScriptProfile
 import cnc.printscript.profile.v1_0.PrintScript10Profile
+import cnc.semantic.ExpressionRule
 import cnc.semantic.SemanticAnalyzer
-import cnc.semantic.StandardExpressionTypeRules
+import cnc.semantic.StandardExpressionRules
+import cnc.semantic.StandardStatementValidators
+import cnc.semantic.StatementValidator
 import cnc.semantic.SymbolTable
 import cnc.token.CncKeywords
 import cnc.token.SymbolTokenDef
+import kotlin.reflect.KClass
 
 object PrintScript11Profile : PrintScriptProfile {
     override val version: LanguageVersion = LanguageVersion.V1_1
@@ -50,11 +57,23 @@ object PrintScript11Profile : PrintScriptProfile {
             "readEnv" to BuiltinMethodFactory.readEnv(io.envProvider)
         )
 
+    fun createExpressionRules(): Map<KClass<out Expression>, ExpressionRule<out Expression>> =
+        PrintScript10Profile.createExpressionRules() + mapOf(
+            BooleanLiteral::class to StandardExpressionRules.booleanLiteral,
+            CallExpression::class to StandardExpressionRules.callExpression
+        )
+
+    fun createStatementValidators(): Map<KClass<out Statement>, StatementValidator<*>> =
+        PrintScript10Profile.createStatementValidators() + mapOf(
+            BlockStatement::class to StandardStatementValidators.block,
+            IfStatement::class to StandardStatementValidators.ifValidator
+        )
+
     override fun createSemanticAnalyzer(): SemanticAnalyzer {
         val builtins = createBuiltins()
         val baseResolver = PrintScript10Profile.createExpressionResolver(builtins)
         val expressionResolver = cnc.semantic.ExpressionTypeResolver(
-            rules = StandardExpressionTypeRules.v1_1,
+            rules = createExpressionRules(),
             binaryRules = baseResolver.binaryRules,
             unaryRules = baseResolver.unaryRules + mapOf("!" to cnc.semantic.TypeResolvers.booleanNot),
             builtins = builtins
@@ -62,7 +81,7 @@ object PrintScript11Profile : PrintScriptProfile {
         return SemanticAnalyzer(
             symbolTable = SymbolTable(validTypes = setOf("number", "string", "boolean")),
             expressionResolver = expressionResolver,
-            statementValidators = cnc.semantic.StandardStatementValidators.v1_1
+            statementValidators = createStatementValidators()
         )
     }
 

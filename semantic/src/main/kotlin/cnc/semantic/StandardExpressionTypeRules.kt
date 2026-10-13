@@ -1,93 +1,82 @@
 package cnc.semantic
 
-import cnc.ast.*
+import cnc.ast.BinaryExpression
+import cnc.ast.BooleanLiteral
+import cnc.ast.CallExpression
+import cnc.ast.Expression
+import cnc.ast.Identifier
+import cnc.ast.NumberLiteral
+import cnc.ast.StringLiteral
+import cnc.ast.UnaryExpression
 import cnc.common.ErrorType
 import cnc.common.Failure
-import cnc.common.Result
 import cnc.common.Success
-import cnc.common.flatMap
 import kotlin.reflect.KClass
 
-fun interface ExpressionTypeRule<T : Expression> {
-    fun resolve(expr: T, context: ExpressionTypeContext): Result<String>
-}
+object StandardExpressionRules {
 
-interface ExpressionTypeContext {
-    fun typeOf(name: String): String?
-    fun isFunctionDeclared(name: String): Boolean = true
-    fun functionReturnType(name: String): String? = null
-    fun resolve(expr: Expression): Result<String>
-    fun resolveBinary(operator: String, leftType: String, rightType: String): Result<String>
-    fun resolveUnary(operator: String, operandType: String): Result<String>
+    val numberLiteral = ExpressionRule.builder<NumberLiteral>("numberLiteral")
+        .resolve { _, _ -> Success("ok", "number") }
+        .build()
+
+    val stringLiteral = ExpressionRule.builder<StringLiteral>("stringLiteral")
+        .resolve { _, _ -> Success("ok", "string") }
+        .build()
+
+    val booleanLiteral = ExpressionRule.builder<BooleanLiteral>("booleanLiteral")
+        .resolve { _, _ -> Success("ok", "boolean") }
+        .build()
+
+    val identifier = ExpressionRule.builder<Identifier>("identifier")
+        .resolve { expr, ctx ->
+            ctx.flow()
+                .expect(ctx.typeOf(expr.name) != null) { "Variable '${expr.name}' no declarada" }
+                .then { ctx.typeOf(expr.name)!! }
+        }
+        .build()
+
+    val binaryExpression = ExpressionRule.builder<BinaryExpression>("binaryExpression")
+        .resolve { expr, ctx ->
+            var left = ""
+            var right = ""
+            ctx.flow()
+                .step({ ctx.resolve(expr.left) }) { left = it }
+                .step({ ctx.resolve(expr.right) }) { right = it }
+                .thenResult { ctx.resolveBinary(expr.operator, left, right) }
+        }
+        .build()
+
+    val unaryExpression = ExpressionRule.builder<UnaryExpression>("unaryExpression")
+        .resolve { expr, ctx ->
+            var operand = ""
+            ctx.flow()
+                .step({ ctx.resolve(expr.operand) }) { operand = it }
+                .thenResult { ctx.resolveUnary(expr.operator, operand) }
+        }
+        .build()
+
+    val callExpression = ExpressionRule.builder<CallExpression>("callExpression")
+        .resolve { expr, ctx ->
+            ctx.flow()
+                .expect(ctx.isFunctionDeclared(expr.function)) {
+                    "Función no declarada o desconocida: '${expr.function}'"
+                }
+                .stepAll(expr.arguments, ctx::resolve)
+                .thenResult {
+                    ctx.functionReturnType(expr.function)?.let { Success("ok", it) }
+                        ?: Failure("La función '${expr.function}' no retorna un valor y no puede usarse en una expresión", ErrorType.SEMANTIC)
+                }
+        }
+        .build()
+
 }
 
 object StandardExpressionTypeRules {
-
-    val numberLiteral = ExpressionTypeRule<NumberLiteral> { _, _ ->
-        Success("ok", "number")
-    }
-
-    val stringLiteral = ExpressionTypeRule<StringLiteral> { _, _ ->
-        Success("ok", "string")
-    }
-
-    val identifier = ExpressionTypeRule<Identifier> { expr, ctx ->
-        ctx.typeOf(expr.name)
-            ?.let { Success("ok", it) }
-            ?: Failure("Variable '${expr.name}' no declarada", ErrorType.SEMANTIC)
-    }
-
-    val binaryExpression = ExpressionTypeRule<BinaryExpression> { expr, ctx ->
-        ctx.resolve(expr.left).flatMap { leftType ->
-            ctx.resolve(expr.right).flatMap { rightType ->
-                ctx.resolveBinary(expr.operator, leftType, rightType)
-            }
-        }
-    }
-
-    val unaryExpression = ExpressionTypeRule<UnaryExpression> { expr, ctx ->
-        ctx.resolve(expr.operand).flatMap { operandType ->
-            ctx.resolveUnary(expr.operator, operandType)
-        }
-    }
-
-    val callExpression = ExpressionTypeRule<CallExpression> { expr, ctx ->
-        for (arg in expr.arguments) {
-            val res = ctx.resolve(arg)
-            if (res is Failure) return@ExpressionTypeRule res
-        }
-        if (!ctx.isFunctionDeclared(expr.function)) {
-            return@ExpressionTypeRule Failure("Función no declarada o desconocida: '${expr.function}'", ErrorType.SEMANTIC)
-        }
-        val returnType = ctx.functionReturnType(expr.function)
-            ?: if (expr.function == "readInput" || expr.function == "readEnv") "string" else null
-
-        if (returnType != null) {
-            Success("ok", returnType)
-        } else {
-            Failure("La función '${expr.function}' no retorna un valor y no puede usarse en una expresión", ErrorType.SEMANTIC)
-        }
-    }
-
-    val booleanLiteral = ExpressionTypeRule<BooleanLiteral> { _, _ ->
-        Success("ok", "boolean")
-    }
-
-    val v1_0: Map<KClass<out Expression>, ExpressionTypeRule<out Expression>> = mapOf(
-        NumberLiteral::class to numberLiteral,
-        StringLiteral::class to stringLiteral,
-        Identifier::class to identifier,
-        BinaryExpression::class to binaryExpression,
-        UnaryExpression::class to unaryExpression
-    )
-
-    val v1_1: Map<KClass<out Expression>, ExpressionTypeRule<out Expression>> = mapOf(
-        NumberLiteral::class to numberLiteral,
-        StringLiteral::class to stringLiteral,
-        BooleanLiteral::class to booleanLiteral,
-        Identifier::class to identifier,
-        BinaryExpression::class to binaryExpression,
-        UnaryExpression::class to unaryExpression,
-        CallExpression::class to callExpression
-    )
+    val numberLiteral = StandardExpressionRules.numberLiteral
+    val stringLiteral = StandardExpressionRules.stringLiteral
+    val booleanLiteral = StandardExpressionRules.booleanLiteral
+    val identifier = StandardExpressionRules.identifier
+    val binaryExpression = StandardExpressionRules.binaryExpression
+    val unaryExpression = StandardExpressionRules.unaryExpression
+    val callExpression = StandardExpressionRules.callExpression
 }
