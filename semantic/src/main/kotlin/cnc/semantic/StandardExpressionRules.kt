@@ -70,13 +70,3 @@ object StandardExpressionRules {
         .build()
 
 }
-
-object StandardExpressionTypeRules {
-    val numberLiteral = StandardExpressionRules.numberLiteral
-    val stringLiteral = StandardExpressionRules.stringLiteral
-    val booleanLiteral = StandardExpressionRules.booleanLiteral
-    val identifier = StandardExpressionRules.identifier
-    val binaryExpression = StandardExpressionRules.binaryExpression
-    val unaryExpression = StandardExpressionRules.unaryExpression
-    val callExpression = StandardExpressionRules.callExpression
-}

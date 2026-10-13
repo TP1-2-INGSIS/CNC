@@ -78,15 +78,6 @@ class SemanticAnalyzer(
         return validator.validate(statement, context)
     }
 
-    fun resolveExpressionType(expr: Expression, table: SymbolTable = symbolTable): Result<String> =
-        expressionResolver.resolve(expr, table::typeOf)
-
-    fun isFunctionDeclared(name: String): Boolean =
-        expressionResolver.isFunctionDeclared(name)
-
-    fun functionReturnType(name: String): String? =
-        expressionResolver.functionReturnType(name)
-
     companion object {
         fun builder(): SemanticAnalyzerBuilder = SemanticAnalyzerBuilder()
     }

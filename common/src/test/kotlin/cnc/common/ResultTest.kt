@@ -93,11 +93,4 @@ class ResultTest {
         assertEquals(2, advancedNewline.row)
         assertEquals(0, advancedNewline.col)
     }
-
-    @Test
-    fun `test node structure`() {
-        val node = Node<Int>(left = null, right = null)
-        org.junit.jupiter.api.Assertions.assertNull(node.left)
-        org.junit.jupiter.api.Assertions.assertNull(node.right)
-    }
 }

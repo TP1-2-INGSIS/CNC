@@ -45,8 +45,6 @@ fun interface ExpressionRule<T : Expression> {
     }
 }
 
-typealias ExpressionTypeRule<T> = ExpressionRule<T>
-
 /**
  * Fluent builder for creating strongly typed [ExpressionRule]s.
  */

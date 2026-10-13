@@ -161,7 +161,7 @@ class SemanticAnalyzerTest {
 
     @Test
     fun `custom expression rule can be composed into semantic context without modifying existing code`() {
-        val booleanRule = ExpressionTypeRule<CustomBooleanLiteral> { _, _ ->
+        val booleanRule = ExpressionRule<CustomBooleanLiteral> { _, _ ->
             Success("ok", "boolean")
         }
         val extendedTable = SymbolTable(validTypes = setOf("number", "string", "boolean"))

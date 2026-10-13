@@ -1,10 +1,10 @@
 package cnc.parser.expression
 
 import cnc.ast.BinaryExpression
-import cnc.ast.Expression
-import cnc.ast.UnaryExpression
 import cnc.ast.CallExpression
+import cnc.ast.Expression
 import cnc.ast.Identifier
+import cnc.ast.UnaryExpression
 import cnc.common.Cursor
 import cnc.common.ErrorType
 import cnc.common.Failure
