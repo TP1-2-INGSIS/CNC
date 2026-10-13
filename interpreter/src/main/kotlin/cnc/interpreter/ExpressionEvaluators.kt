@@ -13,6 +13,7 @@ import cnc.common.Success
 import cnc.common.map
 
 import cnc.ast.CallExpression
+import cnc.common.BuiltinMethod
 
 class ExpressionEvaluator(
     private val binaryOperations: Map<String, BinaryOperation>,

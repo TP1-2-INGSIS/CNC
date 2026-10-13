@@ -40,12 +40,4 @@ class SymbolTable(
     fun isMutable(name: String): Boolean? = lookup(name)?.isMutable
 
     fun createChild(): SymbolTable = SymbolTable(validTypes = validTypes, parent = this)
-
-    // Vista de solo lectura para ExpressionTypeResolver
-    fun asReadOnly(): Map<String, String> {
-        val allVars = mutableMapOf<String, String>()
-        parent?.asReadOnly()?.let { allVars.putAll(it) }
-        symbols.forEach { (k, v) -> allVars[k] = v.type }
-        return allVars
-    }
 }

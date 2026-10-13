@@ -1,31 +1,30 @@
-package cnc.config
+package cnc
 
-import cnc.Compiler
-import cnc.common.ErrorType
-import cnc.common.Failure
-import cnc.common.FileContent
-import cnc.common.Result
-import cnc.common.Success
-
-import cnc.cli.args.ArgsContainer
+import java.io.File
 import cnc.cli.CommandSystem
+import cnc.cli.args.ArgsContainer
 import cnc.cli.command.Command
 import cnc.cli.command.HelpAttribute
+import cnc.common.ErrorType
+import cnc.common.Failure
+import cnc.common.Result
+import cnc.common.Success
+import cnc.printscript.PsVersioner
 
 object RunCommand : Command {
     override val tag = "run"
 
     override fun execute(params: ArgsContainer): Result<Unit> {
         val file = params.getOption("file") ?: params.getPositional(0)
-            ?: return Failure<Unit>("Missing required source file. Usage: run <file>", ErrorType.CLI)
+            ?: return Failure("Missing required source file. Usage: run <file>", ErrorType.CLI)
 
-        val config = ConfigFactory.create()
-        val compiler = Compiler(config)
-        val result = compiler.execute(FileContent(file))
+        val version = params.getOption("version") ?: "1.1"
+        val ps = PsVersioner.version(version)
+        val result = ps.execute(File(file))
         return when (result) {
             is Failure -> {
                 println("ERROR: ${result.msg}")
-                Failure<Unit>(result.msg, result.type)
+                Failure(result.msg, result.type)
             }
             is Success -> Success("Execution finished successfully", Unit)
         }
@@ -46,15 +45,15 @@ object ValidateCommand : Command {
 
     override fun execute(params: ArgsContainer): Result<Unit> {
         val file = params.getOption("file") ?: params.getPositional(0)
-            ?: return Failure<Unit>("Missing required source file. Usage: validate <file>", ErrorType.CLI)
+            ?: return Failure("Missing required source file. Usage: validate <file>", ErrorType.CLI)
 
-        val config = ConfigFactory.create()
-        val compiler = Compiler(config)
-        val result = compiler.validate(FileContent(file))
+        val version = params.getOption("version") ?: "1.1"
+        val ps = PsVersioner.version(version)
+        val result = ps.validate(File(file))
         return when (result) {
             is Failure -> {
                 println("VALIDATION ERROR: ${result.msg}")
-                Failure<Unit>(result.msg, result.type)
+                Failure(result.msg, result.type)
             }
             is Success -> {
                 println("VALID: '$file' is valid PrintScript")
@@ -70,6 +69,36 @@ val ValidateWithHelp = HelpAttribute(
     usage = "validate <file>",
     paramHelp = mapOf(
         "<file>" to "Source file path to validate"
+    )
+)
+
+object FormatCommand : Command {
+    override val tag = "format"
+
+    override fun execute(params: ArgsContainer): Result<Unit> {
+        val file = params.getOption("file") ?: params.getPositional(0)
+            ?: return Failure("Missing required source file. Usage: format --file=<path>", ErrorType.CLI)
+
+        val configFile = params.getOption("config")
+        val configJson = configFile?.let { File(it).readText() }
+
+        return runCatching {
+            val ps = PsVersioner.version("1.1")
+            ps.format(File(file), configJson)
+        }.fold(
+            onSuccess = { formatted -> Success(formatted, Unit) },
+            onFailure = { e -> Failure(e.message ?: "Formatting failed", ErrorType.CLI) }
+        )
+    }
+}
+
+val FormatWithHelp = HelpAttribute(
+    wrapped = FormatCommand,
+    description = "Formats a PrintScript source file to canonical style",
+    usage = "format --file=<path> [--config=<path>]",
+    paramHelp = mapOf(
+        "--file=<path>" to "Source file path to format",
+        "--config=<path>" to "Formatting configuration JSON file"
     )
 )
 
@@ -106,8 +135,8 @@ val GCNCWithHelp = HelpAttribute(
 )
 
 val CLISystem = CommandSystem(mapOf(
-  RunCommand.tag to RunWithHelp,
-  ValidateCommand.tag to ValidateWithHelp,
-  GccCommand.tag to GCNCWithHelp,
-  FormatCommand.tag to FormatWithHelp
+    RunCommand.tag to RunWithHelp,
+    ValidateCommand.tag to ValidateWithHelp,
+    GccCommand.tag to GCNCWithHelp,
+    FormatCommand.tag to FormatWithHelp
 ))

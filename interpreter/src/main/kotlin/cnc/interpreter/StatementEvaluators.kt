@@ -3,6 +3,7 @@ package cnc.interpreter
 import cnc.ast.Assignment
 import cnc.ast.Call
 import cnc.ast.Declaration
+import cnc.common.BuiltinMethod
 import cnc.common.ErrorType
 import cnc.common.Failure
 import cnc.common.Result

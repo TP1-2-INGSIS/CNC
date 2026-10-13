@@ -2,8 +2,6 @@ package cnc.printscript
 
 import java.io.File
 import java.io.InputStream
-import cnc.Compiler
-import cnc.Config
 import cnc.ast.Statement
 import cnc.common.ContentManager
 import cnc.common.Failure
@@ -14,16 +12,11 @@ import cnc.common.StringContent
 import cnc.common.Success
 import cnc.common.flatMap
 import cnc.common.openStream
-import cnc.config.ConfigFactory
-import cnc.config.FormatterFactory
-import cnc.config.LanguageVersion
-import cnc.config.printScriptFormatter
+import cnc.formatter.FormatterFactory
 import cnc.interpreter.Environment
-import cnc.interpreter.InterpreterPresets
-import cnc.linter.CamelCaseValidator
-import cnc.linter.LinterFactory
-import cnc.linter.NamingValidator
-import cnc.linter.SnakeCaseValidator
+import cnc.printscript.profile.InterpreterIO
+import cnc.printscript.profile.PrintScriptProfile
+import cnc.printscript.profile.PrintScriptProfileRegistry
 import cnc.token.Token
 
 /**
@@ -151,37 +144,30 @@ interface PrintScriptFacade {
 }
 
 /**
- * Singleton entry-point and facade for the PrintScript language library.
- * With a single import (`import cnc.printscript.PrintScript`), users have
- * access to every execution, validation, formatting, and linting capability.
- *
  * Version-specific engine implementation of [PrintScriptFacade].
- *
- * Instances are internal: consumers obtain a facade exclusively through
- * [PsVersioner.version], which selects the language version. Each instance
- * carries its own default [Config] built for its [LanguageVersion].
+ * Backed by a [PrintScriptProfile] resolved from the [LanguageVersion].
  */
 internal class PrintScriptEngine(
     private val version: LanguageVersion
 ) : PrintScriptFacade {
 
-    private val config: Config = ConfigFactory.create(version)
+    private val profile: PrintScriptProfile = PrintScriptProfileRegistry.forVersion(version)
+    private val lexer = profile.createLexer()
+    private val parser = profile.createParser()
 
     // =========================================================================
     // Granular Methods — Direct Access to Each Pipeline Stage
     // =========================================================================
 
-    override fun lex(content: ContentManager): Sequence<Token> {
-        return config.lexer.tokenize(content.openStream())
-    }
+    override fun lex(content: ContentManager): Sequence<Token> =
+        lexer.tokenize(content.openStream())
     override fun lex(source: String): Sequence<Token> = lex(StringContent(source))
     override fun lex(file: File): Sequence<Token> = lex(FileContent(file.absolutePath))
     override fun lex(stream: InputStream): Sequence<Token> = lex(InputStreamContent(stream))
 
-    
     override fun parse(tokens: Sequence<Token>): Result<List<Statement>> {
         val statements = mutableListOf<Statement>()
-        for (result in config.parser.parse(tokens)) {
+        for (result in parser.parse(tokens)) {
             when (result) {
                 is Failure -> return Failure(result.msg, result.type)
                 is Success -> statements.add(result.data)
@@ -195,7 +181,7 @@ internal class PrintScriptEngine(
     override fun parse(stream: InputStream): Result<List<Statement>> = parse(InputStreamContent(stream))
 
     override fun semantic(statements: List<Statement>): Result<List<Statement>> {
-        val semanticAnalyzer = ConfigFactory.create(version).semantic
+        val semanticAnalyzer = profile.createSemanticAnalyzer()
         val validated = mutableListOf<Statement>()
         for (result in semanticAnalyzer.analyze(statements.asSequence())) {
             when (result) {
@@ -226,7 +212,7 @@ internal class PrintScriptEngine(
         input: (String) -> String,
         envProvider: (String) -> String?
     ): Result<Unit> {
-        val interpreter = InterpreterPresets.default(input, envProvider, output)
+        val interpreter = profile.createInterpreter(InterpreterIO(input, envProvider, output))
         val environment = Environment()
         return interpreter.interpret(statements, environment)
     }
@@ -269,9 +255,29 @@ internal class PrintScriptEngine(
         envProvider: (String) -> String?,
         output: (String) -> Unit
     ): Result<Unit> {
-        val cfg = ConfigFactory.create(version, input, envProvider, output)
-        val compiler = Compiler(cfg)
-        return compiler.execute(content)
+        val tokens = lex(content)
+        val semanticAnalyzer = profile.createSemanticAnalyzer()
+        val interpreter = profile.createInterpreter(InterpreterIO(input, envProvider, output))
+        val environment = Environment()
+
+        for (parseResult in parser.parse(tokens)) {
+            val statement = when (parseResult) {
+                is Failure -> return Failure(parseResult.msg, parseResult.type)
+                is Success -> parseResult.data
+            }
+
+            for (semanticResult in semanticAnalyzer.analyze(sequenceOf(statement))) {
+                if (semanticResult is Failure) {
+                    return Failure(semanticResult.msg, semanticResult.type)
+                }
+            }
+
+            val interpretResult = interpreter.interpret(statement, environment)
+            if (interpretResult is Failure) {
+                return Failure(interpretResult.msg, interpretResult.type)
+            }
+        }
+        return Success("ok", Unit)
     }
 
     override fun execute(
@@ -296,8 +302,22 @@ internal class PrintScriptEngine(
     ): Result<Unit> = execute(InputStreamContent(stream), input, envProvider, output)
 
     override fun validate(content: ContentManager): Result<Unit> {
-        val compiler = Compiler(ConfigFactory.create(version))
-        return compiler.validate(content)
+        val tokens = lex(content)
+        val semanticAnalyzer = profile.createSemanticAnalyzer()
+
+        for (parseResult in parser.parse(tokens)) {
+            val statement = when (parseResult) {
+                is Failure -> return Failure(parseResult.msg, parseResult.type)
+                is Success -> parseResult.data
+            }
+
+            for (semanticResult in semanticAnalyzer.analyze(sequenceOf(statement))) {
+                if (semanticResult is Failure) {
+                    return Failure(semanticResult.msg, semanticResult.type)
+                }
+            }
+        }
+        return Success("Code is valid", Unit)
     }
 
     override fun validate(source: String): Result<Unit> = validate(StringContent(source))
@@ -312,10 +332,8 @@ internal class PrintScriptEngine(
         }
     }
 
-    override fun format(statements: List<Statement>, configJson: String?): String {
-        val formatter = FormatterFactory.create(configJson)
-        return formatter.format(statements)
-    }
+    override fun format(statements: List<Statement>, configJson: String?): String =
+        profile.createFormatter(configJson).format(statements)
 
     override fun format(content: ContentManager, configJson: String?): String {
         return if (configJson.isNullOrBlank()) {
@@ -332,16 +350,8 @@ internal class PrintScriptEngine(
     override fun format(file: File, configJson: String?): String = format(FileContent(file.absolutePath), configJson)
     override fun format(stream: InputStream, configJson: String?): String = format(InputStreamContent(stream), configJson)
 
-    override fun lint(statements: List<Statement>, configJson: String): List<String> {
-        val validators: Map<String, NamingValidator> = mapOf(
-            "camelCase" to CamelCaseValidator(),
-            "snake_case" to SnakeCaseValidator()
-        )
-        return when (val linterResult = LinterFactory.build(configJson, validators)) {
-            is Failure -> listOf("Linter config error: ${linterResult.msg}")
-            is Success -> linterResult.data.lint(statements.asSequence())
-        }
-    }
+    override fun lint(statements: List<Statement>, configJson: String): List<String> =
+        profile.createLinter(configJson).lint(statements.asSequence())
 
     override fun lint(content: ContentManager, configJson: String): List<String> {
         val parseResult = parse(content)

@@ -1,4 +1,4 @@
-package cnc.config
+package cnc.formatter
 
 import cnc.ast.Assignment
 import cnc.ast.BlockStatement
@@ -9,9 +9,6 @@ import cnc.common.ErrorType
 import cnc.common.Failure
 import cnc.common.Result
 import cnc.common.Success
-import cnc.formatter.FormatRule
-import cnc.formatter.Formatter
-import cnc.formatter.StatementRule
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 
@@ -39,7 +36,7 @@ object FormatterFactory {
 
     fun build(jsonString: String?): Result<Formatter> {
         if (jsonString.isNullOrBlank()) {
-            return Success("ok", printScriptFormatter)
+            return Success("ok", StandardFormatRules.defaultFormatter())
         }
 
         val root = runCatching {
@@ -165,8 +162,8 @@ object FormatterFactory {
         val formatter = Formatter(
             statementRules = statementRules,
             symbolRules = symbolRules,
-            expressionRules = printScriptExpressionRules,
-            precedences = printScriptPrecedences
+            expressionRules = StandardFormatRules.defaultExpressionRules,
+            precedences = StandardFormatRules.defaultPrecedences
         )
 
         return Success("ok", formatter)
@@ -175,7 +172,7 @@ object FormatterFactory {
     fun create(jsonString: String? = null): Formatter {
         return when (val result = build(jsonString)) {
             is Success -> result.data
-            is Failure -> printScriptFormatter
+            is Failure -> StandardFormatRules.defaultFormatter()
         }
     }
 

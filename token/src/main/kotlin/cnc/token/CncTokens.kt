@@ -12,8 +12,6 @@ object CncKeywords {
     val TYPE_NUMBER = SymbolTokenDef("number_type", "number")
     val TYPE_BOOLEAN = SymbolTokenDef("boolean_type", "boolean")
 
-    val types: List<TokenDefinition> = listOf(TYPE_STRING, TYPE_NUMBER, TYPE_BOOLEAN)
-
     val v1_0 = mapOf(
         "let" to TokenType.KEYWORD,
         "string" to TokenType.VARIABLE_TYPE,
@@ -31,8 +29,6 @@ object CncKeywords {
         "number" to TokenType.VARIABLE_TYPE,
         "boolean" to TokenType.VARIABLE_TYPE
     )
-
-    val all = v1_1
 }
 
 object CncSymbols {

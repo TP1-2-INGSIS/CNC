@@ -1,8 +1,6 @@
 package cnc.cli.command
 
 import cnc.cli.args.ArgsContainer
-import cnc.common.ErrorType
-import cnc.common.Failure
 import cnc.common.Result
 import cnc.common.Success
 

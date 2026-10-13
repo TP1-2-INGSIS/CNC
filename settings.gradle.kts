@@ -23,5 +23,5 @@ include(
     "formatter",
     "semantic",
     "linter",
-    "printscript"
+    "printscript",
 )

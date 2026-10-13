@@ -3,6 +3,7 @@ package cnc.semantic
 import cnc.ast.*
 import cnc.common.Failure
 import cnc.common.Success
+import kotlin.reflect.KClass
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -10,8 +11,26 @@ import org.junit.jupiter.api.Test
 class SemanticAnalyzerTest {
 
     private lateinit var symbolTable: SymbolTable
-    private lateinit var context: DefaultSemanticContext
+    private lateinit var expressionResolver: ExpressionTypeResolver
     private lateinit var analyzer: SemanticAnalyzer
+
+    private val testExpressionRules: Map<KClass<out Expression>, ExpressionRule<out Expression>> = mapOf(
+        NumberLiteral::class to StandardExpressionRules.numberLiteral,
+        StringLiteral::class to StandardExpressionRules.stringLiteral,
+        BooleanLiteral::class to StandardExpressionRules.booleanLiteral,
+        Identifier::class to StandardExpressionRules.identifier,
+        BinaryExpression::class to StandardExpressionRules.binaryExpression,
+        UnaryExpression::class to StandardExpressionRules.unaryExpression,
+        CallExpression::class to StandardExpressionRules.callExpression
+    )
+
+    private val testStatementValidators: Map<KClass<out Statement>, StatementValidator<*>> = mapOf(
+        Declaration::class to StandardStatementValidators.declaration,
+        Assignment::class to StandardStatementValidators.assignment,
+        Call::class to StandardStatementValidators.call,
+        BlockStatement::class to StandardStatementValidators.block,
+        IfStatement::class to StandardStatementValidators.ifValidator
+    )
 
     private val binaryRules = mapOf(
         "+" to TypeResolvers.additionOrConcat,
@@ -23,8 +42,16 @@ class SemanticAnalyzerTest {
     @BeforeEach
     fun setUp() {
         symbolTable = SymbolTable(validTypes = setOf("number", "string"))
-        context = DefaultSemanticContext(symbolTable, binaryRules)
-        analyzer = SemanticAnalyzer(context)
+        expressionResolver = ExpressionTypeResolver(
+            rules = testExpressionRules,
+            binaryRules = binaryRules,
+            unaryRules = mapOf("-" to TypeResolvers.unaryNumeric("-"))
+        )
+        analyzer = SemanticAnalyzer(
+            symbolTable = symbolTable,
+            expressionResolver = expressionResolver,
+            statementValidators = testStatementValidators
+        )
     }
 
     @Test
@@ -134,15 +161,22 @@ class SemanticAnalyzerTest {
 
     @Test
     fun `custom expression rule can be composed into semantic context without modifying existing code`() {
-        val booleanRule = ExpressionTypeRule<CustomBooleanLiteral> { _, _ ->
+        val booleanRule = ExpressionRule<CustomBooleanLiteral> { _, _ ->
             Success("ok", "boolean")
         }
         val extendedTable = SymbolTable(validTypes = setOf("number", "string", "boolean"))
-        val extendedRules = StandardExpressionTypeRules.v1_1 + mapOf(
+        val extendedRules = testExpressionRules + mapOf(
             CustomBooleanLiteral::class to booleanRule
         )
-        val customContext = DefaultSemanticContext(extendedTable, binaryRules, expressionRules = extendedRules)
-        val customAnalyzer = SemanticAnalyzer(customContext)
+        val customResolver = ExpressionTypeResolver(
+            rules = extendedRules,
+            binaryRules = binaryRules
+        )
+        val customAnalyzer = SemanticAnalyzer(
+            symbolTable = extendedTable,
+            expressionResolver = customResolver,
+            statementValidators = testStatementValidators
+        )
 
         val decl = Declaration("flag", "boolean", CustomBooleanLiteral(true))
         val results = customAnalyzer.analyze(sequenceOf(decl)).toList()
@@ -174,8 +208,7 @@ class SemanticAnalyzerTest {
     @Test
     fun `same variable name declared in then and else blocks succeeds`() {
         val table = SymbolTable(validTypes = setOf("number", "string", "boolean"))
-        val ctx = DefaultSemanticContext(table, binaryRules)
-        val ifAnalyzer = SemanticAnalyzer(ctx)
+        val ifAnalyzer = SemanticAnalyzer(symbolTable = table, expressionResolver = expressionResolver, statementValidators = testStatementValidators)
 
         val ifStmt = IfStatement(
             condition = BooleanLiteral(true),
@@ -196,8 +229,7 @@ class SemanticAnalyzerTest {
     @Test
     fun `shadowing of outer variable inside block succeeds`() {
         val table = SymbolTable(validTypes = setOf("number", "string", "boolean"))
-        val ctx = DefaultSemanticContext(table, binaryRules)
-        val ifAnalyzer = SemanticAnalyzer(ctx)
+        val ifAnalyzer = SemanticAnalyzer(symbolTable = table, expressionResolver = expressionResolver, statementValidators = testStatementValidators)
 
         val outerDecl = Declaration("x", "number", NumberLiteral(1.0))
         val ifStmt = IfStatement(
@@ -256,5 +288,223 @@ class SemanticAnalyzerTest {
         assertTrue(results[0] is Success)
         assertTrue(results[1] is Failure)
         assertTrue((results[1] as Failure).msg.contains("Variable 'secret' no declarada"))
+    }
+
+    @Test
+    fun `unknown function in Call fails when builtins are registered`() {
+        val testBuiltins = mapOf(
+            "println" to object : cnc.common.BuiltinMethod {
+                override val name = "println"
+                override fun execute(arguments: List<Any?>) = Success("ok", Unit)
+            }
+        )
+        val strictResolver = ExpressionTypeResolver(rules = testExpressionRules, binaryRules = binaryRules, builtins = testBuiltins)
+        val strictAnalyzer = SemanticAnalyzer(symbolTable = symbolTable, expressionResolver = strictResolver, statementValidators = testStatementValidators)
+
+        val call = Call("unknownFunc", listOf(NumberLiteral(42.0)))
+        val results = strictAnalyzer.analyze(sequenceOf(call)).toList()
+
+        assertEquals(1, results.size)
+        assertTrue(results[0] is Failure)
+        assertTrue((results[0] as Failure).msg.contains("Función desconocida o no declarada: 'unknownFunc'"))
+    }
+
+    @Test
+    fun `calling void function in CallExpression fails`() {
+        val testBuiltins = mapOf(
+            "println" to object : cnc.common.BuiltinMethod {
+                override val name = "println"
+                override val returnType: String? = null
+                override fun execute(arguments: List<Any?>) = Success("ok", Unit)
+            }
+        )
+        val strictResolver = ExpressionTypeResolver(rules = testExpressionRules, binaryRules = binaryRules, builtins = testBuiltins)
+        val strictAnalyzer = SemanticAnalyzer(symbolTable = symbolTable, expressionResolver = strictResolver, statementValidators = testStatementValidators)
+
+        val decl = Declaration("x", "string", CallExpression("println", listOf(StringLiteral("hi"))))
+        val results = strictAnalyzer.analyze(sequenceOf(decl)).toList()
+
+        assertEquals(1, results.size)
+        assertTrue(results[0] is Failure)
+        assertTrue((results[0] as Failure).msg.contains("no retorna un valor"))
+    }
+
+    @Test
+    fun `calling returning function in CallExpression succeeds`() {
+        val testBuiltins = mapOf(
+            "readInput" to object : cnc.common.BuiltinMethod {
+                override val name = "readInput"
+                override val returnType = "string"
+                override fun execute(arguments: List<Any?>) = Success("ok", "test")
+            }
+        )
+        val strictResolver = ExpressionTypeResolver(rules = testExpressionRules, binaryRules = binaryRules, builtins = testBuiltins)
+        val strictAnalyzer = SemanticAnalyzer(symbolTable = symbolTable, expressionResolver = strictResolver, statementValidators = testStatementValidators)
+
+        val decl = Declaration("name", "string", CallExpression("readInput", listOf(StringLiteral("prompt:"))))
+        val results = strictAnalyzer.analyze(sequenceOf(decl)).toList()
+
+        assertEquals(1, results.size)
+        assertTrue(results[0] is Success)
+    }
+
+    @Test
+    fun `logical not operator succeeds on boolean and fails on non-boolean`() {
+        val table = SymbolTable(validTypes = setOf("number", "string", "boolean"))
+        val unaryWithNot = mapOf(
+            "-" to TypeResolvers.unaryNumeric("-"),
+            "!" to TypeResolvers.booleanNot
+        )
+        val notResolver = ExpressionTypeResolver(rules = testExpressionRules, binaryRules = binaryRules, unaryRules = unaryWithNot)
+        val notAnalyzer = SemanticAnalyzer(symbolTable = table, expressionResolver = notResolver, statementValidators = testStatementValidators)
+
+        val validNot = Declaration("flag", "boolean", UnaryExpression("!", BooleanLiteral(false)))
+        val resultsValid = notAnalyzer.analyze(sequenceOf(validNot)).toList()
+        assertEquals(1, resultsValid.size)
+        assertTrue(resultsValid[0] is Success)
+
+        val invalidNot = Declaration("badFlag", "boolean", UnaryExpression("!", NumberLiteral(10.0)))
+        val resultsInvalid = notAnalyzer.analyze(sequenceOf(invalidNot)).toList()
+        assertEquals(1, resultsInvalid.size)
+        assertTrue(resultsInvalid[0] is Failure)
+        assertTrue((resultsInvalid[0] as Failure).msg.contains("Operador unario '!' requiere 'boolean'"))
+    }
+
+    @Test
+    fun `PrintScript 1_0 analyzer rejects IfStatement because validator is not registered`() {
+        val v10Validators = mapOf(
+            Declaration::class to StandardStatementValidators.declaration,
+            Assignment::class to StandardStatementValidators.assignment,
+            Call::class to StandardStatementValidators.call
+        )
+        val v10Analyzer = SemanticAnalyzer(
+            symbolTable = symbolTable,
+            expressionResolver = expressionResolver,
+            statementValidators = v10Validators
+        )
+        val ifStmt = IfStatement(
+            condition = BooleanLiteral(true),
+            thenBlock = BlockStatement(emptyList())
+        )
+        val results = v10Analyzer.analyze(sequenceOf(ifStmt)).toList()
+        assertEquals(1, results.size)
+        assertTrue(results[0] is Failure)
+        assertTrue((results[0] as Failure).msg.contains("No hay validador semántico registrado para la sentencia: IfStatement"))
+    }
+
+    @Test
+    fun `custom statement validator can be composed into SemanticAnalyzer`() {
+        var customValidatorCalled = false
+        val customCallValidator = StatementValidator<Call> { _, _ ->
+            customValidatorCalled = true
+            Success("ok", Unit)
+        }
+
+        val customValidators = testStatementValidators + mapOf(
+            Call::class to customCallValidator
+        )
+        val customAnalyzer = SemanticAnalyzer(
+            symbolTable = symbolTable,
+            expressionResolver = expressionResolver,
+            statementValidators = customValidators
+        )
+
+        val call = Call("anyCall", emptyList())
+        val results = customAnalyzer.analyze(sequenceOf(call)).toList()
+
+        assertEquals(1, results.size)
+        assertTrue(results[0] is Success)
+        assertTrue(customValidatorCalled)
+    }
+
+    @Test
+    fun `SemanticContext encapsulates symbolTable and expressionResolver and branches scopes cleanly`() {
+        val rootContext = analyzer.createContext(symbolTable)
+        assertEquals(symbolTable, rootContext.symbolTable)
+        assertEquals(analyzer.expressionResolver, rootContext.expressionResolver)
+
+        val childContext = rootContext.createChildScope()
+        assertEquals(rootContext.expressionResolver, childContext.expressionResolver)
+        assertNotEquals(rootContext.symbolTable, childContext.symbolTable)
+    }
+
+    @Test
+    fun `SemanticContext delegates statement validation and expression resolution directly`() {
+        var dispatchedStmt: Statement? = null
+        val context = SemanticContext(
+            symbolTable = symbolTable,
+            expressionResolver = expressionResolver,
+            statementDispatcher = { stmt, _ ->
+                dispatchedStmt = stmt
+                Success("ok", Unit)
+            }
+        )
+
+        val call = Call("anyCall", emptyList())
+        val result = context.validate(call)
+        assertTrue(result is Success)
+        assertEquals(call, dispatchedStmt)
+
+        val exprRes = context.resolveExpressionType(NumberLiteral(42.0))
+        assertTrue(exprRes is Success)
+        assertEquals("number", (exprRes as Success).data)
+    }
+
+    @Test
+    fun `SemanticContext validateInChildScope executes statements in child scope without polluting parent`() {
+        val rootContext = analyzer.createContext(symbolTable)
+        val decl = Declaration("scopedVar", "number", NumberLiteral(10.0), isMutable = true)
+
+        val result = rootContext.validateInChildScope(listOf(decl))
+        assertTrue(result is Success)
+        assertFalse(rootContext.symbolTable.isDeclared("scopedVar"))
+    }
+
+    @Test
+    fun `StatementValidator builder builds functional validator`() {
+        var validatedName = ""
+        val validator = StatementValidator.builder<Declaration>("customDecl")
+            .validate { stmt, ctx ->
+                ctx.flow()
+                    .expect(stmt.name.isNotBlank()) { "Name must not be blank" }
+                    .then { validatedName = stmt.name }
+            }
+            .build()
+
+        val ctx = analyzer.createContext()
+        val res = validator.validate(Declaration("myVar", "number"), ctx)
+        assertTrue(res is Success)
+        assertEquals("myVar", validatedName)
+    }
+
+    @Test
+    fun `ExpressionRule builder builds functional expression rule`() {
+        val rule = ExpressionRule.builder<NumberLiteral>("customNum")
+            .resolve { expr, ctx ->
+                ctx.flow()
+                    .expect(expr.value >= 0) { "Must be non-negative" }
+                    .then { "positive-number" }
+            }
+            .build()
+
+        val exprCtx = ExpressionContext(symbolTable::typeOf, expressionResolver)
+        val res = rule.resolve(NumberLiteral(5.0), exprCtx)
+        assertTrue(res is Success)
+        assertEquals("positive-number", (res as Success).data)
+    }
+
+    @Test
+    fun `SemanticAnalyzer builder constructs and executes complete pipeline`() {
+        val customAnalyzer = SemanticAnalyzer.builder()
+            .withValidTypes(setOf("number", "string", "boolean"))
+            .registerStatementValidators(testStatementValidators)
+            .registerExpressionRules(testExpressionRules)
+            .registerBinaryOp("+", TypeResolvers.additionOrConcat)
+            .build()
+
+        val decl = Declaration("total", "number", BinaryExpression(NumberLiteral(1.0), "+", NumberLiteral(2.0)))
+        val results = customAnalyzer.analyze(sequenceOf(decl)).toList()
+        assertEquals(1, results.size)
+        assertTrue(results[0] is Success)
     }
 }

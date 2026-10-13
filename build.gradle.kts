@@ -21,9 +21,9 @@ fun resolveVersion(): String {
     // GITHUB_REF_NAME lo setea GitHub Actions: es el tag (v2.0.0) o la rama (main)
     val ref = System.getenv("GITHUB_REF_NAME") ?: "local"
     return if (ref.matches(Regex("v\\d+\\.\\d+\\.\\d+"))) {
-        ref.removePrefix("v")            // v2.0.0 -> 2.0.0 (release)
+        ref.removePrefix("v") // v2.0.0 -> 2.0.0 (release)
     } else {
-        "0.0.0-SNAPSHOT"                 // cualquier otra cosa -> snapshot
+        "0.0.0-SNAPSHOT" // cualquier otra cosa -> snapshot
     }
 }
 

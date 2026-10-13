@@ -2,21 +2,22 @@
 
 **Ruta:** `/semantic`  
 **Dependencias directas:** `:common`, `:ast`  
-**Consumidores:** `:app`  
+**Consumidores:** `:printscript` (perfiles v1.0 y v1.1), `:app`, `:cli`  
 
 ---
 
 ## 1. Responsabilidad y Propósito (SRP)
-- **Qué problema resuelve:** Realiza la comprobación estática de tipos (*type-checking*), la verificación de alcance de identificadores (*scope checking*), previene la redeclaración de variables y asegura la compatibilidad entre tipos en asignaciones y operaciones binarias y unarias.
+- **Qué problema resuelve:** Realiza la comprobación estática de tipos (*type-checking*), la verificación de alcance de identificadores (*scope checking*), previene la redeclaración de variables, asegura la inmutabilidad de constantes (`const`), valida condiciones booleanas en sentencias de control (`if`/`else`) y verifica compatibilidad en operaciones binarias, unarias y llamadas a funciones.
 - **Qué hace:**
-  - Valida sentencias `Declaration`, `Assignment` y `Call`.
-  - Mantiene la tabla de símbolos (`SymbolTable`) con los tipos válidos y variables registradas.
-  - Resuelve recursivamente el tipo estático de cualquier expresión (`ExpressionTypeResolver`).
-  - Provee resolvedores de tipos estándar (`TypeResolvers`: suma/concatenación, aritmética estricta, operadores unarios).
-  - Emite errores semánticos funcionales (`ErrorType.SEMANTIC`).
+  - Valida sentencias desacopladas mediante el patrón de reglas extensibles `StatementValidator<T>` (`Declaration`, `Assignment`, `Call`, `BlockStatement`, `IfStatement`).
+  - Mantiene la tabla de símbolos jerárquica (`SymbolTable`) con encadenamiento léxico hacia el padre (`parent`).
+  - Resuelve recursivamente el tipo estático de cualquier expresión (`ExpressionTypeResolver`) con cero alocaciones en hot paths.
+  - Verifica llamadas a funciones utilizando la abstracción compartida `BuiltinMethod` (proveniente de `:common`).
+  - Provee resolvedores de tipos estándar (`TypeResolvers`: suma/concatenación, aritmética estricta, operadores unarios numéricos y lógicos `!`).
+  - Emite errores semánticos puramente funcionales (`Result<T>` con `ErrorType.SEMANTIC`).
 - **Qué NO hace (Fronteras):**
-  - No ejecuta sentencias ni calcula valores numéricos/texto en tiempo de ejecución.
-  - No re-analiza sintaxis ni consume tokens directamente.
+  - No ejecuta sentencias ni calcula valores numéricos/texto en tiempo de ejecución (responsabilidad de `:interpreter`).
+  - No re-analiza sintaxis ni consume tokens directamente (responsabilidad de `:parser`).
 
 ---
 
@@ -26,102 +27,88 @@
 ```mermaid
 flowchart TD
     Stmt["Sequence<Statement>"] --> Analyzer["SemanticAnalyzer.analyze()"]
-    Analyzer --> CheckStmt{"Tipo de Statement"}
+    Analyzer --> ValRegistry["StatementValidator<T> Registry"]
     
-    CheckStmt -->|Declaration| DeclCheck["Validar tipo, no-redeclaración y compatibilidad de valor"]
-    CheckStmt -->|Assignment| AssignCheck["Validar existencia y compatibilidad con tipo de la variable"]
-    CheckStmt -->|Call| CallCheck["Validar tipos de los argumentos"]
+    ValRegistry -->|Declaration| DeclVal["DeclarationValidator"]
+    ValRegistry -->|Assignment| AssignVal["AssignmentValidator"]
+    ValRegistry -->|Call| CallVal["CallValidator (builtins check)"]
+    ValRegistry -->|BlockStatement| BlockVal["BlockValidator (child scope)"]
+    ValRegistry -->|IfStatement| IfVal["IfValidator (boolean cond)"]
     
-    DeclCheck --> ST["SymbolTable (declare / isDeclared)"]
-    AssignCheck --> ETR["ExpressionTypeResolver.resolve()"]
-    ETR --> Rules["TypeResolvers (Binary & Unary rules)"]
+    DeclVal --> ST["SymbolTable (declare / typeOf)"]
+    AssignVal --> ETR["ExpressionTypeResolver.resolve()"]
+    CallVal --> ETR
+    IfVal --> ETR
+    
+    ETR --> ETRules["ExpressionTypeRule (AST Nodes)"]
+    ETRules --> TypeRes["TypeResolvers (Binary & Unary rules)"]
     
     Analyzer --> Result["Sequence<Result<Statement>>"]
 ```
 
 ### Entidades de Dominio e Interfaces
 1. **`SemanticAnalyzer`:**
-   - Analizador principal: `fun analyze(statements: Sequence<Statement>): Sequence<Result<Statement>>`.
-   - Emite `Success(statement)` si la sentencia es semánticamente correcta, o `Failure` si viola alguna regla de tipos o alcance.
-2. **`SemanticContext`:**
-   - Interfaz de contexto: `isValidType(type)`, `isDeclared(name)`, `declare(name, type)`, `typeOf(name)`, `resolveExpressionType(expr)`.
-   - `DefaultSemanticContext`: Implementación estándar que conecta `SymbolTable`, `BinaryOpResolver`, `UnaryOpResolver` y `ExpressionTypeRule`.
-3. **`SymbolTable`:**
-   - Almacén de tipos válidos y mapeo de variables declaradas a sus tipos estáticos (`Map<String, String>`).
-4. **`TypeResolvers`:**
-   - Fábricas de reglas de compatibilidad de tipos:
+   - Orquestador desacoplado: `fun analyze(statements: Sequence<Statement>): Sequence<Result<Statement>>`.
+   - Despacha cada sentencia a su `StatementValidator<Statement>` registrado en un mapa de configuración, logrando simetría total con el `:interpreter` y `:parser` y eliminando cualquier bloque cerrado `when`.
+   - Construible mediante `SemanticAnalyzer.builder()`.
+2. **`StatementValidator<T : Statement>`:**
+   - Interfaz funcional y builder: `fun validate(statement: T, context: SemanticContext): Result<Unit>`.
+   - Provee validadores atómicos estándar en `StandardStatementValidators` (`declaration`, `assignment`, `call`, `block`, `ifValidator`).
+   - Los conjuntos de reglas por versión (`v1_0`, `v1_1`) residen en sus respectivos perfiles en `:printscript`, manteniendo `:semantic` completamente agnóstico de la versión.
+3. **`SemanticContext`:**
+   - Contexto de ejecución que desacopla la validación del orquestador global. Expone `symbolTable: SymbolTable`, `expressionResolver: ExpressionTypeResolver`, `validate(Statement)`, `validateInChildScope(...)` y creación de flows con `.flow()`.
+4. **`SemanticFlow`:**
+   - Monad / railroad-oriented flow que encadena verificaciones e inferencias de tipos con semántica de cortocircuito (`expect`, `step`, `stepAll`, `optionalStep`, `then`, `thenResult`).
+5. **`ExpressionRule<T : Expression>`:**
+   - Reglas atómicas de inferencia de tipo para expresiones, construibles con `ExpressionRule.builder<T>()` y evaluadas mediante `ExpressionContext`.
+6. **`SymbolTable`:**
+   - Almacén de tipos válidos y variables registradas con mutabilidad. Soporta ámbitos anidados mediante `createChild()`, resolviendo variables subiendo por la cadena de padres en $O(\text{profundidad})$ sin alocaciones de memoria innecesarias.
+7. **`ExpressionTypeResolver`:**
+   - Infiere recursivamente el tipo estático de expresiones mediante reglas componibles `ExpressionRule<T>`. Consulta tipos de variables delegando directamente a `symbolTable::typeOf` ($O(1)$ allocations) y valida funciones contra `BuiltinMethod`.
+8. **`TypeResolvers`:**
+   - Reglas de compatibilidad de tipos:
      - `additionOrConcat`: `number + number = number`, `string + anything = string`.
-     - `numericOnly(op)`: `-`, `*`, `/` exigen estrictamente `number` en ambos operandos.
-     - `unaryNumeric(op)`: Operador `-` unario exige `number`.
-5. **`ExpressionTypeResolver`:**
-   - Infiere recursivamente el tipo estático (`"number"`, `"string"`) de un árbol de `Expression`.
+     - `numericOnly(op)`: Operaciones aritméticas estrictas (`-`, `*`, `/`, `**`).
+     - `unaryNumeric(op)`: `-` unario exige `number`.
+     - `booleanNot`: `!` unario exige `boolean`.
 
 ---
 
 ## 3. Manejo de Errores y Pipeline Funcional
 - **ErrorType asociado:** `ErrorType.SEMANTIC`.
-- **Garantías:** Cero excepciones. Errores tales como: variable ya declarada, variable no declarada, tipo no reconocido, o incompatibilidad de tipos (ej: asignar `"texto"` a una variable `number`) son modelados como `Failure("...", ErrorType.SEMANTIC)`.
+- **Garantías:** Cero excepciones. Errores tales como:
+  - Variable ya declarada o no declarada.
+  - Tipo no reconocido.
+  - Reasignación de constantes (`const`).
+  - Condición no booleana en sentencias `if`.
+  - Incompatibilidad de tipos en asignaciones y operaciones binarias/unarias.
+  - Funciones no declaradas o funciones sin retorno (`println`) utilizadas como expresiones.
+  Todos son modelados funcionalmente como `Failure("...", ErrorType.SEMANTIC)`.
 
 ---
 
-## 4. Ejemplo Práctico Autónomo (End-to-End)
+## 4. Integración con Builtins Compartidos (`BuiltinMethod`)
+El tipo `BuiltinMethod` reside en `:common` y contiene tanto la metadata semántica (`name`, `returnType`) como la ejecución para el intérprete. Esto permite que los perfiles de lenguaje (v1.0, v1.1) definan su conjunto de builtins **una única vez** y los compartan de manera idéntica entre el `SemanticAnalyzer` y el `Interpreter`.
 
+---
+
+## 5. Extensibilidad (Open/Closed Principle)
+Para agregar una nueva sentencia (ej: `WhileStatement`):
 ```kotlin
-package example
-
-import cnc.ast.*
-import cnc.common.Failure
-import cnc.common.Success
-import cnc.semantic.*
-
-fun main() {
-    // 1. Configurar contexto semántico
-    val symbolTable = SymbolTable(validTypes = setOf("number", "string"))
-    val binaryRules = mapOf(
-        "+" to TypeResolvers.additionOrConcat,
-        "*" to TypeResolvers.numericOnly("*")
-    )
-    val context = DefaultSemanticContext(
-        symbolTable = symbolTable,
-        binaryRules = binaryRules
-    )
-    val analyzer = SemanticAnalyzer(context)
-
-    // 2. Analizar sentencias válidas
-    val sentenciasValidas = sequenceOf(
-        Declaration("x", "number", NumberLiteral(10.0)),
-        Declaration("y", "number", BinaryExpression(Identifier("x"), "*", NumberLiteral(2.0)))
-    )
-
-    for (res in analyzer.analyze(sentenciasValidas)) {
-        when (res) {
-            is Success -> println("Semántica OK: ${res.data}")
-            is Failure -> println("Error semántico: ${res.msg}")
-        }
+// 1. Crear el validador con SemanticFlow
+val whileValidator = StatementValidator.builder<WhileStatement>("while")
+    .validate { stmt, ctx ->
+        var condType = ""
+        ctx.flow()
+            .step({ ctx.resolveExpressionType(stmt.condition) }) { condType = it }
+            .expect(condType == "boolean") { "La condición del 'while' debe ser de tipo 'boolean'" }
+            .thenResult { ctx.validateInChildScope(stmt.body) }
     }
+    .build()
 
-    // 3. Analizar sentencia con error de tipos (asignar string a number)
-    val sentenciaInvalida = sequenceOf(
-        Declaration("z", "number", StringLiteral("esto no es un numero"))
-    )
-
-    for (res in analyzer.analyze(sentenciaInvalida)) {
-        when (res) {
-            is Success -> println("Semántica OK: ${res.data}")
-            is Failure -> println("Error capturado: [${res.type}] ${res.msg}")
-            // Error capturado: [SEMANTIC] Se esperaba 'number' pero se obtuvo 'string'
-        }
-    }
-}
+// 2. Componer en el analizador mediante SemanticAnalyzer.builder()
+val customAnalyzer = SemanticAnalyzer.builder()
+    .withExpressionResolver(customResolver)
+    .registerStatementValidator(WhileStatement::class, whileValidator)
+    .build()
 ```
-
----
-
-## 5. Integración en el Pipeline del Compilador
-- **Entrada:** `Sequence<Statement>` validada sintácticamente por el `:parser`.
-- **Salida:** `Sequence<Result<Statement>>` validada con tipos estáticos, consumida por el `:interpreter`.
-
----
-
-## 6. Decisiones Técnicas y Tradeoffs
-- **Reglas de Operación Componibles:** En lugar de codificar la lógica de compatibilidad de tipos dentro de un `when` gigante en el analizador, cada operador (`+`, `-`, `*`, `/`) se inyecta como un `BinaryOpResolver`. Esto permite agregar fácilmente nuevos operadores (ej: `%`, `**`, `==`) o dialectos sin alterar el motor principal.

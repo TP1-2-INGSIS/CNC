@@ -104,4 +104,9 @@ class Interpreter(
     fun evaluate(expression: Expression, environment: Environment): Result<Any?> {
         return expressionEvaluator.evaluate(expression, environment, this)
     }
+
+    companion object {
+        fun builder(): InterpreterBuilder = InterpreterBuilder()
+    }
 }
+

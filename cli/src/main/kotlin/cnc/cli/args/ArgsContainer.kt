@@ -1,17 +1,5 @@
 package cnc.cli.args
 
-enum class ParamType {
-    POSITIONAL,
-    OPTIONAL,
-    FLAG
-}
-
-data class Param (
-    val name: String,
-    val description: String,
-    val type: ParamType
-)
-
 data class ArgsContainer(
     val flags: MutableSet<String> = mutableSetOf(),
     val options: MutableMap<String, String> = mutableMapOf(),

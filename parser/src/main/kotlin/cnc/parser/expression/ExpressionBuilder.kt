@@ -1,11 +1,15 @@
 package cnc.parser.expression
 
 import cnc.ast.BinaryExpression
-import cnc.ast.Expression
-import cnc.ast.UnaryExpression
 import cnc.ast.CallExpression
+import cnc.ast.Expression
 import cnc.ast.Identifier
+import cnc.ast.UnaryExpression
 import cnc.common.Cursor
+import cnc.common.ErrorType
+import cnc.common.Failure
+import cnc.common.Result
+import cnc.common.Success
 import cnc.common.asCursor
 import cnc.token.Token
 import cnc.token.TokenDefinition
@@ -24,55 +28,99 @@ data class PrefixOperatorDef(
 )
 
 interface ExpressionParser {
-    fun parse(cursor: Cursor<Token>): Expression
+    fun parse(cursor: Cursor<Token>): Result<Expression>
 }
 
 /**
- * Pratt parser implementation for expressions with precedence and associativity.
+ * Pratt parser implementation for expressions with precedence and associativity,
+ * returning pure [Result]s with zero exceptions for control flow.
  */
 class ExpressionBuilder(
-    private val recipes: Map<TokenDefinition, (Token) -> Expression>,
-    private val operators: List<OperatorDef> = emptyList(),
-    private val prefixOperators: List<PrefixOperatorDef> = emptyList(),
-    private val groupOpen: TokenDefinition? = null,
-    private val groupClose: TokenDefinition? = null
+    val recipes: Map<TokenDefinition, (Token) -> Expression> = emptyMap(),
+    val operators: List<OperatorDef> = emptyList(),
+    val prefixOperators: List<PrefixOperatorDef> = emptyList()
 ) : ExpressionParser {
 
-    fun build(token: Token): Expression {
+    fun addRecipe(tokenDef: TokenDefinition, recipe: (Token) -> Expression): ExpressionBuilder =
+        copy(recipes = recipes + (tokenDef to recipe))
+
+    fun addRecipeFirst(tokenDef: TokenDefinition, recipe: (Token) -> Expression): ExpressionBuilder =
+        copy(recipes = mapOf(tokenDef to recipe) + recipes)
+
+    fun addRecipes(newRecipes: Map<TokenDefinition, (Token) -> Expression>): ExpressionBuilder =
+        copy(recipes = recipes + newRecipes)
+
+    fun addRecipesFirst(newRecipes: Map<TokenDefinition, (Token) -> Expression>): ExpressionBuilder =
+        copy(recipes = newRecipes + recipes)
+
+    fun addOperator(operator: OperatorDef): ExpressionBuilder =
+        copy(operators = operators + operator)
+
+    fun addOperators(newOperators: List<OperatorDef>): ExpressionBuilder =
+        copy(operators = operators + newOperators)
+
+    fun addPrefixOperator(operator: PrefixOperatorDef): ExpressionBuilder =
+        copy(prefixOperators = prefixOperators + operator)
+
+    fun copy(
+        recipes: Map<TokenDefinition, (Token) -> Expression> = this.recipes,
+        operators: List<OperatorDef> = this.operators,
+        prefixOperators: List<PrefixOperatorDef> = this.prefixOperators
+    ): ExpressionBuilder = ExpressionBuilder(
+        recipes = recipes,
+        operators = operators,
+        prefixOperators = prefixOperators
+    )
+
+    fun build(token: Token): Result<Expression> {
         val (_, builder) = recipes.entries.firstOrNull { (definition, _) ->
             definition.match(token.text)
-        } ?: throw cnc.parser.rule.ParseAbortException(
-            cnc.common.Failure("No recipe matches token: '${token.text}' at row ${token.pos.row}, col ${token.pos.col}", cnc.common.ErrorType.PARSER)
+        } ?: return Failure(
+            "No recipe matches token: '${token.text}' at row ${token.pos.row}, col ${token.pos.col}",
+            ErrorType.PARSER
         )
-        return builder(token)
+        return Success("Parsed token", builder(token))
     }
 
-    fun build(tokens: List<Token>): Expression {
-        if (tokens.isEmpty()) throw cnc.parser.rule.ParseAbortException(
-            cnc.common.Failure("Cannot build expression from empty token list", cnc.common.ErrorType.PARSER)
+    fun build(tokens: List<Token>): Result<Expression> {
+        if (tokens.isEmpty()) return Failure(
+            "Cannot build expression from empty token list",
+            ErrorType.PARSER
         )
         if (operators.isEmpty() || tokens.size == 1) {
             return build(tokens.first())
         }
         val cursor = tokens.asCursor()
         val result = parse(cursor)
+        if (result is Failure) return result
         if (cursor.hasMore()) {
-            throw cnc.parser.rule.ParseAbortException(
-                cnc.common.Failure("Unexpected token '${cursor.peek()?.text}' after expression", cnc.common.ErrorType.PARSER)
+            return Failure(
+                "Unexpected token '${cursor.peek()?.text}' after expression",
+                ErrorType.PARSER
             )
         }
         return result
     }
 
-    override fun parse(cursor: Cursor<Token>): Expression = parseExpression(cursor, 0)
+    override fun parse(cursor: Cursor<Token>): Result<Expression> = parseExpression(cursor, 0)
 
-    private fun parseExpression(cursor: Cursor<Token>, minPrecedence: Int): Expression {
-        var left = parseAtom(cursor)
+    private fun parseExpression(cursor: Cursor<Token>, minPrecedence: Int): Result<Expression> {
+        val leftResult = parseAtom(cursor)
+        if (leftResult is Failure) return leftResult
+        var left = (leftResult as Success).data
 
         while (cursor.hasMore()) {
             val token = cursor.peek() ?: break
-            val operator = findOperator(token) ?: break
 
+            // Postfix function call: identifier followed by '('
+            if (token.text == "(" && left is Identifier) {
+                val callRes = parseCall(cursor, left)
+                if (callRes is Failure) return callRes
+                left = (callRes as Success).data
+                continue
+            }
+
+            val operator = findOperator(token) ?: break
             if (operator.precedence < minPrecedence) break
 
             cursor.advance()
@@ -83,17 +131,21 @@ class ExpressionBuilder(
                 operator.precedence
             }
 
-            val right = parseExpression(cursor, nextMinPrecedence)
+            val rightRes = parseExpression(cursor, nextMinPrecedence)
+            if (rightRes is Failure) return rightRes
+            val right = (rightRes as Success).data
+
             left = BinaryExpression(left, token.text, right)
         }
 
-        return left
+        return Success("Parsed expression", left)
     }
 
-    private fun parseAtom(cursor: Cursor<Token>): Expression {
+    private fun parseAtom(cursor: Cursor<Token>): Result<Expression> {
         if (!cursor.hasMore()) {
-            throw cnc.parser.rule.ParseAbortException(
-                cnc.common.Failure("Unexpected end of expression, expected a value", cnc.common.ErrorType.PARSER)
+            return Failure(
+                "Unexpected end of expression, expected a value",
+                ErrorType.PARSER
             )
         }
 
@@ -102,48 +154,64 @@ class ExpressionBuilder(
         val prefixOp = findPrefixOperator(token)
         if (prefixOp != null) {
             cursor.advance()
-            val operand = parseExpression(cursor, prefixOp.precedence)
-            return UnaryExpression(token.text, operand)
+            val operandRes = parseExpression(cursor, prefixOp.precedence)
+            return when (operandRes) {
+                is Success -> Success("Parsed unary expression", UnaryExpression(token.text, operandRes.data))
+                is Failure -> operandRes
+            }
         }
 
-        if (groupOpen != null && groupOpen.match(token.text)) {
+        if (token.text == "(") {
             cursor.advance()
-            val expr = parseExpression(cursor, 0)
+            val exprRes = parseExpression(cursor, 0)
+            if (exprRes is Failure) return exprRes
+
             val closing = cursor.peek()
-            if (closing == null || groupClose == null || !groupClose.match(closing.text)) {
-                throw cnc.parser.rule.ParseAbortException(
-                    cnc.common.Failure("Expected closing '${groupClose?.symbols?.first() ?: ")"}' after grouped expression", cnc.common.ErrorType.PARSER)
+            if (closing == null || closing.text != ")") {
+                return Failure(
+                    "Expected closing ')' after grouped expression",
+                    ErrorType.PARSER
                 )
             }
             cursor.advance()
-            return expr
+            return exprRes
         }
 
         cursor.advance()
-        val atom = build(token)
-        
-        val nextToken = cursor.peek()
-        if (atom is Identifier && nextToken != null && nextToken.text == "(") {
-            cursor.advance() // consume "("
-            val args = mutableListOf<Expression>()
-            if (cursor.peek()?.text != ")") {
-                args.add(parseExpression(cursor, 0))
-                while (cursor.peek()?.text == ",") {
-                    cursor.advance() // consume ","
-                    args.add(parseExpression(cursor, 0))
-                }
+        val (_, recipe) = recipes.entries.firstOrNull { (def, _) -> def.match(token.text) }
+            ?: return Failure(
+                "No recipe matches token: '${token.text}' at row ${token.pos.row}, col ${token.pos.col}",
+                ErrorType.PARSER
+            )
+
+        return Success("Parsed atom", recipe(token))
+    }
+
+    private fun parseCall(cursor: Cursor<Token>, target: Identifier): Result<Expression> {
+        cursor.advance() // consume '('
+        val args = mutableListOf<Expression>()
+
+        val firstToken = cursor.peek()
+        if (firstToken != null && firstToken.text != ")") {
+            val argRes = parseExpression(cursor, 0)
+            if (argRes is Failure) return argRes
+            args.add((argRes as Success).data)
+
+            while (cursor.peek()?.text == ",") {
+                cursor.advance() // consume ','
+                val nextArgRes = parseExpression(cursor, 0)
+                if (nextArgRes is Failure) return nextArgRes
+                args.add((nextArgRes as Success).data)
             }
-            val closeToken = cursor.peek()
-            if (closeToken == null || closeToken.text != ")") {
-                throw cnc.parser.rule.ParseAbortException(
-                    cnc.common.Failure("Expected closing ')' after arguments", cnc.common.ErrorType.PARSER)
-                )
-            }
-            cursor.advance() // consume ")"
-            return CallExpression(atom.name, args)
         }
-        
-        return atom
+
+        val closeToken = cursor.peek()
+        if (closeToken == null || closeToken.text != ")") {
+            return Failure("Expected closing ')' after arguments", ErrorType.PARSER)
+        }
+        cursor.advance() // consume ')'
+
+        return Success("Parsed call expression", CallExpression(target.name, args))
     }
 
     private fun findOperator(token: Token): OperatorDef? =
