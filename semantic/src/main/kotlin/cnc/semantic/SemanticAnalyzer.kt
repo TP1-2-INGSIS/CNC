@@ -10,17 +10,28 @@ import kotlin.reflect.KClass
 
 /**
  * Contexto de ejecución pasado a cada [StatementValidator] durante el análisis semántico.
- * Encapsula la tabla de símbolos (estado mutable / scope) y el analizador semántico (motor).
+ * Encapsula la tabla de símbolos (estado mutable / scope), el motor de resolución de tipos
+ * y la capacidad de validar sentencias anidadas sin acoplarse al orquestador global.
  */
-data class SemanticContext(
+class SemanticContext(
     val symbolTable: SymbolTable,
-    val analyzer: SemanticAnalyzer
+    val expressionResolver: ExpressionTypeResolver,
+    private val statementDispatcher: (Statement, SemanticContext) -> Result<Unit>
 ) {
     fun createChildScope(): SemanticContext =
-        copy(symbolTable = symbolTable.createChild())
+        SemanticContext(symbolTable.createChild(), expressionResolver, statementDispatcher)
 
     fun resolveExpressionType(expr: Expression): Result<String> =
-        analyzer.resolveExpressionType(expr, symbolTable)
+        expressionResolver.resolve(expr, symbolTable::typeOf)
+
+    fun isFunctionDeclared(name: String): Boolean =
+        expressionResolver.isFunctionDeclared(name)
+
+    fun functionReturnType(name: String): String? =
+        expressionResolver.functionReturnType(name)
+
+    fun validate(statement: Statement): Result<Unit> =
+        statementDispatcher(statement, this)
 }
 
 /**
@@ -32,8 +43,11 @@ class SemanticAnalyzer(
     val statementValidators: Map<KClass<out Statement>, StatementValidator<*>> = StandardStatementValidators.v1_1,
     val symbolTable: SymbolTable = SymbolTable(setOf("number", "string", "boolean"))
 ) {
+    fun createContext(table: SymbolTable = symbolTable): SemanticContext =
+        SemanticContext(table, expressionResolver, ::validate)
+
     fun analyze(statements: Sequence<Statement>): Sequence<Result<Statement>> = sequence {
-        val context = SemanticContext(symbolTable, this@SemanticAnalyzer)
+        val context = createContext(symbolTable)
         for (statement in statements) {
             val result = validate(statement, context)
             yield(when (result) {

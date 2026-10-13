@@ -68,7 +68,7 @@ class AssignmentValidator : StatementValidator<Assignment> {
 
 class CallValidator : StatementValidator<Call> {
     override fun validate(statement: Call, context: SemanticContext): Result<Unit> {
-        if (!context.analyzer.isFunctionDeclared(statement.function)) {
+        if (!context.isFunctionDeclared(statement.function)) {
             return Failure("Función desconocida o no declarada: '${statement.function}'", ErrorType.SEMANTIC)
         }
         for (arg in statement.arguments) {
@@ -83,7 +83,7 @@ class BlockValidator : StatementValidator<BlockStatement> {
     override fun validate(statement: BlockStatement, context: SemanticContext): Result<Unit> {
         val childContext = context.createChildScope()
         for (stmt in statement.statements) {
-            val res = childContext.analyzer.validate(stmt, childContext)
+            val res = childContext.validate(stmt)
             if (res is Failure) return res
         }
         return Success("ok", Unit)
@@ -98,12 +98,12 @@ class IfValidator : StatementValidator<IfStatement> {
             return Failure("La condición del 'if' debe ser de tipo 'boolean', pero se obtuvo '${condType.data}'", ErrorType.SEMANTIC)
         }
 
-        val thenResult = context.analyzer.validate(statement.thenBlock, context)
+        val thenResult = context.validate(statement.thenBlock)
         if (thenResult is Failure) return thenResult
 
         val elseBlock = statement.elseBlock
         if (elseBlock != null) {
-            val elseResult = context.analyzer.validate(elseBlock, context)
+            val elseResult = context.validate(elseBlock)
             if (elseResult is Failure) return elseResult
         }
 

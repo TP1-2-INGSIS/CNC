@@ -392,13 +392,35 @@ class SemanticAnalyzerTest {
     }
 
     @Test
-    fun `SemanticContext encapsulates symbolTable and analyzer and branches scopes cleanly`() {
-        val rootContext = SemanticContext(symbolTable, analyzer)
+    fun `SemanticContext encapsulates symbolTable and expressionResolver and branches scopes cleanly`() {
+        val rootContext = analyzer.createContext(symbolTable)
         assertEquals(symbolTable, rootContext.symbolTable)
-        assertEquals(analyzer, rootContext.analyzer)
+        assertEquals(analyzer.expressionResolver, rootContext.expressionResolver)
 
         val childContext = rootContext.createChildScope()
-        assertEquals(analyzer, childContext.analyzer)
+        assertEquals(rootContext.expressionResolver, childContext.expressionResolver)
         assertNotEquals(rootContext.symbolTable, childContext.symbolTable)
+    }
+
+    @Test
+    fun `SemanticContext delegates statement validation and expression resolution directly`() {
+        var dispatchedStmt: Statement? = null
+        val context = SemanticContext(
+            symbolTable = symbolTable,
+            expressionResolver = expressionResolver,
+            statementDispatcher = { stmt, _ ->
+                dispatchedStmt = stmt
+                Success("ok", Unit)
+            }
+        )
+
+        val call = Call("anyCall", emptyList())
+        val result = context.validate(call)
+        assertTrue(result is Success)
+        assertEquals(call, dispatchedStmt)
+
+        val exprRes = context.resolveExpressionType(NumberLiteral(42.0))
+        assertTrue(exprRes is Success)
+        assertEquals("number", (exprRes as Success).data)
     }
 }
