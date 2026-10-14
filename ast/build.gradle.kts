@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
-    id("jacoco-conventions")
 }
 
 repositories {

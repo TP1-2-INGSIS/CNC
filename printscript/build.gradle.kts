@@ -2,6 +2,7 @@ plugins {
     `java-library`
     alias(libs.plugins.kotlin.jvm)
     id("maven-publish")
+    id("jacoco-conventions")
 }
 
 repositories {
