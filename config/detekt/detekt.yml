@@ -82,15 +82,5 @@ exceptions:
     allowedExceptionNameRegex: '^(ignored|expected).*$'
 
 formatting:
-  active: true
-  android: false
-  autoCorrect: true
-  Indentation:
-    active: true
-    indentSize: 4
-  NoTrailingSpaces:
-    active: true
-  FinalNewline:
-    active: true
-  MaximumLineLength:
-    active: false # Handled by style > MaxLineLength
+  active: false
+
