@@ -1,8 +1,9 @@
 plugins {
     `java-library`
-    alias(libs.plugins.kotlin.jvm)
+    id("org.jetbrains.kotlin.jvm")
     id("maven-publish")
     id("jacoco-conventions")
+    id("code-quality-conventions")
 }
 
 repositories {
