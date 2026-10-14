@@ -40,5 +40,5 @@ tasks.withType<Detekt>().configureEach {
 
 tasks.matching { it.name == "check" }.configureEach {
     dependsOn(tasks.matching { it.name == "ktlintCheck" })
-    dependsOn(tasks.withType<Detekt>())
+    dependsOn(tasks.matching { it.name == "detekt" })
 }

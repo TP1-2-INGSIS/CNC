@@ -28,6 +28,12 @@ ktlint_standard_modifier-order = enabled
 # Flexibilidad acordada: nombres de archivos Kotlin no obligados a coincidir con una única clase
 ktlint_standard_filename = disabled
 
+# Permitir guión bajo inicial en estado mutable privado (ej. _line, _col, _offset)
+ktlint_standard_backing-property-naming = disabled
+
+# Permitir paquetes de versión con guión bajo (ej. v1_0, v1_1)
+ktlint_standard_package-name = disabled
+
 # Excepción para tests con nombres descriptivos en backticks
 [**/test/**.kt]
 ktlint_standard_function-naming = disabled
