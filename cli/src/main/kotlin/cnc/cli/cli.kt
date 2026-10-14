@@ -14,7 +14,7 @@ import cnc.common.onSuccess
 
 data class CommandSystem(
     val cmds: Map<String, Command>,
-    val io: IOManager = StdIO()
+    val io: IOManager = StdIO(),
 ) {
     private fun readCommandFromInput(): Result<String> {
         io.write("-> $ ")
@@ -28,8 +28,9 @@ data class CommandSystem(
     private fun getGlobalHelp(argTokens: List<String>): String {
         if (argTokens.isNotEmpty()) {
             val targetCmd = argTokens[0]
-            val cmd = cmds[targetCmd]
-                ?: return "Cannot show help for '$targetCmd': command not found."
+            val cmd =
+                cmds[targetCmd]
+                    ?: return "Cannot show help for '$targetCmd': command not found."
 
             if (cmd is HelpAttribute) {
                 return cmd.getHelpText()
@@ -73,8 +74,12 @@ data class CommandSystem(
             return Success(getGlobalHelp(argTokens), true)
         }
 
-        val cmd = cmds[commandTag]
-            ?: return Failure("Command '$commandTag' is not registered. Type 'help' for available commands.", ErrorType.CLI)
+        val cmd =
+            cmds[commandTag]
+                ?: return Failure(
+                    "Command '$commandTag' is not registered. Type 'help' for available commands.",
+                    ErrorType.CLI,
+                )
 
         val args = ArgsManager.getArgsContainer(argTokens)
         val result = cmd.execute(args)
@@ -84,14 +89,14 @@ data class CommandSystem(
 
     fun run(): Result<Unit> {
         while (true) {
-            val shouldContinue = readCommandFromInput()
-                .flatMap { line -> executeLine(line) }
-                .onSuccess { res ->
-                    if (res.msg.isNotBlank()) io.writeLine(res.msg)
-                }
-                .onFailure { err ->
-                    io.writeLine("Command error: ${err.msg}")
-                }
+            val shouldContinue =
+                readCommandFromInput()
+                    .flatMap { line -> executeLine(line) }
+                    .onSuccess { res ->
+                        if (res.msg.isNotBlank()) io.writeLine(res.msg)
+                    }.onFailure { err ->
+                        io.writeLine("Command error: ${err.msg}")
+                    }
 
             if (shouldContinue is Success && !shouldContinue.data) {
                 break

@@ -12,15 +12,18 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class PrintScriptConfigTest {
-
     private val formatter = StandardFormatRules.defaultFormatter()
 
+    private fun decl(
+        name: String,
+        type: String,
+        value: Expression,
+    ) = Declaration(name = name, type = type, value = value)
 
-    private fun decl(name: String, type: String, value: Expression) =
-        Declaration(name = name, type = type, value = value)
-
-    private fun assign(target: String, value: Expression) =
-        Assignment(target = target, value = value)
+    private fun assign(
+        target: String,
+        value: Expression,
+    ) = Assignment(target = target, value = value)
 
     @Test
     fun `declaration number`() {
@@ -31,7 +34,7 @@ class PrintScriptConfigTest {
     fun `declaration string`() {
         assertEquals(
             "let s: string = \"hi\";",
-            formatter.format(listOf(decl("s", "string", StringLiteral("hi"))))
+            formatter.format(listOf(decl("s", "string", StringLiteral("hi")))),
         )
     }
 
@@ -42,7 +45,7 @@ class PrintScriptConfigTest {
         val expr = BinaryExpression(inner, "*", NumberLiteral(2.0))
         assertEquals(
             "let r: number = (a + b) * 2;",
-            formatter.format(listOf(decl("r", "number", expr)))
+            formatter.format(listOf(decl("r", "number", expr))),
         )
     }
 

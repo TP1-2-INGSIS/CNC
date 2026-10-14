@@ -26,5 +26,9 @@ interface FormatContext {
      * Centraliza la lógica de parentización: las reglas de expresión binaria la
      * usan en vez de [formatExpression] directo, sin conocer el algoritmo.
      */
-    fun formatOperand(child: Expression, parentPrecedence: Int, side: OperandSide): String
+    fun formatOperand(
+        child: Expression,
+        parentPrecedence: Int,
+        side: OperandSide,
+    ): String
 }

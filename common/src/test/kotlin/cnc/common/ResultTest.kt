@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ResultTest {
-
     @Test
     fun `test success creation and properties`() {
         val success = Success("ok", 42)

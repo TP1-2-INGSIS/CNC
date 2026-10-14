@@ -24,49 +24,51 @@ class Parser(
     val rules: List<StatementRule<Statement>>,
     val expressionParser: ExpressionParser,
     val blockOpen: TokenDefinition? = null,
-    val blockClose: TokenDefinition? = null
+    val blockClose: TokenDefinition? = null,
 ) : StatementParser {
-
     constructor(
         vararg rules: StatementRule<Statement>,
-        expressionParser: ExpressionParser
+        expressionParser: ExpressionParser,
     ) : this(rules.toList(), expressionParser)
 
     constructor(
         vararg rules: StatementRule<Statement>,
         expressionParser: ExpressionParser,
         blockOpen: TokenDefinition?,
-        blockClose: TokenDefinition?
+        blockClose: TokenDefinition?,
     ) : this(rules.toList(), expressionParser, blockOpen, blockClose)
 
     /**
      * Parses a lazy sequence of [Token]s into a lazy sequence of [Result] containing [Statement]s.
      * Operates continuously with fail-fast semantics on syntax errors.
      */
-    fun parse(tokens: Sequence<Token>): Sequence<Result<Statement>> = sequence {
-        val cursor = tokens.asCursor()
-        while (cursor.hasMore()) {
-            val result = parseStatement(cursor)
-            yield(result)
-            if (result is Failure) break
+    fun parse(tokens: Sequence<Token>): Sequence<Result<Statement>> =
+        sequence {
+            val cursor = tokens.asCursor()
+            while (cursor.hasMore()) {
+                val result = parseStatement(cursor)
+                yield(result)
+                if (result is Failure) break
+            }
         }
-    }
 
-    override fun parseExpression(cursor: Cursor<Token>): Result<Expression> =
-        expressionParser.parse(cursor)
+    override fun parseExpression(cursor: Cursor<Token>): Result<Expression> = expressionParser.parse(cursor)
 
     override fun parseStatement(cursor: Cursor<Token>): Result<Statement> {
-        val rule = rules.firstOrNull { it.canStart(cursor) }
-            ?: return unexpectedToken(cursor.advance())
+        val rule =
+            rules.firstOrNull { it.canStart(cursor) }
+                ?: return unexpectedToken(cursor.advance())
 
         return rule.parse(cursor, this)
     }
 
     override fun parseBlock(cursor: Cursor<Token>): Result<BlockStatement> {
-        val openDef = blockOpen
-            ?: return Failure("No block open delimiter configured in Parser", ErrorType.PARSER)
-        val closeDef = blockClose
-            ?: return Failure("No block close delimiter configured in Parser", ErrorType.PARSER)
+        val openDef =
+            blockOpen
+                ?: return Failure("No block open delimiter configured in Parser", ErrorType.PARSER)
+        val closeDef =
+            blockClose
+                ?: return Failure("No block close delimiter configured in Parser", ErrorType.PARSER)
 
         val openFlow = cursor.flow().expect(openDef)
         if (openFlow is FailedFlow) return Failure(openFlow.failure.msg, openFlow.failure.type)
@@ -96,6 +98,6 @@ class Parser(
         rules: List<StatementRule<Statement>> = this.rules,
         expressionParser: ExpressionParser = this.expressionParser,
         blockOpen: TokenDefinition? = this.blockOpen,
-        blockClose: TokenDefinition? = this.blockClose
+        blockClose: TokenDefinition? = this.blockClose,
     ): Parser = Parser(rules, expressionParser, blockOpen, blockClose)
 }

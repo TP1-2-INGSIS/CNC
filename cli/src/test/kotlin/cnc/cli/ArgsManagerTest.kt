@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ArgsManagerTest {
-
     @Test
     fun `test tokenize handles simple spaces`() {
         val input = "gcnc --file=main.cnc --verbose"

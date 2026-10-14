@@ -10,7 +10,6 @@ import cnc.common.Failure
 import cnc.common.Position
 import cnc.common.Success
 import cnc.common.asCursor
-import cnc.token.CncSymbols
 import cnc.token.RegexTokenDef
 import cnc.token.SymbolTokenDef
 import cnc.token.Token
@@ -20,7 +19,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ExpressionBuilderTest {
-
     private val testPlus = SymbolTokenDef("plus", "+")
     private val testMinus = SymbolTokenDef("minus", "-")
     private val testMul = SymbolTokenDef("mul", "*")
@@ -30,26 +28,34 @@ class ExpressionBuilderTest {
     private val testNumber = RegexTokenDef("number", "[0-9]+")
     private val testString = RegexTokenDef("string", "\".*?\"")
 
-    private val builder = ExpressionBuilder(
-        recipes = mapOf(
-            testNumber to { token -> NumberLiteral(token.text.toDouble()) },
-            testString to { token -> StringLiteral(token.text.removeSurrounding("\"")) },
-            testIdentifier to { token -> Identifier(token.text) }
-        ),
-        operators = listOf(
-            OperatorDef(testPlus, precedence = 1),
-            OperatorDef(testMinus, precedence = 1),
-            OperatorDef(testMul, precedence = 2),
-            OperatorDef(testDiv, precedence = 2),
-            OperatorDef(testPow, precedence = 3, associativity = Associativity.RIGHT)
-        ),
-        prefixOperators = listOf(
-            PrefixOperatorDef(testMinus, precedence = 4)
+    private val builder =
+        ExpressionBuilder(
+            recipes =
+                mapOf(
+                    testNumber to { token -> NumberLiteral(token.text.toDouble()) },
+                    testString to { token -> StringLiteral(token.text.removeSurrounding("\"")) },
+                    testIdentifier to { token -> Identifier(token.text) },
+                ),
+            operators =
+                listOf(
+                    OperatorDef(testPlus, precedence = 1),
+                    OperatorDef(testMinus, precedence = 1),
+                    OperatorDef(testMul, precedence = 2),
+                    OperatorDef(testDiv, precedence = 2),
+                    OperatorDef(testPow, precedence = 3, associativity = Associativity.RIGHT),
+                ),
+            prefixOperators =
+                listOf(
+                    PrefixOperatorDef(testMinus, precedence = 4),
+                ),
         )
-    )
 
-    private fun tok(type: TokenType, text: String, row: Int = 1, col: Int = 1) =
-        Token(type, Position(row, col), text)
+    private fun tok(
+        type: TokenType,
+        text: String,
+        row: Int = 1,
+        col: Int = 1,
+    ) = Token(type, Position(row, col), text)
 
     @Test
     fun `parses number and string literals and identifiers`() {
@@ -69,13 +75,14 @@ class ExpressionBuilderTest {
     @Test
     fun `respects operator precedence multiplication over addition`() {
         // 1 + 2 * 3
-        val tokens = sequenceOf(
-            tok(TokenType.NUMBER, "1"),
-            tok(TokenType.OPERATOR, "+"),
-            tok(TokenType.NUMBER, "2"),
-            tok(TokenType.OPERATOR, "*"),
-            tok(TokenType.NUMBER, "3")
-        )
+        val tokens =
+            sequenceOf(
+                tok(TokenType.NUMBER, "1"),
+                tok(TokenType.OPERATOR, "+"),
+                tok(TokenType.NUMBER, "2"),
+                tok(TokenType.OPERATOR, "*"),
+                tok(TokenType.NUMBER, "3"),
+            )
         val res = builder.parse(tokens.asCursor())
         assertTrue(res is Success)
         val expr = (res as Success).data as BinaryExpression
@@ -90,13 +97,14 @@ class ExpressionBuilderTest {
     @Test
     fun `respects right associativity for exponentiation`() {
         // 2 ** 3 ** 4  =>  2 ** (3 ** 4)
-        val tokens = sequenceOf(
-            tok(TokenType.NUMBER, "2"),
-            tok(TokenType.OPERATOR, "**"),
-            tok(TokenType.NUMBER, "3"),
-            tok(TokenType.OPERATOR, "**"),
-            tok(TokenType.NUMBER, "4")
-        )
+        val tokens =
+            sequenceOf(
+                tok(TokenType.NUMBER, "2"),
+                tok(TokenType.OPERATOR, "**"),
+                tok(TokenType.NUMBER, "3"),
+                tok(TokenType.OPERATOR, "**"),
+                tok(TokenType.NUMBER, "4"),
+            )
         val res = builder.parse(tokens.asCursor())
         assertTrue(res is Success)
         val expr = (res as Success).data as BinaryExpression
@@ -111,15 +119,16 @@ class ExpressionBuilderTest {
     @Test
     fun `parses grouped expression overriding precedence`() {
         // (1 + 2) * 3
-        val tokens = sequenceOf(
-            tok(TokenType.SYMBOL, "("),
-            tok(TokenType.NUMBER, "1"),
-            tok(TokenType.OPERATOR, "+"),
-            tok(TokenType.NUMBER, "2"),
-            tok(TokenType.SYMBOL, ")"),
-            tok(TokenType.OPERATOR, "*"),
-            tok(TokenType.NUMBER, "3")
-        )
+        val tokens =
+            sequenceOf(
+                tok(TokenType.SYMBOL, "("),
+                tok(TokenType.NUMBER, "1"),
+                tok(TokenType.OPERATOR, "+"),
+                tok(TokenType.NUMBER, "2"),
+                tok(TokenType.SYMBOL, ")"),
+                tok(TokenType.OPERATOR, "*"),
+                tok(TokenType.NUMBER, "3"),
+            )
         val res = builder.parse(tokens.asCursor())
         assertTrue(res is Success)
         val expr = (res as Success).data as BinaryExpression
@@ -133,12 +142,13 @@ class ExpressionBuilderTest {
 
     @Test
     fun `returns Failure on unclosed grouped expression without throwing exception`() {
-        val tokens = sequenceOf(
-            tok(TokenType.SYMBOL, "("),
-            tok(TokenType.NUMBER, "1"),
-            tok(TokenType.OPERATOR, "+"),
-            tok(TokenType.NUMBER, "2")
-        )
+        val tokens =
+            sequenceOf(
+                tok(TokenType.SYMBOL, "("),
+                tok(TokenType.NUMBER, "1"),
+                tok(TokenType.OPERATOR, "+"),
+                tok(TokenType.NUMBER, "2"),
+            )
         val res = builder.parse(tokens.asCursor())
         assertTrue(res is Failure)
         val failure = res as Failure
@@ -148,10 +158,11 @@ class ExpressionBuilderTest {
     @Test
     fun `parses unary prefix operators`() {
         // -5
-        val tokens = sequenceOf(
-            tok(TokenType.OPERATOR, "-"),
-            tok(TokenType.NUMBER, "5")
-        )
+        val tokens =
+            sequenceOf(
+                tok(TokenType.OPERATOR, "-"),
+                tok(TokenType.NUMBER, "5"),
+            )
         val res = builder.parse(tokens.asCursor())
         assertTrue(res is Success)
         val expr = (res as Success).data as UnaryExpression
@@ -162,11 +173,12 @@ class ExpressionBuilderTest {
     @Test
     fun `parses function call without arguments`() {
         // foo()
-        val tokens = sequenceOf(
-            tok(TokenType.IDENTIFIER, "foo"),
-            tok(TokenType.SYMBOL, "("),
-            tok(TokenType.SYMBOL, ")")
-        )
+        val tokens =
+            sequenceOf(
+                tok(TokenType.IDENTIFIER, "foo"),
+                tok(TokenType.SYMBOL, "("),
+                tok(TokenType.SYMBOL, ")"),
+            )
         val res = builder.parse(tokens.asCursor())
         assertTrue(res is Success)
         val expr = (res as Success).data as CallExpression
@@ -177,16 +189,17 @@ class ExpressionBuilderTest {
     @Test
     fun `parses function call with multiple arguments and in binary expression`() {
         // add(1, 2) + 3
-        val tokens = sequenceOf(
-            tok(TokenType.IDENTIFIER, "add"),
-            tok(TokenType.SYMBOL, "("),
-            tok(TokenType.NUMBER, "1"),
-            tok(TokenType.SYMBOL, ","),
-            tok(TokenType.NUMBER, "2"),
-            tok(TokenType.SYMBOL, ")"),
-            tok(TokenType.OPERATOR, "+"),
-            tok(TokenType.NUMBER, "3")
-        )
+        val tokens =
+            sequenceOf(
+                tok(TokenType.IDENTIFIER, "add"),
+                tok(TokenType.SYMBOL, "("),
+                tok(TokenType.NUMBER, "1"),
+                tok(TokenType.SYMBOL, ","),
+                tok(TokenType.NUMBER, "2"),
+                tok(TokenType.SYMBOL, ")"),
+                tok(TokenType.OPERATOR, "+"),
+                tok(TokenType.NUMBER, "3"),
+            )
         val res = builder.parse(tokens.asCursor())
         assertTrue(res is Success)
         val expr = (res as Success).data as BinaryExpression
@@ -202,15 +215,16 @@ class ExpressionBuilderTest {
     @Test
     fun `parses nested function call expressions`() {
         // outer(inner(42))
-        val tokens = sequenceOf(
-            tok(TokenType.IDENTIFIER, "outer"),
-            tok(TokenType.SYMBOL, "("),
-            tok(TokenType.IDENTIFIER, "inner"),
-            tok(TokenType.SYMBOL, "("),
-            tok(TokenType.NUMBER, "42"),
-            tok(TokenType.SYMBOL, ")"),
-            tok(TokenType.SYMBOL, ")")
-        )
+        val tokens =
+            sequenceOf(
+                tok(TokenType.IDENTIFIER, "outer"),
+                tok(TokenType.SYMBOL, "("),
+                tok(TokenType.IDENTIFIER, "inner"),
+                tok(TokenType.SYMBOL, "("),
+                tok(TokenType.NUMBER, "42"),
+                tok(TokenType.SYMBOL, ")"),
+                tok(TokenType.SYMBOL, ")"),
+            )
         val res = builder.parse(tokens.asCursor())
         assertTrue(res is Success)
         val outer = (res as Success).data as CallExpression
@@ -223,11 +237,12 @@ class ExpressionBuilderTest {
 
     @Test
     fun `returns Failure on unclosed call parentheses`() {
-        val tokens = sequenceOf(
-            tok(TokenType.IDENTIFIER, "foo"),
-            tok(TokenType.SYMBOL, "("),
-            tok(TokenType.NUMBER, "1")
-        )
+        val tokens =
+            sequenceOf(
+                tok(TokenType.IDENTIFIER, "foo"),
+                tok(TokenType.SYMBOL, "("),
+                tok(TokenType.NUMBER, "1"),
+            )
         val res = builder.parse(tokens.asCursor())
         assertTrue(res is Failure)
         val failure = res as Failure

@@ -7,7 +7,6 @@ import cnc.ast.Declaration
 import cnc.ast.Identifier
 import cnc.ast.NumberLiteral
 import cnc.ast.StringLiteral
-import cnc.ast.UnaryExpression
 import cnc.common.Failure
 import cnc.common.Position
 import cnc.common.Success
@@ -29,59 +28,71 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 
 // ---------------------------------------------------------------------------
 // Definitions de prueba
 // ---------------------------------------------------------------------------
-private val TestPlus       = SymbolTokenDef("plus", "+")
-private val TestMinus      = SymbolTokenDef("minus", "-")
-private val TestMul        = SymbolTokenDef("mul", "*")
-private val TestDiv        = SymbolTokenDef("div", "/")
-private val TestPow        = SymbolTokenDef("pow", "**")
+private val TestPlus = SymbolTokenDef("plus", "+")
+private val TestMinus = SymbolTokenDef("minus", "-")
+private val TestMul = SymbolTokenDef("mul", "*")
+private val TestDiv = SymbolTokenDef("div", "/")
+private val TestPow = SymbolTokenDef("pow", "**")
 private val TestIdentifier = RegexTokenDef("identifier", "[a-zA-Z_][a-zA-Z0-9_]*")
-private val TestNumber     = RegexTokenDef("number", "[0-9]+")
-private val TestString     = RegexTokenDef("string", "\".*?\"")
+private val TestNumber = RegexTokenDef("number", "[0-9]+")
+private val TestString = RegexTokenDef("string", "\".*?\"")
 
-private val testExprBuilder = ExpressionBuilder(
-    recipes = mapOf(
-        TestNumber to { token: Token -> NumberLiteral(token.text.toDouble()) },
-        TestString to { token: Token -> StringLiteral(token.text.removeSurrounding("\"")) },
-        TestIdentifier to { token: Token -> Identifier(token.text) }
-    ),
-    operators = listOf(
-        OperatorDef(TestPlus, precedence = 1),
-        OperatorDef(TestMinus, precedence = 1),
-        OperatorDef(TestMul, precedence = 2),
-        OperatorDef(TestDiv, precedence = 2),
-        OperatorDef(TestPow, precedence = 3, associativity = Associativity.RIGHT)
-    ),
-    prefixOperators = listOf(
-        PrefixOperatorDef(TestMinus, precedence = 4)
+private val testExprBuilder =
+    ExpressionBuilder(
+        recipes =
+            mapOf(
+                TestNumber to { token: Token -> NumberLiteral(token.text.toDouble()) },
+                TestString to { token: Token -> StringLiteral(token.text.removeSurrounding("\"")) },
+                TestIdentifier to { token: Token -> Identifier(token.text) },
+            ),
+        operators =
+            listOf(
+                OperatorDef(TestPlus, precedence = 1),
+                OperatorDef(TestMinus, precedence = 1),
+                OperatorDef(TestMul, precedence = 2),
+                OperatorDef(TestDiv, precedence = 2),
+                OperatorDef(TestPow, precedence = 3, associativity = Associativity.RIGHT),
+            ),
+        prefixOperators =
+            listOf(
+                PrefixOperatorDef(TestMinus, precedence = 4),
+            ),
     )
-)
 
-private fun tok(type: TokenType, text: String, row: Int = 0, col: Int = 0) =
-    Token(type, Position(row, col), text)
+private fun tok(
+    type: TokenType,
+    text: String,
+    row: Int = 0,
+    col: Int = 0,
+) = Token(type, Position(row, col), text)
 
 class ParserTest {
-
-    private val parser = Parser(TestStatementRules.v1_1, testExprBuilder, blockOpen = CncSymbols.OPEN_BRACE, blockClose = CncSymbols.CLOSE_BRACE)
+    private val parser =
+        Parser(
+            TestStatementRules.v1_1,
+            testExprBuilder,
+            blockOpen = CncSymbols.OPEN_BRACE,
+            blockClose = CncSymbols.CLOSE_BRACE,
+        )
 
     @Nested
     inner class DeclarationTests {
-
         @Test
         fun `declaration with number initialization`() {
-            val tokens = sequenceOf(
-                tok(TokenType.KEYWORD, "let"),
-                tok(TokenType.IDENTIFIER, "x"),
-                tok(TokenType.SYMBOL, ":"),
-                tok(TokenType.VARIABLE_TYPE, "number"),
-                tok(TokenType.SYMBOL, "="),
-                tok(TokenType.NUMBER, "42"),
-                tok(TokenType.SYMBOL, ";")
-            )
+            val tokens =
+                sequenceOf(
+                    tok(TokenType.KEYWORD, "let"),
+                    tok(TokenType.IDENTIFIER, "x"),
+                    tok(TokenType.SYMBOL, ":"),
+                    tok(TokenType.VARIABLE_TYPE, "number"),
+                    tok(TokenType.SYMBOL, "="),
+                    tok(TokenType.NUMBER, "42"),
+                    tok(TokenType.SYMBOL, ";"),
+                )
 
             val results = parser.parse(tokens).toList()
             assertEquals(1, results.size)
@@ -96,15 +107,16 @@ class ParserTest {
 
         @Test
         fun `declaration with string initialization`() {
-            val tokens = sequenceOf(
-                tok(TokenType.KEYWORD, "const"),
-                tok(TokenType.IDENTIFIER, "greeting"),
-                tok(TokenType.SYMBOL, ":"),
-                tok(TokenType.VARIABLE_TYPE, "string"),
-                tok(TokenType.SYMBOL, "="),
-                tok(TokenType.STRING, "\"hello\""),
-                tok(TokenType.SYMBOL, ";")
-            )
+            val tokens =
+                sequenceOf(
+                    tok(TokenType.KEYWORD, "const"),
+                    tok(TokenType.IDENTIFIER, "greeting"),
+                    tok(TokenType.SYMBOL, ":"),
+                    tok(TokenType.VARIABLE_TYPE, "string"),
+                    tok(TokenType.SYMBOL, "="),
+                    tok(TokenType.STRING, "\"hello\""),
+                    tok(TokenType.SYMBOL, ";"),
+                )
 
             val results = parser.parse(tokens).toList()
             assertEquals(1, results.size)
@@ -117,13 +129,14 @@ class ParserTest {
 
         @Test
         fun `declaration without initialization`() {
-            val tokens = sequenceOf(
-                tok(TokenType.KEYWORD, "let"),
-                tok(TokenType.IDENTIFIER, "x"),
-                tok(TokenType.SYMBOL, ":"),
-                tok(TokenType.VARIABLE_TYPE, "number"),
-                tok(TokenType.SYMBOL, ";")
-            )
+            val tokens =
+                sequenceOf(
+                    tok(TokenType.KEYWORD, "let"),
+                    tok(TokenType.IDENTIFIER, "x"),
+                    tok(TokenType.SYMBOL, ":"),
+                    tok(TokenType.VARIABLE_TYPE, "number"),
+                    tok(TokenType.SYMBOL, ";"),
+                )
 
             val results = parser.parse(tokens).toList()
             assertEquals(1, results.size)
@@ -136,46 +149,49 @@ class ParserTest {
 
         @Test
         fun `declaration with complex arithmetic expression`() {
-            val tokens = sequenceOf(
-                tok(TokenType.KEYWORD, "let"),
-                tok(TokenType.IDENTIFIER, "res"),
-                tok(TokenType.SYMBOL, ":"),
-                tok(TokenType.VARIABLE_TYPE, "number"),
-                tok(TokenType.SYMBOL, "="),
-                tok(TokenType.NUMBER, "2"),
-                tok(TokenType.OPERATOR, "+"),
-                tok(TokenType.NUMBER, "3"),
-                tok(TokenType.OPERATOR, "*"),
-                tok(TokenType.NUMBER, "4"),
-                tok(TokenType.SYMBOL, ";")
-            )
+            val tokens =
+                sequenceOf(
+                    tok(TokenType.KEYWORD, "let"),
+                    tok(TokenType.IDENTIFIER, "res"),
+                    tok(TokenType.SYMBOL, ":"),
+                    tok(TokenType.VARIABLE_TYPE, "number"),
+                    tok(TokenType.SYMBOL, "="),
+                    tok(TokenType.NUMBER, "2"),
+                    tok(TokenType.OPERATOR, "+"),
+                    tok(TokenType.NUMBER, "3"),
+                    tok(TokenType.OPERATOR, "*"),
+                    tok(TokenType.NUMBER, "4"),
+                    tok(TokenType.SYMBOL, ";"),
+                )
 
             val results = parser.parse(tokens).toList()
             val stmt = (results[0] as Success).data as Declaration
-            val expectedExpr = BinaryExpression(
-                left = NumberLiteral(2.0),
-                operator = "+",
-                right = BinaryExpression(
-                    left = NumberLiteral(3.0),
-                    operator = "*",
-                    right = NumberLiteral(4.0)
+            val expectedExpr =
+                BinaryExpression(
+                    left = NumberLiteral(2.0),
+                    operator = "+",
+                    right =
+                        BinaryExpression(
+                            left = NumberLiteral(3.0),
+                            operator = "*",
+                            right = NumberLiteral(4.0),
+                        ),
                 )
-            )
             assertEquals(expectedExpr, stmt.value)
         }
     }
 
     @Nested
     inner class AssignmentTests {
-
         @Test
         fun `simple variable assignment`() {
-            val tokens = sequenceOf(
-                tok(TokenType.IDENTIFIER, "x"),
-                tok(TokenType.SYMBOL, "="),
-                tok(TokenType.NUMBER, "100"),
-                tok(TokenType.SYMBOL, ";")
-            )
+            val tokens =
+                sequenceOf(
+                    tok(TokenType.IDENTIFIER, "x"),
+                    tok(TokenType.SYMBOL, "="),
+                    tok(TokenType.NUMBER, "100"),
+                    tok(TokenType.SYMBOL, ";"),
+                )
 
             val results = parser.parse(tokens).toList()
             assertEquals(1, results.size)
@@ -187,15 +203,15 @@ class ParserTest {
 
     @Nested
     inner class FunctionCallTests {
-
         @Test
         fun `function call without arguments`() {
-            val tokens = sequenceOf(
-                tok(TokenType.IDENTIFIER, "println"),
-                tok(TokenType.SYMBOL, "("),
-                tok(TokenType.SYMBOL, ")"),
-                tok(TokenType.SYMBOL, ";")
-            )
+            val tokens =
+                sequenceOf(
+                    tok(TokenType.IDENTIFIER, "println"),
+                    tok(TokenType.SYMBOL, "("),
+                    tok(TokenType.SYMBOL, ")"),
+                    tok(TokenType.SYMBOL, ";"),
+                )
 
             val results = parser.parse(tokens).toList()
             assertEquals(1, results.size)
@@ -206,17 +222,18 @@ class ParserTest {
 
         @Test
         fun `function call with multiple comma-separated arguments`() {
-            val tokens = sequenceOf(
-                tok(TokenType.IDENTIFIER, "print"),
-                tok(TokenType.SYMBOL, "("),
-                tok(TokenType.STRING, "\"val:\""),
-                tok(TokenType.SYMBOL, ","),
-                tok(TokenType.NUMBER, "10"),
-                tok(TokenType.SYMBOL, ","),
-                tok(TokenType.IDENTIFIER, "x"),
-                tok(TokenType.SYMBOL, ")"),
-                tok(TokenType.SYMBOL, ";")
-            )
+            val tokens =
+                sequenceOf(
+                    tok(TokenType.IDENTIFIER, "print"),
+                    tok(TokenType.SYMBOL, "("),
+                    tok(TokenType.STRING, "\"val:\""),
+                    tok(TokenType.SYMBOL, ","),
+                    tok(TokenType.NUMBER, "10"),
+                    tok(TokenType.SYMBOL, ","),
+                    tok(TokenType.IDENTIFIER, "x"),
+                    tok(TokenType.SYMBOL, ")"),
+                    tok(TokenType.SYMBOL, ";"),
+                )
 
             val results = parser.parse(tokens).toList()
             assertEquals(1, results.size)
@@ -231,29 +248,27 @@ class ParserTest {
 
     @Nested
     inner class ContinuousStreamTests {
-
         @Test
         fun `parses multiple consecutive statements continuously without splitAfter`() {
-            val tokens = sequenceOf(
-                tok(TokenType.KEYWORD, "let"),
-                tok(TokenType.IDENTIFIER, "a"),
-                tok(TokenType.SYMBOL, ":"),
-                tok(TokenType.VARIABLE_TYPE, "number"),
-                tok(TokenType.SYMBOL, "="),
-                tok(TokenType.NUMBER, "1"),
-                tok(TokenType.SYMBOL, ";"),
-
-                tok(TokenType.IDENTIFIER, "a"),
-                tok(TokenType.SYMBOL, "="),
-                tok(TokenType.NUMBER, "2"),
-                tok(TokenType.SYMBOL, ";"),
-
-                tok(TokenType.IDENTIFIER, "println"),
-                tok(TokenType.SYMBOL, "("),
-                tok(TokenType.IDENTIFIER, "a"),
-                tok(TokenType.SYMBOL, ")"),
-                tok(TokenType.SYMBOL, ";")
-            )
+            val tokens =
+                sequenceOf(
+                    tok(TokenType.KEYWORD, "let"),
+                    tok(TokenType.IDENTIFIER, "a"),
+                    tok(TokenType.SYMBOL, ":"),
+                    tok(TokenType.VARIABLE_TYPE, "number"),
+                    tok(TokenType.SYMBOL, "="),
+                    tok(TokenType.NUMBER, "1"),
+                    tok(TokenType.SYMBOL, ";"),
+                    tok(TokenType.IDENTIFIER, "a"),
+                    tok(TokenType.SYMBOL, "="),
+                    tok(TokenType.NUMBER, "2"),
+                    tok(TokenType.SYMBOL, ";"),
+                    tok(TokenType.IDENTIFIER, "println"),
+                    tok(TokenType.SYMBOL, "("),
+                    tok(TokenType.IDENTIFIER, "a"),
+                    tok(TokenType.SYMBOL, ")"),
+                    tok(TokenType.SYMBOL, ";"),
+                )
 
             val results = parser.parse(tokens).toList()
             assertEquals(3, results.size)
@@ -267,16 +282,16 @@ class ParserTest {
 
     @Nested
     inner class SyntaxErrorTests {
-
         @Test
         fun `missing colon reports syntax error with exact row and col`() {
-            val tokens = sequenceOf(
-                tok(TokenType.KEYWORD, "let", row = 1, col = 0),
-                tok(TokenType.IDENTIFIER, "x", row = 1, col = 4),
-                tok(TokenType.SYMBOL, "=", row = 1, col = 6),
-                tok(TokenType.NUMBER, "5", row = 1, col = 8),
-                tok(TokenType.SYMBOL, ";", row = 1, col = 9)
-            )
+            val tokens =
+                sequenceOf(
+                    tok(TokenType.KEYWORD, "let", row = 1, col = 0),
+                    tok(TokenType.IDENTIFIER, "x", row = 1, col = 4),
+                    tok(TokenType.SYMBOL, "=", row = 1, col = 6),
+                    tok(TokenType.NUMBER, "5", row = 1, col = 8),
+                    tok(TokenType.SYMBOL, ";", row = 1, col = 9),
+                )
 
             val results = parser.parse(tokens).toList()
             assertEquals(1, results.size)
@@ -289,11 +304,12 @@ class ParserTest {
 
         @Test
         fun `missing semicolon reports syntax error with exact row and col`() {
-            val tokens = sequenceOf(
-                tok(TokenType.IDENTIFIER, "x", row = 2, col = 0),
-                tok(TokenType.SYMBOL, "=", row = 2, col = 2),
-                tok(TokenType.NUMBER, "10", row = 2, col = 4)
-            )
+            val tokens =
+                sequenceOf(
+                    tok(TokenType.IDENTIFIER, "x", row = 2, col = 0),
+                    tok(TokenType.SYMBOL, "=", row = 2, col = 2),
+                    tok(TokenType.NUMBER, "10", row = 2, col = 4),
+                )
 
             val results = parser.parse(tokens).toList()
             assertTrue(results[0] is Failure)
@@ -303,14 +319,15 @@ class ParserTest {
 
         @Test
         fun `unexpected token at statement start reports error and halts stream`() {
-            val tokens = sequenceOf(
-                tok(TokenType.OPERATOR, "+", row = 3, col = 0),
-                tok(TokenType.KEYWORD, "let", row = 3, col = 2),
-                tok(TokenType.IDENTIFIER, "y", row = 3, col = 6),
-                tok(TokenType.SYMBOL, ":", row = 3, col = 7),
-                tok(TokenType.VARIABLE_TYPE, "number"),
-                tok(TokenType.SYMBOL, ";")
-            )
+            val tokens =
+                sequenceOf(
+                    tok(TokenType.OPERATOR, "+", row = 3, col = 0),
+                    tok(TokenType.KEYWORD, "let", row = 3, col = 2),
+                    tok(TokenType.IDENTIFIER, "y", row = 3, col = 6),
+                    tok(TokenType.SYMBOL, ":", row = 3, col = 7),
+                    tok(TokenType.VARIABLE_TYPE, "number"),
+                    tok(TokenType.SYMBOL, ";"),
+                )
 
             val results = parser.parse(tokens).toList()
             assertEquals(1, results.size)
@@ -322,28 +339,35 @@ class ParserTest {
 
         @Test
         fun `if statement with then and else blocks parsed correctly in v1_1`() {
-            val v11Parser = Parser(TestStatementRules.v1_1, testExprBuilder, blockOpen = CncSymbols.OPEN_BRACE, blockClose = CncSymbols.CLOSE_BRACE)
-            val tokens = sequenceOf(
-                tok(TokenType.KEYWORD, "if"),
-                tok(TokenType.SYMBOL, "("),
-                tok(TokenType.IDENTIFIER, "cond"),
-                tok(TokenType.SYMBOL, ")"),
-                tok(TokenType.SYMBOL, "{"),
-                tok(TokenType.IDENTIFIER, "println"),
-                tok(TokenType.SYMBOL, "("),
-                tok(TokenType.STRING, "\"true\""),
-                tok(TokenType.SYMBOL, ")"),
-                tok(TokenType.SYMBOL, ";"),
-                tok(TokenType.SYMBOL, "}"),
-                tok(TokenType.KEYWORD, "else"),
-                tok(TokenType.SYMBOL, "{"),
-                tok(TokenType.IDENTIFIER, "println"),
-                tok(TokenType.SYMBOL, "("),
-                tok(TokenType.STRING, "\"false\""),
-                tok(TokenType.SYMBOL, ")"),
-                tok(TokenType.SYMBOL, ";"),
-                tok(TokenType.SYMBOL, "}")
-            )
+            val v11Parser =
+                Parser(
+                    TestStatementRules.v1_1,
+                    testExprBuilder,
+                    blockOpen = CncSymbols.OPEN_BRACE,
+                    blockClose = CncSymbols.CLOSE_BRACE,
+                )
+            val tokens =
+                sequenceOf(
+                    tok(TokenType.KEYWORD, "if"),
+                    tok(TokenType.SYMBOL, "("),
+                    tok(TokenType.IDENTIFIER, "cond"),
+                    tok(TokenType.SYMBOL, ")"),
+                    tok(TokenType.SYMBOL, "{"),
+                    tok(TokenType.IDENTIFIER, "println"),
+                    tok(TokenType.SYMBOL, "("),
+                    tok(TokenType.STRING, "\"true\""),
+                    tok(TokenType.SYMBOL, ")"),
+                    tok(TokenType.SYMBOL, ";"),
+                    tok(TokenType.SYMBOL, "}"),
+                    tok(TokenType.KEYWORD, "else"),
+                    tok(TokenType.SYMBOL, "{"),
+                    tok(TokenType.IDENTIFIER, "println"),
+                    tok(TokenType.SYMBOL, "("),
+                    tok(TokenType.STRING, "\"false\""),
+                    tok(TokenType.SYMBOL, ")"),
+                    tok(TokenType.SYMBOL, ";"),
+                    tok(TokenType.SYMBOL, "}"),
+                )
 
             val results = v11Parser.parse(tokens).toList()
             assertEquals(1, results.size)
@@ -356,16 +380,23 @@ class ParserTest {
 
         @Test
         fun `v1_0 parser rejects const declaration`() {
-            val v10Parser = Parser(TestStatementRules.v1_0, testExprBuilder, blockOpen = CncSymbols.OPEN_BRACE, blockClose = CncSymbols.CLOSE_BRACE)
-            val tokens = sequenceOf(
-                tok(TokenType.KEYWORD, "const"),
-                tok(TokenType.IDENTIFIER, "x"),
-                tok(TokenType.SYMBOL, ":"),
-                tok(TokenType.VARIABLE_TYPE, "number"),
-                tok(TokenType.SYMBOL, "="),
-                tok(TokenType.NUMBER, "10"),
-                tok(TokenType.SYMBOL, ";")
-            )
+            val v10Parser =
+                Parser(
+                    TestStatementRules.v1_0,
+                    testExprBuilder,
+                    blockOpen = CncSymbols.OPEN_BRACE,
+                    blockClose = CncSymbols.CLOSE_BRACE,
+                )
+            val tokens =
+                sequenceOf(
+                    tok(TokenType.KEYWORD, "const"),
+                    tok(TokenType.IDENTIFIER, "x"),
+                    tok(TokenType.SYMBOL, ":"),
+                    tok(TokenType.VARIABLE_TYPE, "number"),
+                    tok(TokenType.SYMBOL, "="),
+                    tok(TokenType.NUMBER, "10"),
+                    tok(TokenType.SYMBOL, ";"),
+                )
 
             val results = v10Parser.parse(tokens).toList()
             assertEquals(1, results.size)
@@ -375,15 +406,22 @@ class ParserTest {
 
         @Test
         fun `v1_0 parser rejects if statement`() {
-            val v10Parser = Parser(TestStatementRules.v1_0, testExprBuilder, blockOpen = CncSymbols.OPEN_BRACE, blockClose = CncSymbols.CLOSE_BRACE)
-            val tokens = sequenceOf(
-                tok(TokenType.KEYWORD, "if"),
-                tok(TokenType.SYMBOL, "("),
-                tok(TokenType.IDENTIFIER, "x"),
-                tok(TokenType.SYMBOL, ")"),
-                tok(TokenType.SYMBOL, "{"),
-                tok(TokenType.SYMBOL, "}")
-            )
+            val v10Parser =
+                Parser(
+                    TestStatementRules.v1_0,
+                    testExprBuilder,
+                    blockOpen = CncSymbols.OPEN_BRACE,
+                    blockClose = CncSymbols.CLOSE_BRACE,
+                )
+            val tokens =
+                sequenceOf(
+                    tok(TokenType.KEYWORD, "if"),
+                    tok(TokenType.SYMBOL, "("),
+                    tok(TokenType.IDENTIFIER, "x"),
+                    tok(TokenType.SYMBOL, ")"),
+                    tok(TokenType.SYMBOL, "{"),
+                    tok(TokenType.SYMBOL, "}"),
+                )
 
             val results = v10Parser.parse(tokens).toList()
             assertEquals(1, results.size)
@@ -396,19 +434,21 @@ class ParserTest {
     inner class BuilderTests {
         @Test
         fun `custom rules can be configured and parsed`() {
-            val customRules = listOf(
-                TestStatementRules.createDeclarationRule(cnc.token.CncKeywords.LET),
-                TestStatementRules.createAssignmentRule()
-            )
+            val customRules =
+                listOf(
+                    TestStatementRules.createDeclarationRule(cnc.token.CncKeywords.LET),
+                    TestStatementRules.createAssignmentRule(),
+                )
 
             val customParser = Parser(customRules, testExprBuilder)
-            val tokens = sequenceOf(
-                tok(TokenType.KEYWORD, "let"),
-                tok(TokenType.IDENTIFIER, "a"),
-                tok(TokenType.SYMBOL, ":"),
-                tok(TokenType.VARIABLE_TYPE, "number"),
-                tok(TokenType.SYMBOL, ";")
-            )
+            val tokens =
+                sequenceOf(
+                    tok(TokenType.KEYWORD, "let"),
+                    tok(TokenType.IDENTIFIER, "a"),
+                    tok(TokenType.SYMBOL, ":"),
+                    tok(TokenType.VARIABLE_TYPE, "number"),
+                    tok(TokenType.SYMBOL, ";"),
+                )
             val results = customParser.parse(tokens).toList()
             assertEquals(1, results.size)
             assertTrue(results[0] is Success)
@@ -416,32 +456,35 @@ class ParserTest {
 
         @Test
         fun `statement rule can be built with fluent StatementRule builder`() {
-            val rule = cnc.parser.rule.StatementRule.builder<Declaration>()
-                .withName("custom_let")
-                .starts { it.matches(cnc.token.CncKeywords.LET) }
-                .parse { cursor, parser ->
-                    var name = ""
-                    var type = ""
-                    cursor.flow()
-                        .expect(cnc.token.CncKeywords.LET)
-                        .capture(TokenType.IDENTIFIER) { name = it.text }
-                        .expect(cnc.token.CncSymbols.COLON)
-                        .capture(TokenType.VARIABLE_TYPE) { type = it.text }
-                        .expect(cnc.token.CncSymbols.SEMICOLON)
-                        .then("custom_let") {
-                            Declaration(name, type, null)
-                        }
-                }
-                .build()
+            val rule =
+                cnc.parser.rule.StatementRule
+                    .builder<Declaration>()
+                    .withName("custom_let")
+                    .starts { it.matches(cnc.token.CncKeywords.LET) }
+                    .parse { cursor, parser ->
+                        var name = ""
+                        var type = ""
+                        cursor
+                            .flow()
+                            .expect(cnc.token.CncKeywords.LET)
+                            .capture(TokenType.IDENTIFIER) { name = it.text }
+                            .expect(cnc.token.CncSymbols.COLON)
+                            .capture(TokenType.VARIABLE_TYPE) { type = it.text }
+                            .expect(cnc.token.CncSymbols.SEMICOLON)
+                            .then("custom_let") {
+                                Declaration(name, type, null)
+                            }
+                    }.build()
 
             val customParser = Parser(listOf(rule), testExprBuilder)
-            val tokens = sequenceOf(
-                tok(TokenType.KEYWORD, "let"),
-                tok(TokenType.IDENTIFIER, "foo"),
-                tok(TokenType.SYMBOL, ":"),
-                tok(TokenType.VARIABLE_TYPE, "string"),
-                tok(TokenType.SYMBOL, ";")
-            )
+            val tokens =
+                sequenceOf(
+                    tok(TokenType.KEYWORD, "let"),
+                    tok(TokenType.IDENTIFIER, "foo"),
+                    tok(TokenType.SYMBOL, ":"),
+                    tok(TokenType.VARIABLE_TYPE, "string"),
+                    tok(TokenType.SYMBOL, ";"),
+                )
             val results = customParser.parse(tokens).toList()
             assertEquals(1, results.size)
             assertTrue(results[0] is Success)
@@ -451,4 +494,3 @@ class ParserTest {
         }
     }
 }
-

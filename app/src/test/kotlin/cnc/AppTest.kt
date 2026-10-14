@@ -11,11 +11,10 @@ import java.io.ByteArrayInputStream
 import kotlin.io.path.createTempFile
 
 class AppTest {
-
     private fun args(
         positionals: List<String> = emptyList(),
         options: Map<String, String> = emptyMap(),
-        flags: Set<String> = emptySet()
+        flags: Set<String> = emptySet(),
     ): ArgsContainer {
         val container = ArgsContainer()
         positionals.forEach { container.addPositional(it) }
@@ -26,7 +25,6 @@ class AppTest {
 
     @Nested
     inner class RunCommandTests {
-
         @Test
         fun `fails when file parameter is missing`() {
             val res = RunCommand.execute(args())
@@ -50,14 +48,22 @@ class AppTest {
             tempFile.deleteOnExit()
             tempFile.writeText("let x: = ;")
 
-            val res = RunCommand.execute(args(positionals = listOf(tempFile.absolutePath), options = mapOf("version" to "1.1")))
+            val res =
+                RunCommand.execute(
+                    args(
+                        positionals = listOf(tempFile.absolutePath),
+                        options =
+                            mapOf(
+                                "version" to "1.1",
+                            ),
+                    ),
+                )
             assertTrue(res is Failure<*>)
         }
     }
 
     @Nested
     inner class ValidateCommandTests {
-
         @Test
         fun `fails when file parameter is missing`() {
             val res = ValidateCommand.execute(args())
@@ -71,7 +77,16 @@ class AppTest {
             tempFile.deleteOnExit()
             tempFile.writeText("let s: string = \"hello\";")
 
-            val res = ValidateCommand.execute(args(positionals = listOf(tempFile.absolutePath), options = mapOf("version" to "1.1")))
+            val res =
+                ValidateCommand.execute(
+                    args(
+                        positionals = listOf(tempFile.absolutePath),
+                        options =
+                            mapOf(
+                                "version" to "1.1",
+                            ),
+                    ),
+                )
             assertTrue(res is Success)
         }
 
@@ -88,7 +103,6 @@ class AppTest {
 
     @Nested
     inner class FormatCommandTests {
-
         @Test
         fun `fails when file parameter is missing`() {
             val res = FormatCommand.execute(args())
@@ -115,17 +129,19 @@ class AppTest {
             cfgFile.deleteOnExit()
             cfgFile.writeText("""{"space-before-colon": true}""")
 
-            val res = FormatCommand.execute(args(
-                positionals = listOf(tempFile.absolutePath),
-                options = mapOf("config" to cfgFile.absolutePath)
-            ))
+            val res =
+                FormatCommand.execute(
+                    args(
+                        positionals = listOf(tempFile.absolutePath),
+                        options = mapOf("config" to cfgFile.absolutePath),
+                    ),
+                )
             assertTrue(res is Success)
         }
     }
 
     @Nested
     inner class GccCommandTests {
-
         @Test
         fun `fails when file parameter is missing`() {
             val res = GccCommand.execute(args())
@@ -134,10 +150,13 @@ class AppTest {
 
         @Test
         fun `executes with verbose and check flags`() {
-            val res = GccCommand.execute(args(
-                positionals = listOf("test.cnc"),
-                flags = setOf("verbose", "check")
-            ))
+            val res =
+                GccCommand.execute(
+                    args(
+                        positionals = listOf("test.cnc"),
+                        flags = setOf("verbose", "check"),
+                    ),
+                )
             assertTrue(res is Success)
             assertTrue(res.msg.contains("(verbose)"))
             assertTrue(res.msg.contains("(check-only)"))
@@ -146,7 +165,6 @@ class AppTest {
 
     @Nested
     inner class HelpAttributesAndMainTests {
-
         @Test
         fun `help attributes contain expected documentation`() {
             assertNotNull(RunWithHelp.getHelpText())

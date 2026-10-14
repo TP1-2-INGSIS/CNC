@@ -18,22 +18,18 @@ import kotlin.reflect.KClass
 class SemanticContext(
     val symbolTable: SymbolTable,
     val expressionResolver: ExpressionTypeResolver,
-    private val statementDispatcher: (Statement, SemanticContext) -> Result<Unit>
+    private val statementDispatcher: (Statement, SemanticContext) -> Result<Unit>,
 ) {
     fun createChildScope(): SemanticContext =
         SemanticContext(symbolTable.createChild(), expressionResolver, statementDispatcher)
 
-    fun resolveExpressionType(expr: Expression): Result<String> =
-        expressionResolver.resolve(expr, symbolTable::typeOf)
+    fun resolveExpressionType(expr: Expression): Result<String> = expressionResolver.resolve(expr, symbolTable::typeOf)
 
-    fun isFunctionDeclared(name: String): Boolean =
-        expressionResolver.isFunctionDeclared(name)
+    fun isFunctionDeclared(name: String): Boolean = expressionResolver.isFunctionDeclared(name)
 
-    fun functionReturnType(name: String): String? =
-        expressionResolver.functionReturnType(name)
+    fun functionReturnType(name: String): String? = expressionResolver.functionReturnType(name)
 
-    fun validate(statement: Statement): Result<Unit> =
-        statementDispatcher(statement, this)
+    fun validate(statement: Statement): Result<Unit> = statementDispatcher(statement, this)
 
     fun validateInChildScope(statements: Iterable<Statement>): Result<Unit> {
         val child = createChildScope()
@@ -54,26 +50,36 @@ class SemanticContext(
 class SemanticAnalyzer(
     val expressionResolver: ExpressionTypeResolver,
     val statementValidators: Map<KClass<out Statement>, StatementValidator<*>> = emptyMap(),
-    val symbolTable: SymbolTable = SymbolTable(setOf("number", "string", "boolean"))
+    val symbolTable: SymbolTable = SymbolTable(setOf("number", "string", "boolean")),
 ) {
     fun createContext(table: SymbolTable = symbolTable): SemanticContext =
         SemanticContext(table, expressionResolver, ::validate)
 
-    fun analyze(statements: Sequence<Statement>): Sequence<Result<Statement>> = sequence {
-        val context = createContext(symbolTable)
-        for (statement in statements) {
-            val result = validate(statement, context)
-            yield(when (result) {
-                is Success -> Success("ok", statement)
-                is Failure -> Failure(result.msg, result.type)
-            })
+    fun analyze(statements: Sequence<Statement>): Sequence<Result<Statement>> =
+        sequence {
+            val context = createContext(symbolTable)
+            for (statement in statements) {
+                val result = validate(statement, context)
+                yield(
+                    when (result) {
+                        is Success -> Success("ok", statement)
+                        is Failure -> Failure(result.msg, result.type)
+                    },
+                )
+            }
         }
-    }
 
     @Suppress("UNCHECKED_CAST")
-    fun validate(statement: Statement, context: SemanticContext): Result<Unit> {
-        val validator = statementValidators[statement::class] as? StatementValidator<Statement>
-            ?: return Failure("No hay validador semántico registrado para la sentencia: ${statement::class.simpleName}", ErrorType.SEMANTIC)
+    fun validate(
+        statement: Statement,
+        context: SemanticContext,
+    ): Result<Unit> {
+        val validator =
+            statementValidators[statement::class] as? StatementValidator<Statement>
+                ?: return Failure(
+                    "No hay validador semántico registrado para la sentencia: ${statement::class.simpleName}",
+                    ErrorType.SEMANTIC,
+                )
 
         return validator.validate(statement, context)
     }
@@ -94,73 +100,105 @@ class SemanticAnalyzerBuilder {
     private var unaryRules: MutableMap<String, UnaryOpResolver> = mutableMapOf("-" to TypeResolvers.unaryNumeric("-"))
     private var builtins: MutableMap<String, BuiltinMethod> = mutableMapOf()
 
-    fun withSymbolTable(table: SymbolTable): SemanticAnalyzerBuilder = apply {
-        this.symbolTable = table
-    }
+    fun withSymbolTable(table: SymbolTable): SemanticAnalyzerBuilder =
+        apply {
+            this.symbolTable = table
+        }
 
-    fun withValidTypes(types: Set<String>): SemanticAnalyzerBuilder = apply {
-        this.symbolTable = SymbolTable(types)
-    }
+    fun withValidTypes(types: Set<String>): SemanticAnalyzerBuilder =
+        apply {
+            this.symbolTable = SymbolTable(types)
+        }
 
-    fun registerStatementValidator(kClass: KClass<out Statement>, validator: StatementValidator<*>): SemanticAnalyzerBuilder = apply {
-        this.statementValidators[kClass] = validator
-    }
+    fun registerStatementValidator(
+        kClass: KClass<out Statement>,
+        validator: StatementValidator<*>,
+    ): SemanticAnalyzerBuilder =
+        apply {
+            this.statementValidators[kClass] = validator
+        }
 
-    fun registerStatementValidators(validators: Map<KClass<out Statement>, StatementValidator<*>>): SemanticAnalyzerBuilder = apply {
-        this.statementValidators.putAll(validators)
-    }
+    fun registerStatementValidators(
+        validators: Map<KClass<out Statement>, StatementValidator<*>>,
+    ): SemanticAnalyzerBuilder =
+        apply {
+            this.statementValidators.putAll(validators)
+        }
 
-    fun setStatementValidators(validators: Map<KClass<out Statement>, StatementValidator<*>>): SemanticAnalyzerBuilder = apply {
-        this.statementValidators = validators.toMutableMap()
-    }
+    fun setStatementValidators(validators: Map<KClass<out Statement>, StatementValidator<*>>): SemanticAnalyzerBuilder =
+        apply {
+            this.statementValidators = validators.toMutableMap()
+        }
 
-    fun registerExpressionRule(kClass: KClass<out Expression>, rule: ExpressionRule<*>): SemanticAnalyzerBuilder = apply {
-        this.expressionRules[kClass] = rule
-    }
+    fun registerExpressionRule(
+        kClass: KClass<out Expression>,
+        rule: ExpressionRule<*>,
+    ): SemanticAnalyzerBuilder =
+        apply {
+            this.expressionRules[kClass] = rule
+        }
 
-    fun registerExpressionRules(rules: Map<KClass<out Expression>, ExpressionRule<*>>): SemanticAnalyzerBuilder = apply {
-        this.expressionRules.putAll(rules)
-    }
+    fun registerExpressionRules(rules: Map<KClass<out Expression>, ExpressionRule<*>>): SemanticAnalyzerBuilder =
+        apply {
+            this.expressionRules.putAll(rules)
+        }
 
-    fun setExpressionRules(rules: Map<KClass<out Expression>, ExpressionRule<*>>): SemanticAnalyzerBuilder = apply {
-        this.expressionRules = rules.toMutableMap()
-    }
+    fun setExpressionRules(rules: Map<KClass<out Expression>, ExpressionRule<*>>): SemanticAnalyzerBuilder =
+        apply {
+            this.expressionRules = rules.toMutableMap()
+        }
 
-    fun registerBinaryOp(operator: String, resolver: BinaryOpResolver): SemanticAnalyzerBuilder = apply {
-        this.binaryRules[operator] = resolver
-    }
+    fun registerBinaryOp(
+        operator: String,
+        resolver: BinaryOpResolver,
+    ): SemanticAnalyzerBuilder =
+        apply {
+            this.binaryRules[operator] = resolver
+        }
 
-    fun registerBinaryOps(ops: Map<String, BinaryOpResolver>): SemanticAnalyzerBuilder = apply {
-        this.binaryRules.putAll(ops)
-    }
+    fun registerBinaryOps(ops: Map<String, BinaryOpResolver>): SemanticAnalyzerBuilder =
+        apply {
+            this.binaryRules.putAll(ops)
+        }
 
-    fun registerUnaryOp(operator: String, resolver: UnaryOpResolver): SemanticAnalyzerBuilder = apply {
-        this.unaryRules[operator] = resolver
-    }
+    fun registerUnaryOp(
+        operator: String,
+        resolver: UnaryOpResolver,
+    ): SemanticAnalyzerBuilder =
+        apply {
+            this.unaryRules[operator] = resolver
+        }
 
-    fun registerUnaryOps(ops: Map<String, UnaryOpResolver>): SemanticAnalyzerBuilder = apply {
-        this.unaryRules.putAll(ops)
-    }
+    fun registerUnaryOps(ops: Map<String, UnaryOpResolver>): SemanticAnalyzerBuilder =
+        apply {
+            this.unaryRules.putAll(ops)
+        }
 
-    fun registerBuiltin(name: String, method: BuiltinMethod): SemanticAnalyzerBuilder = apply {
-        this.builtins[name] = method
-    }
+    fun registerBuiltin(
+        name: String,
+        method: BuiltinMethod,
+    ): SemanticAnalyzerBuilder =
+        apply {
+            this.builtins[name] = method
+        }
 
-    fun registerBuiltins(builtins: Map<String, BuiltinMethod>): SemanticAnalyzerBuilder = apply {
-        this.builtins.putAll(builtins)
-    }
+    fun registerBuiltins(builtins: Map<String, BuiltinMethod>): SemanticAnalyzerBuilder =
+        apply {
+            this.builtins.putAll(builtins)
+        }
 
     fun build(): SemanticAnalyzer {
-        val resolver = ExpressionTypeResolver(
-            rules = expressionRules,
-            binaryRules = binaryRules,
-            unaryRules = unaryRules,
-            builtins = builtins
-        )
+        val resolver =
+            ExpressionTypeResolver(
+                rules = expressionRules,
+                binaryRules = binaryRules,
+                unaryRules = unaryRules,
+                builtins = builtins,
+            )
         return SemanticAnalyzer(
             expressionResolver = resolver,
             statementValidators = statementValidators,
-            symbolTable = symbolTable
+            symbolTable = symbolTable,
         )
     }
 }

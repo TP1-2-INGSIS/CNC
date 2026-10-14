@@ -4,11 +4,9 @@ import cnc.common.BuiltinMethod
 import cnc.common.BuiltinMethodBuilder
 import cnc.common.ErrorType
 import cnc.common.Failure
-import cnc.common.Result
 import cnc.common.Success
 
 object BuiltinMethodFactory {
-
     fun builder(): BuiltinMethodBuilder = BuiltinMethodBuilder()
 
     fun println(output: (String) -> Unit = ::println): BuiltinMethod =
@@ -18,8 +16,7 @@ object BuiltinMethodFactory {
             .execute { args ->
                 output(args.joinToString(" ") { ValueFormatter.format(it) })
                 Success("ok", Unit)
-            }
-            .build()
+            }.build()
 
     fun readInput(input: (String) -> String = { readln() }): BuiltinMethod =
         builder()
@@ -28,19 +25,19 @@ object BuiltinMethodFactory {
             .execute { args ->
                 val prompt = args.firstOrNull()?.let { ValueFormatter.format(it) } ?: ""
                 Success("ok", input(prompt))
-            }
-            .build()
+            }.build()
 
     fun readEnv(envProvider: (String) -> String? = System::getenv): BuiltinMethod =
         builder()
             .name("readEnv")
             .returnType("string")
             .execute { args ->
-                val varName = args.firstOrNull()?.toString()
-                    ?: return@execute Failure("Missing env variable name", ErrorType.RUNTIME)
-                val value = envProvider(varName)
-                    ?: return@execute Failure("Env variable '$varName' not found", ErrorType.RUNTIME)
+                val varName =
+                    args.firstOrNull()?.toString()
+                        ?: return@execute Failure("Missing env variable name", ErrorType.RUNTIME)
+                val value =
+                    envProvider(varName)
+                        ?: return@execute Failure("Env variable '$varName' not found", ErrorType.RUNTIME)
                 Success("ok", value)
-            }
-            .build()
+            }.build()
 }

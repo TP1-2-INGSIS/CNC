@@ -24,7 +24,7 @@ dependencies {
 
     implementation(libs.guava)
 
-    // 
+    //
     implementation(project(":token"))
     implementation(project(":ast"))
     implementation(project(":common"))

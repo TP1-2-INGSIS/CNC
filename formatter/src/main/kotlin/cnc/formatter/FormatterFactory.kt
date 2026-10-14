@@ -17,14 +17,14 @@ import com.google.gson.JsonObject
  * y construye una instancia con las [StatementRule] y [FormatRule] correspondientes.
  */
 object FormatterFactory {
-
     private val equalsSpaceAroundKeys = listOf("enforce-spacing-around-equals", "space-around-equals")
     private val equalsNoSpaceAroundKeys = listOf("enforce-no-spacing-around-equals", "no-space-around-equals")
     private val colonBeforeKeys = listOf("enforce-spacing-before-colon-in-declaration", "space-before-colon")
     private val colonAfterKeys = listOf("enforce-spacing-after-colon-in-declaration", "space-after-colon")
     private val singleSpaceSeparationKeys = listOf("mandatory-single-space-separation", "single-space-separation")
     private val printlnLineBreaksKeys = listOf("line-breaks-after-println", "line-break-after-println")
-    private val lineBreakAfterStatementKeys = listOf("mandatory-line-break-after-statement", "line-break-after-statement")
+    private val lineBreakAfterStatementKeys =
+        listOf("mandatory-line-break-after-statement", "line-break-after-statement")
     private val spaceOpsKeys = listOf("mandatory-space-surrounding-operations", "enforce-spacing-around-operations")
     private val ifBraceBelowLineKeys = listOf("if-brace-below-line")
     private val ifBraceSameLineKeys = listOf("if-brace-same-line")
@@ -39,9 +39,10 @@ object FormatterFactory {
             return Success("ok", StandardFormatRules.defaultFormatter())
         }
 
-        val root = runCatching {
-            Gson().fromJson(jsonString, JsonObject::class.java)
-        }.getOrNull() ?: return Failure("Invalid formatter JSON configuration", ErrorType.CLI)
+        val root =
+            runCatching {
+                Gson().fromJson(jsonString, JsonObject::class.java)
+            }.getOrNull() ?: return Failure("Invalid formatter JSON configuration", ErrorType.CLI)
 
         val noSpaceAroundEquals = isRuleEnabled(root, equalsNoSpaceAroundKeys)
         val spaceAroundEquals = isRuleEnabled(root, equalsSpaceAroundKeys)
@@ -53,147 +54,167 @@ object FormatterFactory {
         val indentInsideIf = readIntProperty(root, indentInsideIfKeys) ?: 2
 
         // 1. Símbolos
-        val equalsRule = when {
-            noSpaceAroundEquals -> noSpace
-            spaceAroundEquals || singleSpace -> spaceAround
-            else -> spaceAround
-        }
+        val equalsRule =
+            when {
+                noSpaceAroundEquals -> noSpace
+                spaceAroundEquals || singleSpace -> spaceAround
+                else -> spaceAround
+            }
 
-        val colonRule = when {
-            singleSpace -> spaceAround
-            spaceBeforeColon && spaceAfterColon -> spaceAround
-            spaceBeforeColon -> FormatRule<String> { s, _ -> " $s" }
-            spaceAfterColon -> spaceAfter
-            else -> spaceAfter
-        }
+        val colonRule =
+            when {
+                singleSpace -> spaceAround
+                spaceBeforeColon && spaceAfterColon -> spaceAround
+                spaceBeforeColon -> FormatRule<String> { s, _ -> " $s" }
+                spaceAfterColon -> spaceAfter
+                else -> spaceAfter
+            }
 
-        val symbolRules: Map<String, FormatRule<String>> = mapOf(
-            "+" to spaceAround,
-            "-" to spaceAround,
-            "*" to spaceAround,
-            "/" to spaceAround,
-            "**" to spaceAround,
-            "=" to equalsRule,
-            ":" to colonRule,
-            "let" to noSpace,
-            "const" to noSpace,
-            ";" to noSpace
-        )
+        val symbolRules: Map<String, FormatRule<String>> =
+            mapOf(
+                "+" to spaceAround,
+                "-" to spaceAround,
+                "*" to spaceAround,
+                "/" to spaceAround,
+                "**" to spaceAround,
+                "=" to equalsRule,
+                ":" to colonRule,
+                "let" to noSpace,
+                "const" to noSpace,
+                ";" to noSpace,
+            )
 
         // 2. Statements
-        val variableDeclarationRule = StatementRule { stmt, ctx ->
-            (stmt as? Declaration)?.let { decl ->
-                buildString {
-                    append(ctx.formatSymbol(if (decl.isMutable) "let" else "const")).append(" ")
-                    append(decl.name)
-                    append(ctx.formatSymbol(":"))
-                    append(decl.type)
-                    decl.value?.let {
-                        append(ctx.formatSymbol("="))
-                        append(ctx.formatExpression(it))
+        val variableDeclarationRule =
+            StatementRule { stmt, ctx ->
+                (stmt as? Declaration)?.let { decl ->
+                    buildString {
+                        append(ctx.formatSymbol(if (decl.isMutable) "let" else "const")).append(" ")
+                        append(decl.name)
+                        append(ctx.formatSymbol(":"))
+                        append(decl.type)
+                        decl.value?.let {
+                            append(ctx.formatSymbol("="))
+                            append(ctx.formatExpression(it))
+                        }
+                        append(ctx.formatSymbol(";"))
                     }
-                    append(ctx.formatSymbol(";"))
                 }
             }
-        }
 
-        val variableAssignmentRule = StatementRule { stmt, ctx ->
-            (stmt as? Assignment)?.let { assign ->
-                buildString {
-                    append(assign.target)
-                    append(ctx.formatSymbol("="))
-                    append(ctx.formatExpression(assign.value))
-                    append(ctx.formatSymbol(";"))
+        val variableAssignmentRule =
+            StatementRule { stmt, ctx ->
+                (stmt as? Assignment)?.let { assign ->
+                    buildString {
+                        append(assign.target)
+                        append(ctx.formatSymbol("="))
+                        append(ctx.formatExpression(assign.value))
+                        append(ctx.formatSymbol(";"))
+                    }
                 }
             }
-        }
 
-        val callRule = StatementRule { stmt, ctx ->
-            (stmt as? Call)?.let { call ->
-                val args = call.arguments.joinToString(", ") { ctx.formatExpression(it) }
-                val base = if (singleSpace) {
-                    "${call.function} ( $args )${ctx.formatSymbol(";")}"
-                } else {
-                    "${call.function}($args)${ctx.formatSymbol(";")}"
-                }
-                if (call.function == "println" && lineBreaksAfterPrintln != null && lineBreaksAfterPrintln > 0) {
-                    base + "\n".repeat(lineBreaksAfterPrintln)
-                } else {
-                    base
-                }
-            }
-        }
-
-        val blockStatementRule = StatementRule { stmt, ctx ->
-            (stmt as? BlockStatement)?.let { block ->
-                if (block.statements.isEmpty()) {
-                    "{}"
-                } else {
-                    val indent = " ".repeat(indentInsideIf)
-                    val stmts = block.statements.map { inner -> ctx.formatStatement(inner) }
-                    "{\n" + stmts.joinToString("\n") { indent + it.replace("\n", "\n$indent") } + "\n}"
+        val callRule =
+            StatementRule { stmt, ctx ->
+                (stmt as? Call)?.let { call ->
+                    val args = call.arguments.joinToString(", ") { ctx.formatExpression(it) }
+                    val base =
+                        if (singleSpace) {
+                            "${call.function} ( $args )${ctx.formatSymbol(";")}"
+                        } else {
+                            "${call.function}($args)${ctx.formatSymbol(";")}"
+                        }
+                    if (call.function == "println" && lineBreaksAfterPrintln != null && lineBreaksAfterPrintln > 0) {
+                        base + "\n".repeat(lineBreaksAfterPrintln)
+                    } else {
+                        base
+                    }
                 }
             }
-        }
 
-        val ifStatementRule = StatementRule { stmt, ctx ->
-            (stmt as? IfStatement)?.let { ifStmt ->
-                val cond = ctx.formatExpression(ifStmt.condition)
-                val thenBlock = ctx.formatStatement(ifStmt.thenBlock)
-                val sep = if (ifBraceBelowLine) "\n" else " "
-                val elseB = ifStmt.elseBlock
-                if (elseB != null) {
-                    val elseBlock = ctx.formatStatement(elseB)
-                    "if ($cond)$sep$thenBlock else $elseBlock"
-                } else {
-                    "if ($cond)$sep$thenBlock"
+        val blockStatementRule =
+            StatementRule { stmt, ctx ->
+                (stmt as? BlockStatement)?.let { block ->
+                    if (block.statements.isEmpty()) {
+                        "{}"
+                    } else {
+                        val indent = " ".repeat(indentInsideIf)
+                        val stmts = block.statements.map { inner -> ctx.formatStatement(inner) }
+                        "{\n" + stmts.joinToString("\n") { indent + it.replace("\n", "\n$indent") } + "\n}"
+                    }
                 }
             }
-        }
 
-        val statementRules = listOf(
-            variableDeclarationRule,
-            variableAssignmentRule,
-            callRule,
-            blockStatementRule,
-            ifStatementRule
-        )
+        val ifStatementRule =
+            StatementRule { stmt, ctx ->
+                (stmt as? IfStatement)?.let { ifStmt ->
+                    val cond = ctx.formatExpression(ifStmt.condition)
+                    val thenBlock = ctx.formatStatement(ifStmt.thenBlock)
+                    val sep = if (ifBraceBelowLine) "\n" else " "
+                    val elseB = ifStmt.elseBlock
+                    if (elseB != null) {
+                        val elseBlock = ctx.formatStatement(elseB)
+                        "if ($cond)$sep$thenBlock else $elseBlock"
+                    } else {
+                        "if ($cond)$sep$thenBlock"
+                    }
+                }
+            }
 
-        val formatter = Formatter(
-            statementRules = statementRules,
-            symbolRules = symbolRules,
-            expressionRules = StandardFormatRules.defaultExpressionRules,
-            precedences = StandardFormatRules.defaultPrecedences
-        )
+        val statementRules =
+            listOf(
+                variableDeclarationRule,
+                variableAssignmentRule,
+                callRule,
+                blockStatementRule,
+                ifStatementRule,
+            )
+
+        val formatter =
+            Formatter(
+                statementRules = statementRules,
+                symbolRules = symbolRules,
+                expressionRules = StandardFormatRules.defaultExpressionRules,
+                precedences = StandardFormatRules.defaultPrecedences,
+            )
 
         return Success("ok", formatter)
     }
 
-    fun create(jsonString: String? = null): Formatter {
-        return when (val result = build(jsonString)) {
+    fun create(jsonString: String? = null): Formatter =
+        when (val result = build(jsonString)) {
             is Success -> result.data
             is Failure -> StandardFormatRules.defaultFormatter()
         }
-    }
 
-    private fun readIntProperty(json: JsonObject, candidateKeys: List<String>): Int? {
+    private fun readIntProperty(
+        json: JsonObject,
+        candidateKeys: List<String>,
+    ): Int? {
         val matchingKey = candidateKeys.firstOrNull { json.has(it) && !json.get(it).isJsonNull } ?: return null
         return runCatching { json.get(matchingKey).asInt }.getOrNull()
     }
 
-    private fun isRuleEnabled(json: JsonObject, candidateKeys: List<String>): Boolean {
+    private fun isRuleEnabled(
+        json: JsonObject,
+        candidateKeys: List<String>,
+    ): Boolean {
         val matchingKey = candidateKeys.firstOrNull { json.has(it) && !json.get(it).isJsonNull } ?: return false
         return runCatching { json.get(matchingKey).asBoolean }.getOrDefault(false)
     }
 
-    fun formatSource(rawSource: String, configJson: String?): String {
+    fun formatSource(
+        rawSource: String,
+        configJson: String?,
+    ): String {
         if (configJson.isNullOrBlank()) {
             return rawSource
         }
 
-        val root = runCatching {
-            Gson().fromJson(configJson, JsonObject::class.java)
-        }.getOrNull() ?: return rawSource
+        val root =
+            runCatching {
+                Gson().fromJson(configJson, JsonObject::class.java)
+            }.getOrNull() ?: return rawSource
 
         var text = rawSource.replace("\r\n", "\n")
 
@@ -214,17 +235,19 @@ object FormatterFactory {
         // 3. enforce-spacing-before-colon-in-declaration
         val spaceBeforeColon = isRuleEnabled(root, colonBeforeKeys)
         if (spaceBeforeColon) {
-            text = text.replace(Regex("""\b(let|const)\s+([a-zA-Z_]\w*)\s*:""")) { match ->
-                "${match.groupValues[1]} ${match.groupValues[2]} :"
-            }
+            text =
+                text.replace(Regex("""\b(let|const)\s+([a-zA-Z_]\w*)\s*:""")) { match ->
+                    "${match.groupValues[1]} ${match.groupValues[2]} :"
+                }
         }
 
         // 4. enforce-spacing-after-colon-in-declaration
         val spaceAfterColon = isRuleEnabled(root, colonAfterKeys)
         if (spaceAfterColon) {
-            text = text.replace(Regex("""\b(let|const)\s+([a-zA-Z_]\w*(?:\s*)):\s*([a-zA-Z_]\w*)""")) { match ->
-                "${match.groupValues[1]} ${match.groupValues[2]}: ${match.groupValues[3]}"
-            }
+            text =
+                text.replace(Regex("""\b(let|const)\s+([a-zA-Z_]\w*(?:\s*)):\s*([a-zA-Z_]\w*)""")) { match ->
+                    "${match.groupValues[1]} ${match.groupValues[2]}: ${match.groupValues[3]}"
+                }
         }
 
         // 5. mandatory-space-surrounding-operations
@@ -236,16 +259,19 @@ object FormatterFactory {
         // 6. mandatory-single-space-separation
         val singleSpace = isRuleEnabled(root, singleSpaceSeparationKeys)
         if (singleSpace) {
-            text = text.replace(Regex("""\b(let|const)\s+([a-zA-Z_]\w*)\s*:\s*([a-zA-Z_]\w*)\s*=""")) { m ->
-                "${m.groupValues[1]} ${m.groupValues[2]} : ${m.groupValues[3]} ="
-            }
-            text = text.replace(Regex("""\b(let|const)\s+([a-zA-Z_]\w*)\s*:\s*([a-zA-Z_]\w*)""")) { m ->
-                "${m.groupValues[1]} ${m.groupValues[2]} : ${m.groupValues[3]}"
-            }
+            text =
+                text.replace(Regex("""\b(let|const)\s+([a-zA-Z_]\w*)\s*:\s*([a-zA-Z_]\w*)\s*=""")) { m ->
+                    "${m.groupValues[1]} ${m.groupValues[2]} : ${m.groupValues[3]} ="
+                }
+            text =
+                text.replace(Regex("""\b(let|const)\s+([a-zA-Z_]\w*)\s*:\s*([a-zA-Z_]\w*)""")) { m ->
+                    "${m.groupValues[1]} ${m.groupValues[2]} : ${m.groupValues[3]}"
+                }
             text = text.replace(Regex("""[ \t]*=[ \t]*"""), " = ")
-            text = text.replace(Regex("""\b([a-zA-Z_]\w*)\s*\(\s*(.*?)\s*\)""")) { m ->
-                "${m.groupValues[1]} ( ${m.groupValues[2]} )"
-            }
+            text =
+                text.replace(Regex("""\b([a-zA-Z_]\w*)\s*\(\s*(.*?)\s*\)""")) { m ->
+                    "${m.groupValues[1]} ( ${m.groupValues[2]} )"
+                }
         }
 
         // 7. if-brace-below-line / if-brace-same-line
@@ -285,15 +311,16 @@ object FormatterFactory {
         // 9. line-breaks-after-println
         val lineBreaksAfterPrintln = readIntProperty(root, printlnLineBreaksKeys)
         if (lineBreaksAfterPrintln != null) {
-            text = text.replace(Regex("""(println\s*\([^)]*\)\s*;)[ \t]*(\n\s*)*""")) { match ->
-                val stmt = match.groupValues[1]
-                val remaining = text.substring(match.range.last + 1).trim()
-                if (remaining.isEmpty()) {
-                    stmt
-                } else {
-                    stmt + "\n".repeat(1 + lineBreaksAfterPrintln)
+            text =
+                text.replace(Regex("""(println\s*\([^)]*\)\s*;)[ \t]*(\n\s*)*""")) { match ->
+                    val stmt = match.groupValues[1]
+                    val remaining = text.substring(match.range.last + 1).trim()
+                    if (remaining.isEmpty()) {
+                        stmt
+                    } else {
+                        stmt + "\n".repeat(1 + lineBreaksAfterPrintln)
+                    }
                 }
-            }
         }
 
         return text

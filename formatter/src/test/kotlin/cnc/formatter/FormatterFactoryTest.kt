@@ -1,7 +1,6 @@
 package cnc.formatter
 
 import cnc.ast.Assignment
-import cnc.ast.BinaryExpression
 import cnc.ast.BlockStatement
 import cnc.ast.BooleanLiteral
 import cnc.ast.Call
@@ -21,10 +20,8 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class FormatterFactoryTest {
-
     @Nested
     inner class BuildAndCreateTests {
-
         @Test
         fun `build with null, empty, or whitespace returns default formatter`() {
             val res1 = FormatterFactory.build(null)
@@ -55,7 +52,6 @@ class FormatterFactoryTest {
 
     @Nested
     inner class FormatterAstRulesTests {
-
         @Test
         fun `formats variable declarations mutable and const with and without init value`() {
             val json = """{"space-before-colon": false, "space-after-colon": true}"""
@@ -127,26 +123,27 @@ class FormatterFactoryTest {
         @Test
         fun `formats if statement with and without else and brace below line`() {
             val sameLineFmt = FormatterFactory.create("""{"if-brace-below-line": false}""")
-            val ifStmtNoElse = IfStatement(
-                condition = BooleanLiteral(true),
-                thenBlock = BlockStatement(listOf(Call("println", listOf(StringLiteral("yes")))))
-            )
+            val ifStmtNoElse =
+                IfStatement(
+                    condition = BooleanLiteral(true),
+                    thenBlock = BlockStatement(listOf(Call("println", listOf(StringLiteral("yes"))))),
+                )
             val expectedSameLine = "if (true) {\n  println(\"yes\");\n}"
             assertEquals(expectedSameLine, sameLineFmt.format(listOf(ifStmtNoElse)))
 
             val belowLineFmt = FormatterFactory.create("""{"if-brace-below-line": true}""")
-            val ifStmtWithElse = IfStatement(
-                condition = BooleanLiteral(false),
-                thenBlock = BlockStatement(emptyList()),
-                elseBlock = BlockStatement(emptyList())
-            )
+            val ifStmtWithElse =
+                IfStatement(
+                    condition = BooleanLiteral(false),
+                    thenBlock = BlockStatement(emptyList()),
+                    elseBlock = BlockStatement(emptyList()),
+                )
             assertEquals("if (false)\n{} else {}", belowLineFmt.format(listOf(ifStmtWithElse)))
         }
     }
 
     @Nested
     inner class FormatSourceTests {
-
         @Test
         fun `formatSource returns raw source if config is null or invalid`() {
             val src = "let x=10;"
@@ -176,10 +173,18 @@ class FormatterFactoryTest {
         @Test
         fun `formatSource colon spacing in declaration`() {
             val src = "let x:number=1;"
-            val spaceBefore = FormatterFactory.formatSource(src, """{"enforce-spacing-before-colon-in-declaration": true}""")
+            val spaceBefore =
+                FormatterFactory.formatSource(
+                    src,
+                    """{"enforce-spacing-before-colon-in-declaration": true}""",
+                )
             assertTrue(spaceBefore.contains("let x :"))
 
-            val spaceAfter = FormatterFactory.formatSource(src, """{"enforce-spacing-after-colon-in-declaration": true}""")
+            val spaceAfter =
+                FormatterFactory.formatSource(
+                    src,
+                    """{"enforce-spacing-after-colon-in-declaration": true}""",
+                )
             assertTrue(spaceAfter.contains(": number"))
         }
 
@@ -228,7 +233,6 @@ class FormatterFactoryTest {
 
     @Nested
     inner class StandardFormatRulesExtraTests {
-
         private val formatter = StandardFormatRules.defaultFormatter()
 
         @Test
@@ -245,11 +249,12 @@ class FormatterFactoryTest {
 
         @Test
         fun `formats default block and if statement`() {
-            val ifStmt = IfStatement(
-                condition = Identifier("flag"),
-                thenBlock = BlockStatement(listOf(Call("println", listOf(StringLiteral("A"))))),
-                elseBlock = BlockStatement(listOf(Call("println", listOf(StringLiteral("B")))))
-            )
+            val ifStmt =
+                IfStatement(
+                    condition = Identifier("flag"),
+                    thenBlock = BlockStatement(listOf(Call("println", listOf(StringLiteral("A"))))),
+                    elseBlock = BlockStatement(listOf(Call("println", listOf(StringLiteral("B"))))),
+                )
             val formatted = formatter.format(listOf(ifStmt))
             assertTrue(formatted.contains("if (flag) {\n    println(\"A\");\n} else {\n    println(\"B\");\n}"))
         }

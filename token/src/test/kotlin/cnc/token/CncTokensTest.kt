@@ -7,10 +7,8 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class CncTokensTest {
-
     @Nested
     inner class CncKeywordsTests {
-
         @Test
         fun `verify individual keyword token definitions`() {
             assertTrue(CncKeywords.LET.match("let"))
@@ -73,7 +71,6 @@ class CncTokensTest {
 
     @Nested
     inner class CncSymbolsTests {
-
         @Test
         fun `verify individual symbol token definitions`() {
             assertTrue(CncSymbols.PLUS.match("+"))
@@ -118,7 +115,6 @@ class CncTokensTest {
 
     @Nested
     inner class CncPatternsTests {
-
         @Test
         fun `identifier pattern matches valid identifiers`() {
             val pattern = CncPatterns.IDENTIFIER

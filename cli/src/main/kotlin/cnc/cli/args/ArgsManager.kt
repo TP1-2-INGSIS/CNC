@@ -1,7 +1,6 @@
 package cnc.cli.args
 
 object ArgsManager {
-
     fun tokenize(commandLine: String): List<String> {
         val tokens = mutableListOf<String>()
         val current = StringBuilder()

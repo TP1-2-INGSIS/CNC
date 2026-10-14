@@ -3,9 +3,8 @@ package cnc.lexer.rules
 import cnc.common.Cursor
 
 class WhitespaceRule(
-    private val isWhitespace: (Char) -> Boolean = Char::isWhitespace
+    private val isWhitespace: (Char) -> Boolean = Char::isWhitespace,
 ) : LexerRule {
-
     override fun tryMatch(cursor: Cursor<Char>): RuleResult? {
         val first = cursor.peek() ?: return null
         if (!isWhitespace(first)) return null

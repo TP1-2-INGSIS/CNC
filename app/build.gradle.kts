@@ -55,6 +55,7 @@ tasks.named<Test>("test") {
     useJUnitPlatform()
 }
 
-tasks.named<JavaExec>("run") { // .\gradlew run
+tasks.named<JavaExec>("run") {
+    // .\gradlew run
     standardInput = System.`in`
 }

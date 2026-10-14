@@ -12,34 +12,44 @@ import org.junit.jupiter.api.Test
 // Concrete TokenDefinitionProvider used across the test suite
 // ---------------------------------------------------------------------------
 private object TestProvider : TokenDefinitionProvider {
-
-    private val definitions = mapOf(
-        TokenType.OPERATOR to listOf(
-            SymbolTokenDef("operator", listOf("+", "-", "*", "/", "==")),
-        ),
-        TokenType.SYMBOL to listOf(
-            SymbolTokenDef("symbol", listOf(";", ":", "=")),
-        ),
-        TokenType.KEYWORD to listOf(
-            SymbolTokenDef("keyword", "let"),
-        ),
-        TokenType.VARIABLE_TYPE to listOf(
-            SymbolTokenDef("variable_type", listOf("string", "number")),
-        ),
-        TokenType.IDENTIFIER to listOf(
-            RegexTokenDef("identifier", "[a-zA-Z_][a-zA-Z0-9_]*"),
-        ),
-        TokenType.NUMBER to listOf(
-            RegexTokenDef("number", "[0-9]+"),
-        ),
-        TokenType.STRING to listOf(
-            RegexTokenDef("string", "\".*?\""),
-        ),
-    )
+    private val definitions =
+        mapOf(
+            TokenType.OPERATOR to
+                listOf(
+                    SymbolTokenDef("operator", listOf("+", "-", "*", "/", "==")),
+                ),
+            TokenType.SYMBOL to
+                listOf(
+                    SymbolTokenDef("symbol", listOf(";", ":", "=")),
+                ),
+            TokenType.KEYWORD to
+                listOf(
+                    SymbolTokenDef("keyword", "let"),
+                ),
+            TokenType.VARIABLE_TYPE to
+                listOf(
+                    SymbolTokenDef("variable_type", listOf("string", "number")),
+                ),
+            TokenType.IDENTIFIER to
+                listOf(
+                    RegexTokenDef("identifier", "[a-zA-Z_][a-zA-Z0-9_]*"),
+                ),
+            TokenType.NUMBER to
+                listOf(
+                    RegexTokenDef("number", "[0-9]+"),
+                ),
+            TokenType.STRING to
+                listOf(
+                    RegexTokenDef("string", "\".*?\""),
+                ),
+        )
 
     override fun getValue(type: TokenType): List<TokenDefinition>? = definitions[type]
+
     override fun getTypes(): Set<TokenType> = definitions.keys
-    override fun getDefinition(alias: String): TokenDefinition = definitions.values.flatten().first { it.alias == alias }
+
+    override fun getDefinition(alias: String): TokenDefinition =
+        definitions.values.flatten().first { it.alias == alias }
 
     override fun type(str: String): TokenType {
         for (type in getTypes()) {
@@ -55,13 +65,11 @@ private object TestProvider : TokenDefinitionProvider {
 // Test suite
 // ---------------------------------------------------------------------------
 class TokenTest {
-
     // -----------------------------------------------------------------------
     // Token data class
     // -----------------------------------------------------------------------
     @Nested
     inner class TokenDataClass {
-
         @Test
         fun `Token stores type, position and text`() {
             val pos = Position(1, 0)
@@ -114,7 +122,6 @@ class TokenTest {
     // -----------------------------------------------------------------------
     @Nested
     inner class SymbolTokenDefTests {
-
         @Test
         fun `match returns true for a symbol in the list`() {
             val def = SymbolTokenDef("OPERATOR", listOf("+", "-", "*"))
@@ -162,7 +169,6 @@ class TokenTest {
     // -----------------------------------------------------------------------
     @Nested
     inner class RegexTokenDefTests {
-
         @Test
         fun `match returns true for a valid integer`() {
             val def = RegexTokenDef("NUMBER", "[0-9]+")
@@ -223,7 +229,6 @@ class TokenTest {
     // -----------------------------------------------------------------------
     @Nested
     inner class TokenDefinitionProviderTests {
-
         @Test
         fun `getTypes returns all registered token types`() {
             val types = TestProvider.getTypes()
@@ -308,14 +313,19 @@ class TokenTest {
     // -----------------------------------------------------------------------
     @Nested
     inner class TokenTypeEnum {
-
         @Test
         fun `all expected token types exist`() {
-            val expected = setOf(
-                "OPERATOR", "SYMBOL", "IDENTIFIER",
-                "STRING", "NUMBER", "KEYWORD",
-                "VARIABLE_TYPE", "INVALID"
-            )
+            val expected =
+                setOf(
+                    "OPERATOR",
+                    "SYMBOL",
+                    "IDENTIFIER",
+                    "STRING",
+                    "NUMBER",
+                    "KEYWORD",
+                    "VARIABLE_TYPE",
+                    "INVALID",
+                )
             val actual = TokenType.entries.map { it.name }.toSet()
 
             assertEquals(expected, actual)

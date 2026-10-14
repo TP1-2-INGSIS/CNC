@@ -6,12 +6,11 @@ import cnc.token.TokenType
 class PatternRule(
     private val startPredicate: (Char) -> Boolean,
     private val continuePredicate: (Char) -> Boolean,
-    private val tokenType: TokenType
+    private val tokenType: TokenType,
 ) : LexerRule {
-
     constructor(
         predicate: (Char) -> Boolean,
-        tokenType: TokenType
+        tokenType: TokenType,
     ) : this(predicate, predicate, tokenType)
 
     override fun tryMatch(cursor: Cursor<Char>): RuleResult? {

@@ -9,5 +9,8 @@ import cnc.ast.Statement
  * tipado (`Declaration`/`Assignment`/`Call`) de main.
  */
 fun interface StatementRule {
-    fun tryFormat(statement: Statement, context: FormatContext): String?
+    fun tryFormat(
+        statement: Statement,
+        context: FormatContext,
+    ): String?
 }

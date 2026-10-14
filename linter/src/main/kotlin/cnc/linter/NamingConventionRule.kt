@@ -17,9 +17,8 @@ class SnakeCaseValidator : NamingValidator {
 
 class NamingConventionRule(
     private val conventionName: String,
-    private val validator: NamingValidator
+    private val validator: NamingValidator,
 ) : LinterRule {
-
     override fun check(statement: Statement): List<String> {
         if (statement !is Declaration) return emptyList()
 
