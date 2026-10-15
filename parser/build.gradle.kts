@@ -1,6 +1,7 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
+    id("org.jetbrains.kotlin.jvm")
     id("jacoco-conventions")
+    id("code-quality-conventions")
 }
 
 repositories {
@@ -23,7 +24,7 @@ dependencies {
 
     implementation(libs.guava)
 
-    // 
+    //
     implementation(project(":token"))
     implementation(project(":ast"))
     implementation(project(":common"))

@@ -16,12 +16,16 @@ interface ContentManager {
 
     companion object {
         fun of(string: String): ContentManager = StringContent(string)
+
         fun of(file: File): ContentManager = FileContent(file.absolutePath)
+
         fun of(stream: InputStream): ContentManager = InputStreamContent(stream)
     }
 }
 
-class FileContent(val path: String) : ContentManager {
+class FileContent(
+    val path: String,
+) : ContentManager {
     init {
         val file = File(path)
         require(file.exists()) { "The path provided does not exist: $path" }
@@ -32,11 +36,15 @@ class FileContent(val path: String) : ContentManager {
     override fun getReader(): Reader = File(path).bufferedReader()
 }
 
-class StringContent(val content: String) : ContentManager {
+class StringContent(
+    val content: String,
+) : ContentManager {
     override fun getReader(): Reader = StringReader(content)
 }
 
-class InputStreamContent(val stream: InputStream) : ContentManager {
+class InputStreamContent(
+    val stream: InputStream,
+) : ContentManager {
     override fun getReader(): Reader = InputStreamReader(stream)
 }
 
@@ -45,18 +53,18 @@ class InputStreamContent(val stream: InputStream) : ContentManager {
  * in a single pass with O(1) text memory and zero-allocation position tracking.
  */
 fun ContentManager.openStream(bufferSize: Int = DEFAULT_STREAM_BUFFER_SIZE): CharCursor {
-    val charSequence = sequence {
-        getReader().use { reader ->
-            val buffer = CharArray(bufferSize)
-            var read = reader.read(buffer)
-            while (read != -1) {
-                for (i in 0 until read) {
-                    yield(buffer[i])
+    val charSequence =
+        sequence {
+            getReader().use { reader ->
+                val buffer = CharArray(bufferSize)
+                var read = reader.read(buffer)
+                while (read != -1) {
+                    for (i in 0 until read) {
+                        yield(buffer[i])
+                    }
+                    read = reader.read(buffer)
                 }
-                read = reader.read(buffer)
             }
         }
-    }
     return charSequence.asCharCursor()
 }
-

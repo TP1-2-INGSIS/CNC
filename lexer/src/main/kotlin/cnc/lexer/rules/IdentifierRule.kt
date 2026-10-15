@@ -10,14 +10,13 @@ class IdentifierRule(
     private val isStart: (Char) -> Boolean,
     private val isContinue: (Char) -> Boolean,
     private val keywordsTrie: TrieNode<TokenType>,
-    private val defaultType: TokenType = TokenType.IDENTIFIER
+    private val defaultType: TokenType = TokenType.IDENTIFIER,
 ) : LexerRule {
-
     constructor(
         isStart: (Char) -> Boolean,
         isContinue: (Char) -> Boolean,
         keywords: Map<String, TokenType> = emptyMap(),
-        defaultType: TokenType = TokenType.IDENTIFIER
+        defaultType: TokenType = TokenType.IDENTIFIER,
     ) : this(isStart, isContinue, buildTrie(keywords), defaultType)
 
     override fun tryMatch(cursor: Cursor<Char>): RuleResult? {

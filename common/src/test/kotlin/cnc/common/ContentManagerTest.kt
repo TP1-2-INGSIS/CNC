@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test
 import java.io.File
 
 class ContentManagerTest {
-
     @Test
     fun `openStream streams characters lazily and tracks lines incrementally`() {
         val content = StringContent("val x = 1;\nval y = 2;")

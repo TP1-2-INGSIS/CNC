@@ -7,5 +7,8 @@ package cnc.formatter
  * concretas se inyectan desde `app/config/` (Decisión 8).
  */
 fun interface FormatRule<T> {
-    fun format(node: T, context: FormatContext): String
+    fun format(
+        node: T,
+        context: FormatContext,
+    ): String
 }

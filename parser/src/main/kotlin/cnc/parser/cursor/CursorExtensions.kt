@@ -39,7 +39,10 @@ fun Cursor<Token>.matches(defs: Collection<TokenDefinition>): Boolean {
 /**
  * LL(2) inspection: returns true if the next token has [type] and matches any of [defs].
  */
-fun Cursor<Token>.matches(type: TokenType, defs: Collection<TokenDefinition>): Boolean {
+fun Cursor<Token>.matches(
+    type: TokenType,
+    defs: Collection<TokenDefinition>,
+): Boolean {
     val first = peek(0) ?: return false
     return first.type == type && defs.any { it.match(first.text) }
 }
@@ -47,7 +50,10 @@ fun Cursor<Token>.matches(type: TokenType, defs: Collection<TokenDefinition>): B
 /**
  * LL(2) inspection: returns true if token at offset 0 matches [type] and token at offset 1 matches [def].
  */
-fun Cursor<Token>.matches(type: TokenType, def: TokenDefinition): Boolean {
+fun Cursor<Token>.matches(
+    type: TokenType,
+    def: TokenDefinition,
+): Boolean {
     val first = peek(0) ?: return false
     if (first.type != type) return false
     val second = peek(1) ?: return false
@@ -57,7 +63,10 @@ fun Cursor<Token>.matches(type: TokenType, def: TokenDefinition): Boolean {
 /**
  * LL(2) inspection: returns true if token at offset 0 matches [firstDef] and token at offset 1 matches [secondDef].
  */
-fun Cursor<Token>.matches(firstDef: TokenDefinition, secondDef: TokenDefinition): Boolean {
+fun Cursor<Token>.matches(
+    firstDef: TokenDefinition,
+    secondDef: TokenDefinition,
+): Boolean {
     val first = peek(0) ?: return false
     if (!firstDef.match(first.text)) return false
     val second = peek(1) ?: return false

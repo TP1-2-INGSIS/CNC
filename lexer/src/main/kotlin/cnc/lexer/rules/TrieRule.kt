@@ -8,9 +8,8 @@ import cnc.lexer.matchLongest
 import cnc.token.TokenType
 
 class TrieRule(
-    private val root: TrieNode<TokenType>
+    private val root: TrieNode<TokenType>,
 ) : LexerRule {
-
     constructor(symbols: Map<String, TokenType>) : this(buildTrie(symbols))
 
     override fun tryMatch(cursor: Cursor<Char>): RuleResult? {

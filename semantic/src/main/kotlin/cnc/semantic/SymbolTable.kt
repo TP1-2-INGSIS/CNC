@@ -7,12 +7,12 @@ import cnc.common.Success
 
 data class Symbol(
     val type: String,
-    val isMutable: Boolean
+    val isMutable: Boolean,
 )
 
 class SymbolTable(
     val validTypes: Set<String>,
-    private val parent: SymbolTable? = null
+    private val parent: SymbolTable? = null,
 ) {
     private val symbols = mutableMapOf<String, Symbol>()
 
@@ -22,7 +22,11 @@ class SymbolTable(
 
     fun isDeclared(name: String): Boolean = symbols.containsKey(name) || (parent?.isDeclared(name) == true)
 
-    fun declare(name: String, type: String, isMutable: Boolean = true): Result<Unit> {
+    fun declare(
+        name: String,
+        type: String,
+        isMutable: Boolean = true,
+    ): Result<Unit> {
         if (!isValidType(type)) {
             return Failure("Tipo '$type' no reconocido", ErrorType.SEMANTIC)
         }

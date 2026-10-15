@@ -11,7 +11,6 @@ import cnc.ast.Expression
 import cnc.ast.Identifier
 import cnc.ast.IfStatement
 import cnc.ast.NumberLiteral
-import cnc.ast.Statement
 import cnc.ast.StringLiteral
 import cnc.ast.UnaryExpression
 import cnc.common.Failure
@@ -24,10 +23,8 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class InterpreterComponentsTest {
-
     @Nested
     inner class NumberOperationsTests {
-
         @Test
         fun `operations succeed with valid numbers`() {
             val add = NumberOperations.add(10, 5)
@@ -74,7 +71,6 @@ class InterpreterComponentsTest {
 
     @Nested
     inner class EnvironmentTests {
-
         @Test
         fun `variable lifecycle in environment scopes`() {
             val env = Environment()
@@ -134,7 +130,6 @@ class InterpreterComponentsTest {
 
     @Nested
     inner class ExpressionEvaluatorEdgeCases {
-
         private val interpreter = TestInterpreterFactory.create()
         private val env = Environment()
 
@@ -184,7 +179,6 @@ class InterpreterComponentsTest {
 
     @Nested
     inner class StatementEvaluatorsTests {
-
         private val interpreter = TestInterpreterFactory.create()
         private val env = Environment()
 
@@ -213,10 +207,13 @@ class InterpreterComponentsTest {
 
         @Test
         fun `block evaluator error propagation`() {
-            val block = BlockStatement(listOf(
-                Declaration("a", "number", NumberLiteral(1.0)),
-                Assignment("unknown", NumberLiteral(2.0))
-            ))
+            val block =
+                BlockStatement(
+                    listOf(
+                        Declaration("a", "number", NumberLiteral(1.0)),
+                        Assignment("unknown", NumberLiteral(2.0)),
+                    ),
+                )
             assertTrue(interpreter.interpret(block, env) is Failure<*>)
         }
 
@@ -238,14 +235,15 @@ class InterpreterComponentsTest {
 
     @Nested
     inner class InterpreterBuilderAndOrchestratorTests {
-
         @Test
         fun `builder single and map registrations and copy`() {
-            val builder = Interpreter.builder()
-                .registerEvaluator(Declaration::class, DeclarationEvaluator())
-                .registerBinaryOperation("+", BinaryOperation(StandardBinaryOperations::add))
-                .registerUnaryOperation("-", UnaryOperation(StandardUnaryOperations::negate))
-                .registerBuiltin(BuiltinMethodFactory.println())
+            val builder =
+                Interpreter
+                    .builder()
+                    .registerEvaluator(Declaration::class, DeclarationEvaluator())
+                    .registerBinaryOperation("+", BinaryOperation(StandardBinaryOperations::add))
+                    .registerUnaryOperation("-", UnaryOperation(StandardUnaryOperations::negate))
+                    .registerBuiltin(BuiltinMethodFactory.println())
 
             val copy = builder.copy()
             val interp = copy.build()
@@ -262,10 +260,11 @@ class InterpreterComponentsTest {
             val interp = TestInterpreterFactory.create()
             val env = Environment()
 
-            val stmts = listOf(
-                Declaration("a", "number", NumberLiteral(10.0)),
-                Declaration("b", "number", NumberLiteral(20.0))
-            )
+            val stmts =
+                listOf(
+                    Declaration("a", "number", NumberLiteral(10.0)),
+                    Declaration("b", "number", NumberLiteral(20.0)),
+                )
             val resList = interp.interpret(stmts, env)
             assertTrue(resList is Success)
 
@@ -274,11 +273,12 @@ class InterpreterComponentsTest {
             assertTrue(seqResults.all { it is Success })
 
             // Sequence terminates on failure
-            val failingStmts = listOf(
-                Declaration("c", "number", NumberLiteral(1.0)),
-                Assignment("unknownVar", NumberLiteral(2.0)),
-                Declaration("d", "number", NumberLiteral(3.0))
-            )
+            val failingStmts =
+                listOf(
+                    Declaration("c", "number", NumberLiteral(1.0)),
+                    Assignment("unknownVar", NumberLiteral(2.0)),
+                    Declaration("d", "number", NumberLiteral(3.0)),
+                )
             val failSeq = interp.interpretAll(failingStmts, Environment()).toList()
             assertEquals(2, failSeq.size)
             assertTrue(failSeq[1] is Failure<*>)
@@ -287,7 +287,6 @@ class InterpreterComponentsTest {
 
     @Nested
     inner class BuiltinMethodFactoryAndValueFormatterTests {
-
         @Test
         fun `readEnv with missing or non existent variable`() {
             val envMethod = BuiltinMethodFactory.readEnv { null }

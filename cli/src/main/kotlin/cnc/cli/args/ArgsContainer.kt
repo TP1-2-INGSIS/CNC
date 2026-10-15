@@ -3,13 +3,16 @@ package cnc.cli.args
 data class ArgsContainer(
     val flags: MutableSet<String> = mutableSetOf(),
     val options: MutableMap<String, String> = mutableMapOf(),
-    val positional: MutableList<String> = mutableListOf()
+    val positional: MutableList<String> = mutableListOf(),
 ) {
     fun addFlag(flag: String) {
         flags.add(normalize(flag))
     }
 
-    fun addOption(key: String, value: String) {
+    fun addOption(
+        key: String,
+        value: String,
+    ) {
         options[normalize(key)] = value
     }
 

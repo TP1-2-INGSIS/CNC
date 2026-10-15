@@ -14,21 +14,22 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class LinterTest {
-
-    private val validators = mapOf(
-        "camelCase" to CamelCaseValidator(),
-        "snake_case" to SnakeCaseValidator()
-    )
+    private val validators =
+        mapOf(
+            "camelCase" to CamelCaseValidator(),
+            "snake_case" to SnakeCaseValidator(),
+        )
 
     @Test
     fun `detects non camelCase variable declarations`() {
         val rule = NamingConventionRule("camelCase", CamelCaseValidator())
         val linter = CNCLinter(listOf(rule))
 
-        val statements = sequenceOf<Statement>(
-            Declaration("validVariable", "number", NumberLiteral(10.0)),
-            Declaration("Invalid_Variable", "string", StringLiteral("test"))
-        )
+        val statements =
+            sequenceOf<Statement>(
+                Declaration("validVariable", "number", NumberLiteral(10.0)),
+                Declaration("Invalid_Variable", "string", StringLiteral("test")),
+            )
 
         val warnings = linter.lint(statements)
         assertEquals(1, warnings.size)
@@ -40,10 +41,11 @@ class LinterTest {
         val rule = NamingConventionRule("snake_case", SnakeCaseValidator())
         val linter = CNCLinter(listOf(rule))
 
-        val statements = sequenceOf<Statement>(
-            Declaration("valid_variable", "number", NumberLiteral(10.0)),
-            Declaration("invalidCamelCase", "string", StringLiteral("test"))
-        )
+        val statements =
+            sequenceOf<Statement>(
+                Declaration("valid_variable", "number", NumberLiteral(10.0)),
+                Declaration("invalidCamelCase", "string", StringLiteral("test")),
+            )
 
         val warnings = linter.lint(statements)
         assertEquals(1, warnings.size)
@@ -55,10 +57,11 @@ class LinterTest {
         val rule = SimpleFunctionCallRule("println")
         val linter = CNCLinter(listOf(rule))
 
-        val statements = sequenceOf<Statement>(
-            Call("println", listOf(Identifier("x"))),
-            Call("println", listOf(BinaryExpression(NumberLiteral(1.0), "+", NumberLiteral(2.0))))
-        )
+        val statements =
+            sequenceOf<Statement>(
+                Call("println", listOf(Identifier("x"))),
+                Call("println", listOf(BinaryExpression(NumberLiteral(1.0), "+", NumberLiteral(2.0)))),
+            )
 
         val warnings = linter.lint(statements)
         assertEquals(1, warnings.size)
@@ -67,19 +70,21 @@ class LinterTest {
 
     @Test
     fun `builds linter from json configuration with injected validators`() {
-        val json = """
+        val json =
+            """
             {
                 "naming-convention": "camelCase",
                 "simple-println": true
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val linter = (LinterFactory.build(json, validators) as Success).data
 
-        val statements = sequenceOf<Statement>(
-            Declaration("bad_name", "number", NumberLiteral(1.0)),
-            Call("println", listOf(BinaryExpression(Identifier("a"), "*", Identifier("b"))))
-        )
+        val statements =
+            sequenceOf<Statement>(
+                Declaration("bad_name", "number", NumberLiteral(1.0)),
+                Call("println", listOf(BinaryExpression(Identifier("a"), "*", Identifier("b")))),
+            )
 
         val warnings = linter.lint(statements)
         assertEquals(2, warnings.size)
@@ -90,18 +95,20 @@ class LinterTest {
         val customValidator = NamingValidator { it.startsWith("m_") }
         val customValidators = mapOf("hungarian" to customValidator)
 
-        val json = """
+        val json =
+            """
             {
                 "naming-convention": "hungarian"
             }
-        """.trimIndent()
+            """.trimIndent()
 
         val linter = (LinterFactory.build(json, customValidators) as Success).data
 
-        val statements = sequenceOf<Statement>(
-            Declaration("m_count", "number", NumberLiteral(1.0)),
-            Declaration("count", "number", NumberLiteral(2.0))
-        )
+        val statements =
+            sequenceOf<Statement>(
+                Declaration("m_count", "number", NumberLiteral(1.0)),
+                Declaration("count", "number", NumberLiteral(2.0)),
+            )
 
         val warnings = linter.lint(statements)
         assertEquals(1, warnings.size)
@@ -112,19 +119,25 @@ class LinterTest {
     fun `supports TCK identifier_format with spaces like camel case and snake case`() {
         val camelJson = """{ "identifier_format": "camel case" }"""
         val camelLinter = (LinterFactory.build(camelJson, validators) as Success).data
-        val camelWarnings = camelLinter.lint(sequenceOf(
-            Declaration("validVar1", "number", NumberLiteral(1.0)),
-            Declaration("invalid_var", "number", NumberLiteral(2.0))
-        ))
+        val camelWarnings =
+            camelLinter.lint(
+                sequenceOf(
+                    Declaration("validVar1", "number", NumberLiteral(1.0)),
+                    Declaration("invalid_var", "number", NumberLiteral(2.0)),
+                ),
+            )
         assertEquals(1, camelWarnings.size)
         assertTrue(camelWarnings[0].contains("invalid_var"))
 
         val snakeJson = """{ "identifier_format": "snake case" }"""
         val snakeLinter = (LinterFactory.build(snakeJson, validators) as Success).data
-        val snakeWarnings = snakeLinter.lint(sequenceOf(
-            Declaration("valid_var_1", "number", NumberLiteral(1.0)),
-            Declaration("invalidVar", "number", NumberLiteral(2.0))
-        ))
+        val snakeWarnings =
+            snakeLinter.lint(
+                sequenceOf(
+                    Declaration("valid_var_1", "number", NumberLiteral(1.0)),
+                    Declaration("invalidVar", "number", NumberLiteral(2.0)),
+                ),
+            )
         assertEquals(1, snakeWarnings.size)
         assertTrue(snakeWarnings[0].contains("invalidVar"))
     }
@@ -134,11 +147,12 @@ class LinterTest {
         val json = """{ "mandatory-variable-or-literal-in-println": true }"""
         val linter = (LinterFactory.build(json, validators) as Success).data
 
-        val statements = sequenceOf<Statement>(
-            Call("println", listOf(StringLiteral("literal ok"))),
-            Call("println", listOf(Identifier("variableOk"))),
-            Call("println", listOf(cnc.ast.CallExpression("readInput", listOf(StringLiteral("Prompt")))))
-        )
+        val statements =
+            sequenceOf<Statement>(
+                Call("println", listOf(StringLiteral("literal ok"))),
+                Call("println", listOf(Identifier("variableOk"))),
+                Call("println", listOf(cnc.ast.CallExpression("readInput", listOf(StringLiteral("Prompt"))))),
+            )
 
         val warnings = linter.lint(statements)
         assertEquals(1, warnings.size)
@@ -150,14 +164,29 @@ class LinterTest {
         val json = """{ "mandatory-variable-or-literal-in-readInput": true }"""
         val linter = (LinterFactory.build(json, validators) as Success).data
 
-        val statements = sequenceOf<Statement>(
-            Declaration("name", "string", cnc.ast.CallExpression("readInput", listOf(
-                BinaryExpression(StringLiteral("Enter "), "+", StringLiteral("name:"))
-            ))),
-            Declaration("valid", "string", cnc.ast.CallExpression("readInput", listOf(
-                StringLiteral("Valid prompt:")
-            )))
-        )
+        val statements =
+            sequenceOf<Statement>(
+                Declaration(
+                    "name",
+                    "string",
+                    cnc.ast.CallExpression(
+                        "readInput",
+                        listOf(
+                            BinaryExpression(StringLiteral("Enter "), "+", StringLiteral("name:")),
+                        ),
+                    ),
+                ),
+                Declaration(
+                    "valid",
+                    "string",
+                    cnc.ast.CallExpression(
+                        "readInput",
+                        listOf(
+                            StringLiteral("Valid prompt:"),
+                        ),
+                    ),
+                ),
+            )
 
         val warnings = linter.lint(statements)
         assertEquals(1, warnings.size)

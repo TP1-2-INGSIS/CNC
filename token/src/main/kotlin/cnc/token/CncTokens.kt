@@ -12,23 +12,25 @@ object CncKeywords {
     val TYPE_NUMBER = SymbolTokenDef("number_type", "number")
     val TYPE_BOOLEAN = SymbolTokenDef("boolean_type", "boolean")
 
-    val v1_0 = mapOf(
-        "let" to TokenType.KEYWORD,
-        "string" to TokenType.VARIABLE_TYPE,
-        "number" to TokenType.VARIABLE_TYPE
-    )
+    val v1_0 =
+        mapOf(
+            "let" to TokenType.KEYWORD,
+            "string" to TokenType.VARIABLE_TYPE,
+            "number" to TokenType.VARIABLE_TYPE,
+        )
 
-    val v1_1 = mapOf(
-        "let" to TokenType.KEYWORD,
-        "const" to TokenType.KEYWORD,
-        "if" to TokenType.KEYWORD,
-        "else" to TokenType.KEYWORD,
-        "true" to TokenType.KEYWORD,
-        "false" to TokenType.KEYWORD,
-        "string" to TokenType.VARIABLE_TYPE,
-        "number" to TokenType.VARIABLE_TYPE,
-        "boolean" to TokenType.VARIABLE_TYPE
-    )
+    val v1_1 =
+        mapOf(
+            "let" to TokenType.KEYWORD,
+            "const" to TokenType.KEYWORD,
+            "if" to TokenType.KEYWORD,
+            "else" to TokenType.KEYWORD,
+            "true" to TokenType.KEYWORD,
+            "false" to TokenType.KEYWORD,
+            "string" to TokenType.VARIABLE_TYPE,
+            "number" to TokenType.VARIABLE_TYPE,
+            "boolean" to TokenType.VARIABLE_TYPE,
+        )
 }
 
 object CncSymbols {
@@ -47,22 +49,23 @@ object CncSymbols {
     val CLOSE_BRACE = SymbolTokenDef("close_brace", "}")
     val COMMA = SymbolTokenDef("comma", ",")
 
-    val all = mapOf(
-        "+" to TokenType.OPERATOR,
-        "-" to TokenType.OPERATOR,
-        "/" to TokenType.OPERATOR,
-        "*" to TokenType.OPERATOR,
-        "==" to TokenType.OPERATOR,
-        "**" to TokenType.OPERATOR,
-        ";" to TokenType.SYMBOL,
-        ":" to TokenType.SYMBOL,
-        "=" to TokenType.SYMBOL,
-        "(" to TokenType.SYMBOL,
-        ")" to TokenType.SYMBOL,
-        "{" to TokenType.SYMBOL,
-        "}" to TokenType.SYMBOL,
-        "," to TokenType.SYMBOL
-    )
+    val all =
+        mapOf(
+            "+" to TokenType.OPERATOR,
+            "-" to TokenType.OPERATOR,
+            "/" to TokenType.OPERATOR,
+            "*" to TokenType.OPERATOR,
+            "==" to TokenType.OPERATOR,
+            "**" to TokenType.OPERATOR,
+            ";" to TokenType.SYMBOL,
+            ":" to TokenType.SYMBOL,
+            "=" to TokenType.SYMBOL,
+            "(" to TokenType.SYMBOL,
+            ")" to TokenType.SYMBOL,
+            "{" to TokenType.SYMBOL,
+            "}" to TokenType.SYMBOL,
+            "," to TokenType.SYMBOL,
+        )
 }
 
 object CncPatterns {

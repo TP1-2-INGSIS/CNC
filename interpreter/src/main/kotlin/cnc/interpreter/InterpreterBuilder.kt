@@ -10,37 +10,54 @@ class InterpreterBuilder {
     private val unaryOperations = mutableMapOf<String, UnaryOperation>()
     private val builtins = mutableMapOf<String, BuiltinMethod>()
 
-    fun registerEvaluator(kClass: KClass<out Statement>, evaluator: StatementEvaluator<*>): InterpreterBuilder = apply {
-        statementEvaluators[kClass] = evaluator
-    }
+    fun registerEvaluator(
+        kClass: KClass<out Statement>,
+        evaluator: StatementEvaluator<*>,
+    ): InterpreterBuilder =
+        apply {
+            statementEvaluators[kClass] = evaluator
+        }
 
-    fun registerEvaluators(evaluators: Map<KClass<out Statement>, StatementEvaluator<*>>): InterpreterBuilder = apply {
-        statementEvaluators.putAll(evaluators)
-    }
+    fun registerEvaluators(evaluators: Map<KClass<out Statement>, StatementEvaluator<*>>): InterpreterBuilder =
+        apply {
+            statementEvaluators.putAll(evaluators)
+        }
 
-    fun registerBinaryOperation(op: String, operation: BinaryOperation): InterpreterBuilder = apply {
-        binaryOperations[op] = operation
-    }
+    fun registerBinaryOperation(
+        op: String,
+        operation: BinaryOperation,
+    ): InterpreterBuilder =
+        apply {
+            binaryOperations[op] = operation
+        }
 
-    fun registerBinaryOperations(ops: Map<String, BinaryOperation>): InterpreterBuilder = apply {
-        binaryOperations.putAll(ops)
-    }
+    fun registerBinaryOperations(ops: Map<String, BinaryOperation>): InterpreterBuilder =
+        apply {
+            binaryOperations.putAll(ops)
+        }
 
-    fun registerUnaryOperation(op: String, operation: UnaryOperation): InterpreterBuilder = apply {
-        unaryOperations[op] = operation
-    }
+    fun registerUnaryOperation(
+        op: String,
+        operation: UnaryOperation,
+    ): InterpreterBuilder =
+        apply {
+            unaryOperations[op] = operation
+        }
 
-    fun registerUnaryOperations(ops: Map<String, UnaryOperation>): InterpreterBuilder = apply {
-        unaryOperations.putAll(ops)
-    }
+    fun registerUnaryOperations(ops: Map<String, UnaryOperation>): InterpreterBuilder =
+        apply {
+            unaryOperations.putAll(ops)
+        }
 
-    fun registerBuiltin(builtin: BuiltinMethod): InterpreterBuilder = apply {
-        builtins[builtin.name] = builtin
-    }
+    fun registerBuiltin(builtin: BuiltinMethod): InterpreterBuilder =
+        apply {
+            builtins[builtin.name] = builtin
+        }
 
-    fun registerBuiltins(builtinsMap: Map<String, BuiltinMethod>): InterpreterBuilder = apply {
-        builtins.putAll(builtinsMap)
-    }
+    fun registerBuiltins(builtinsMap: Map<String, BuiltinMethod>): InterpreterBuilder =
+        apply {
+            builtins.putAll(builtinsMap)
+        }
 
     fun copy(): InterpreterBuilder {
         val copy = InterpreterBuilder()
@@ -52,11 +69,12 @@ class InterpreterBuilder {
     }
 
     fun build(): Interpreter {
-        val exprEvaluator = ExpressionEvaluator(
-            binaryOperations = binaryOperations.toMap(),
-            unaryOperations = unaryOperations.toMap(),
-            builtins = builtins.toMap()
-        )
+        val exprEvaluator =
+            ExpressionEvaluator(
+                binaryOperations = binaryOperations.toMap(),
+                unaryOperations = unaryOperations.toMap(),
+                builtins = builtins.toMap(),
+            )
         return Interpreter(statementEvaluators.toMap(), exprEvaluator)
     }
 }

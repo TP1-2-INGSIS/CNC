@@ -6,9 +6,8 @@ import cnc.token.TokenType
 class DelimitedRule(
     private val delimiter: Char,
     private val tokenType: TokenType,
-    private val escapeChar: Char? = '\\'
+    private val escapeChar: Char? = '\\',
 ) : LexerRule {
-
     override fun tryMatch(cursor: Cursor<Char>): RuleResult? {
         val first = cursor.peek() ?: return null
         if (first != delimiter) return null

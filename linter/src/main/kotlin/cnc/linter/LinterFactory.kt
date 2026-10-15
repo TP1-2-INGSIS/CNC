@@ -8,18 +8,23 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 
 object LinterFactory {
-
     private val namingConventionKeys = listOf("identifier_format", "identifier-format", "naming-convention")
     private val printlnRuleKeys = listOf("mandatory-variable-or-literal-in-println", "simple-println")
-    private val readInputRuleKeys = listOf("mandatory-variable-or-literal-in-readInput", "mandatory-variable-or-literal-in-read-input", "simple-read-input")
+    private val readInputRuleKeys =
+        listOf(
+            "mandatory-variable-or-literal-in-readInput",
+            "mandatory-variable-or-literal-in-read-input",
+            "simple-read-input",
+        )
 
     fun build(
         jsonString: String,
-        validators: Map<String, NamingValidator>
+        validators: Map<String, NamingValidator>,
     ): Result<CNCLinter> {
-        val root = runCatching {
-            Gson().fromJson(jsonString, JsonObject::class.java)
-        }.getOrNull() ?: JsonObject()
+        val root =
+            runCatching {
+                Gson().fromJson(jsonString, JsonObject::class.java)
+            }.getOrNull() ?: JsonObject()
 
         val rules = mutableListOf<LinterRule>()
 
@@ -48,7 +53,10 @@ object LinterFactory {
     /**
      * Lee la primera propiedad String que exista en el JSON según la lista de nombres posibles (aliases).
      */
-    private fun readStringProperty(json: JsonObject, candidateKeys: List<String>): String? {
+    private fun readStringProperty(
+        json: JsonObject,
+        candidateKeys: List<String>,
+    ): String? {
         val matchingKey = candidateKeys.firstOrNull { json.has(it) && !json.get(it).isJsonNull } ?: return null
         return json.get(matchingKey).asString.trim()
     }
@@ -56,19 +64,27 @@ object LinterFactory {
     /**
      * Comprueba si una regla booleana está activada (true) para cualquiera de sus nombres posibles en el JSON.
      */
-    private fun isRuleEnabled(json: JsonObject, candidateKeys: List<String>): Boolean {
+    private fun isRuleEnabled(
+        json: JsonObject,
+        candidateKeys: List<String>,
+    ): Boolean {
         val matchingKey = candidateKeys.firstOrNull { json.has(it) && !json.get(it).isJsonNull } ?: return false
         return json.get(matchingKey).asBoolean
     }
 
-    private fun resolveNamingValidator(format: String, validators: Map<String, NamingValidator>): Result<NamingValidator> {
-        val normalized = when {
-            format.contains("camel", ignoreCase = true) -> "camelCase"
-            format.contains("snake", ignoreCase = true) -> "snake_case"
-            else -> format
-        }
-        val validator = validators[normalized] ?: validators[format]
-            ?: return Failure("Convention validator for '$format' not found", ErrorType.CLI)
+    private fun resolveNamingValidator(
+        format: String,
+        validators: Map<String, NamingValidator>,
+    ): Result<NamingValidator> {
+        val normalized =
+            when {
+                format.contains("camel", ignoreCase = true) -> "camelCase"
+                format.contains("snake", ignoreCase = true) -> "snake_case"
+                else -> format
+            }
+        val validator =
+            validators[normalized] ?: validators[format]
+                ?: return Failure("Convention validator for '$format' not found", ErrorType.CLI)
         return Success("ok", validator)
     }
 }

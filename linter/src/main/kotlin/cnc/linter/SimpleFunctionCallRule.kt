@@ -16,9 +16,8 @@ import cnc.ast.StringLiteral
 import cnc.ast.UnaryExpression
 
 class SimpleFunctionCallRule(
-    val functionName: String
+    val functionName: String,
 ) : LinterRule {
-
     override fun check(statement: Statement): List<String> {
         val allCallsArguments = mutableListOf<List<Expression>>()
 
@@ -49,21 +48,23 @@ class SimpleFunctionCallRule(
     private fun isVariableOrLiteral(expr: Expression): Boolean =
         expr is Identifier || expr is NumberLiteral || expr is StringLiteral || expr is BooleanLiteral
 
-    private fun Statement.expressions(): List<Expression> = when (this) {
-        is Declaration -> listOfNotNull(value)
-        is Assignment -> listOf(value)
-        is Call -> arguments
-        is IfStatement -> listOf(condition)
-        is BlockStatement -> emptyList()
-    }
-
-    private fun Expression.findCalls(targetFunction: String): List<CallExpression> = when (this) {
-        is CallExpression -> {
-            val matches = if (function == targetFunction) listOf(this) else emptyList()
-            matches + arguments.flatMap { it.findCalls(targetFunction) }
+    private fun Statement.expressions(): List<Expression> =
+        when (this) {
+            is Declaration -> listOfNotNull(value)
+            is Assignment -> listOf(value)
+            is Call -> arguments
+            is IfStatement -> listOf(condition)
+            is BlockStatement -> emptyList()
         }
-        is BinaryExpression -> left.findCalls(targetFunction) + right.findCalls(targetFunction)
-        is UnaryExpression -> operand.findCalls(targetFunction)
-        else -> emptyList()
-    }
+
+    private fun Expression.findCalls(targetFunction: String): List<CallExpression> =
+        when (this) {
+            is CallExpression -> {
+                val matches = if (function == targetFunction) listOf(this) else emptyList()
+                matches + arguments.flatMap { it.findCalls(targetFunction) }
+            }
+            is BinaryExpression -> left.findCalls(targetFunction) + right.findCalls(targetFunction)
+            is UnaryExpression -> operand.findCalls(targetFunction)
+            else -> emptyList()
+        }
 }

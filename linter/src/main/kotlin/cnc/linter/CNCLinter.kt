@@ -4,8 +4,9 @@ import cnc.ast.BlockStatement
 import cnc.ast.IfStatement
 import cnc.ast.Statement
 
-class CNCLinter(private val rules: List<LinterRule>) {
-
+class CNCLinter(
+    private val rules: List<LinterRule>,
+) {
     fun lint(statements: Sequence<Statement>): List<String> {
         val allWarnings = mutableListOf<String>()
 
@@ -18,7 +19,7 @@ class CNCLinter(private val rules: List<LinterRule>) {
 
     private fun checkRecursively(statement: Statement): List<String> {
         val warnings = mutableListOf<String>()
-        
+
         for (rule in rules) {
             warnings.addAll(rule.check(statement))
         }
@@ -31,13 +32,13 @@ class CNCLinter(private val rules: List<LinterRule>) {
             }
             is IfStatement -> {
                 warnings.addAll(checkRecursively(statement.thenBlock))
-                statement.elseBlock?.let { 
+                statement.elseBlock?.let {
                     warnings.addAll(checkRecursively(it))
                 }
             }
             else -> {}
         }
-        
+
         return warnings
     }
 }

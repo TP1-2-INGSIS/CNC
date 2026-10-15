@@ -9,7 +9,7 @@ import cnc.common.Success
 import kotlin.reflect.KClass
 
 class Environment(
-    private val parent: Environment? = null
+    private val parent: Environment? = null,
 ) {
     private val variables = mutableMapOf<String, Any?>()
     private val mutability = mutableMapOf<String, Boolean>()
@@ -19,7 +19,7 @@ class Environment(
         name: String,
         value: Any? = null,
         isMutable: Boolean = true,
-        isInitialized: Boolean = (value != null)
+        isInitialized: Boolean = (value != null),
     ): Result<Unit> {
         if (variables.containsKey(name)) {
             return Failure("Variable '$name' is already defined in this scope", ErrorType.RUNTIME)
@@ -45,7 +45,10 @@ class Environment(
         return Failure("Undefined variable '$name'", ErrorType.RUNTIME)
     }
 
-    fun assign(name: String, value: Any?): Result<Unit> {
+    fun assign(
+        name: String,
+        value: Any?,
+    ): Result<Unit> {
         if (variables.containsKey(name)) {
             if (mutability[name] == false) {
                 return Failure("Cannot reassign to immutable variable '$name'", ErrorType.RUNTIME)
@@ -60,24 +63,28 @@ class Environment(
         return Failure("Undefined variable '$name'", ErrorType.RUNTIME)
     }
 
-    fun isDeclared(name: String): Boolean {
-        return variables.containsKey(name) || parent?.isDeclared(name) == true
-    }
+    fun isDeclared(name: String): Boolean = variables.containsKey(name) || parent?.isDeclared(name) == true
 
     fun createChild(): Environment = Environment(this)
 }
 
 // STATEMENTS
 interface StatementEvaluator<T : Statement> {
-    fun evaluate(statement: T, environment: Environment, interpreter: Interpreter): Result<Unit>
+    fun evaluate(
+        statement: T,
+        environment: Environment,
+        interpreter: Interpreter,
+    ): Result<Unit>
 }
 
 class Interpreter(
     private val statementEvaluators: Map<KClass<out Statement>, StatementEvaluator<*>>,
-    private val expressionEvaluator: ExpressionEvaluator
+    private val expressionEvaluator: ExpressionEvaluator,
 ) {
-
-    fun interpret(statements: Iterable<Statement>, environment: Environment): Result<Unit> {
+    fun interpret(
+        statements: Iterable<Statement>,
+        environment: Environment,
+    ): Result<Unit> {
         for (statement in statements) {
             val result = interpret(statement, environment)
             if (result is Failure) return result
@@ -85,28 +92,39 @@ class Interpreter(
         return Success("ok", Unit)
     }
 
-    fun interpretAll(statements: Iterable<Statement>, environment: Environment): Sequence<Result<Unit>> = sequence {
-        for (statement in statements) {
-            val result = interpret(statement, environment)
-            yield(result)
-            if (result is Failure) break
+    fun interpretAll(
+        statements: Iterable<Statement>,
+        environment: Environment,
+    ): Sequence<Result<Unit>> =
+        sequence {
+            for (statement in statements) {
+                val result = interpret(statement, environment)
+                yield(result)
+                if (result is Failure) break
+            }
         }
-    }
 
     @Suppress("UNCHECKED_CAST")
-    fun interpret(statement: Statement, environment: Environment): Result<Unit> {
-        val evaluator = statementEvaluators[statement::class] as? StatementEvaluator<Statement>
-            ?: return Failure("No evaluator registered for statement type: ${statement::class.simpleName}", ErrorType.RUNTIME)
+    fun interpret(
+        statement: Statement,
+        environment: Environment,
+    ): Result<Unit> {
+        val evaluator =
+            statementEvaluators[statement::class] as? StatementEvaluator<Statement>
+                ?: return Failure(
+                    "No evaluator registered for statement type: ${statement::class.simpleName}",
+                    ErrorType.RUNTIME,
+                )
 
         return evaluator.evaluate(statement, environment, this)
     }
 
-    fun evaluate(expression: Expression, environment: Environment): Result<Any?> {
-        return expressionEvaluator.evaluate(expression, environment, this)
-    }
+    fun evaluate(
+        expression: Expression,
+        environment: Environment,
+    ): Result<Any?> = expressionEvaluator.evaluate(expression, environment, this)
 
     companion object {
         fun builder(): InterpreterBuilder = InterpreterBuilder()
     }
 }
-

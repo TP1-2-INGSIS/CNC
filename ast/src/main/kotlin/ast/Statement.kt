@@ -6,17 +6,17 @@ data class Declaration(
     val name: String,
     val type: String,
     val value: Expression? = null,
-    val isMutable: Boolean = true
+    val isMutable: Boolean = true,
 ) : Statement
 
 data class Assignment(
     val target: String,
-    val value: Expression
+    val value: Expression,
 ) : Statement
 
 data class Call(
     val function: String,
-    val arguments: List<Expression>
+    val arguments: List<Expression>,
 ) : Statement
 
 /**
@@ -27,7 +27,7 @@ data class Call(
  * are not visible outside.
  */
 data class BlockStatement(
-    val statements: List<Statement>
+    val statements: List<Statement>,
 ) : Statement
 
 /**
@@ -45,5 +45,5 @@ data class BlockStatement(
 data class IfStatement(
     val condition: Expression,
     val thenBlock: BlockStatement,
-    val elseBlock: BlockStatement? = null
+    val elseBlock: BlockStatement? = null,
 ) : Statement

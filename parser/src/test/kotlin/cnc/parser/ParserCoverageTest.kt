@@ -1,20 +1,12 @@
 package cnc.parser
 
-import cnc.ast.BlockStatement
 import cnc.ast.BinaryExpression
 import cnc.ast.Call
-import cnc.ast.CallExpression
-import cnc.ast.Declaration
-import cnc.ast.Expression
 import cnc.ast.Identifier
 import cnc.ast.NumberLiteral
 import cnc.ast.Statement
-import cnc.ast.StringLiteral
-import cnc.ast.UnaryExpression
-import cnc.common.Cursor
 import cnc.common.Failure
 import cnc.common.Position
-import cnc.common.Result
 import cnc.common.Success
 import cnc.common.asCursor
 import cnc.parser.cursor.flow
@@ -35,20 +27,21 @@ import cnc.token.TokenType
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class ParserCoverageTest {
-
-    private fun tok(text: String, type: TokenType = TokenType.SYMBOL, row: Int = 1, col: Int = 0): Token =
-        Token(type, Position(row, col), text)
+    private fun tok(
+        text: String,
+        type: TokenType = TokenType.SYMBOL,
+        row: Int = 1,
+        col: Int = 0,
+    ): Token = Token(type, Position(row, col), text)
 
     @Nested
     inner class CursorExtensionsTests {
-
         @Test
         fun `matches collection and single def with lookahead`() {
             val emptyCursor = emptyList<Token>().asCursor()
@@ -59,10 +52,11 @@ class ParserCoverageTest {
             assertFalse(emptyCursor.matches(TokenType.KEYWORD, CncKeywords.LET))
             assertFalse(emptyCursor.matches(CncKeywords.LET, CncKeywords.CONST))
 
-            val tokens = listOf(
-                tok("let", TokenType.KEYWORD),
-                tok("x", TokenType.IDENTIFIER)
-            ).asCursor()
+            val tokens =
+                listOf(
+                    tok("let", TokenType.KEYWORD),
+                    tok("x", TokenType.IDENTIFIER),
+                ).asCursor()
 
             assertTrue(tokens.matches(TokenType.KEYWORD))
             assertTrue(tokens.matches(CncKeywords.LET))
@@ -90,7 +84,6 @@ class ParserCoverageTest {
 
     @Nested
     inner class ParseFlowEdgeCasesTests {
-
         @Test
         fun `OkFlow expect and capture error paths on EOF and mismatches`() {
             val empty = emptyList<Token>().asCursor()
@@ -128,51 +121,56 @@ class ParserCoverageTest {
 
             var optStepData: String? = null
             val cursor2 = listOf(tok("=", TokenType.SYMBOL), tok("42", TokenType.NUMBER)).asCursor()
-            val flow2 = cursor2.flow().optionalStep(
-                trigger = CncSymbols.ASSIGN,
-                operation = { c -> Success("ok", c.advance()!!.text) },
-                action = { optStepData = it }
-            )
+            val flow2 =
+                cursor2.flow().optionalStep(
+                    trigger = CncSymbols.ASSIGN,
+                    operation = { c -> Success("ok", c.advance()!!.text) },
+                    action = { optStepData = it },
+                )
             assertTrue(flow2 is OkFlow)
             assertEquals("42", optStepData)
 
             // optionalStep trigger mismatch is a no-op success
             val cursor3 = listOf(tok(";", TokenType.SYMBOL)).asCursor()
-            val flow3 = cursor3.flow().optionalStep(
-                trigger = CncSymbols.ASSIGN,
-                operation = { Success("ok", "never") },
-                action = {}
-            )
+            val flow3 =
+                cursor3.flow().optionalStep(
+                    trigger = CncSymbols.ASSIGN,
+                    operation = { Success("ok", "never") },
+                    action = {},
+                )
             assertTrue(flow3 is OkFlow)
 
             // optionalStep operation failure transitions to FailedFlow
             val cursor4 = listOf(tok("=", TokenType.SYMBOL)).asCursor()
-            val flow4 = cursor4.flow().optionalStep(
-                trigger = CncSymbols.ASSIGN,
-                operation = { Failure<String>("Op failed", cnc.common.ErrorType.PARSER) },
-                action = {}
-            )
+            val flow4 =
+                cursor4.flow().optionalStep(
+                    trigger = CncSymbols.ASSIGN,
+                    operation = { Failure<String>("Op failed", cnc.common.ErrorType.PARSER) },
+                    action = {},
+                )
             assertTrue(flow4 is FailedFlow)
 
             // optionalStep with TokenType and text
             val cursor5 = listOf(tok("let", TokenType.KEYWORD), tok("x", TokenType.IDENTIFIER)).asCursor()
             var stepByTokenData: String? = null
-            val flow5 = cursor5.flow().optionalStep(
-                triggerType = TokenType.KEYWORD,
-                triggerText = "let",
-                operation = { c -> Success("ok", c.advance()!!.text) },
-                action = { stepByTokenData = it }
-            )
+            val flow5 =
+                cursor5.flow().optionalStep(
+                    triggerType = TokenType.KEYWORD,
+                    triggerText = "let",
+                    operation = { c -> Success("ok", c.advance()!!.text) },
+                    action = { stepByTokenData = it },
+                )
             assertTrue(flow5 is OkFlow)
             assertEquals("x", stepByTokenData)
 
             // optionalStep with TokenType mismatch
-            val flow6 = listOf(tok(";", TokenType.SYMBOL)).asCursor().flow().optionalStep(
-                triggerType = TokenType.KEYWORD,
-                triggerText = "let",
-                operation = { Success("ok", "") },
-                action = {}
-            )
+            val flow6 =
+                listOf(tok(";", TokenType.SYMBOL)).asCursor().flow().optionalStep(
+                    triggerType = TokenType.KEYWORD,
+                    triggerText = "let",
+                    operation = { Success("ok", "") },
+                    action = {},
+                )
             assertTrue(flow6 is OkFlow)
         }
 
@@ -213,18 +211,18 @@ class ParserCoverageTest {
 
     @Nested
     inner class ExpressionBuilderEdgeCasesTests {
-
         private val numDef = SymbolTokenDef("num", listOf("1", "2", "3", "4", "5", "10", "42"))
         private val idDef = SymbolTokenDef("id", listOf("x", "y", "foo"))
         private val plusDef = SymbolTokenDef("plus", "+")
         private val powDef = SymbolTokenDef("pow", "**")
 
-        private val builder = ExpressionBuilder()
-            .addRecipe(numDef) { NumberLiteral(it.text.toDouble()) }
-            .addRecipe(idDef) { Identifier(it.text) }
-            .addOperator(OperatorDef(plusDef, 1, Associativity.LEFT))
-            .addOperator(OperatorDef(powDef, 3, Associativity.RIGHT))
-            .addPrefixOperator(PrefixOperatorDef(SymbolTokenDef("minus", "-"), 2))
+        private val builder =
+            ExpressionBuilder()
+                .addRecipe(numDef) { NumberLiteral(it.text.toDouble()) }
+                .addRecipe(idDef) { Identifier(it.text) }
+                .addOperator(OperatorDef(plusDef, 1, Associativity.LEFT))
+                .addOperator(OperatorDef(powDef, 3, Associativity.RIGHT))
+                .addPrefixOperator(PrefixOperatorDef(SymbolTokenDef("minus", "-"), 2))
 
         @Test
         fun `builder additions and copy methods`() {
@@ -248,12 +246,13 @@ class ParserCoverageTest {
         fun `build from empty token list or unexpected tokens after expr`() {
             assertTrue(builder.build(emptyList()) is Failure<*>)
 
-            val tokensWithExtra = listOf(
-                tok("1", TokenType.NUMBER),
-                tok("+", TokenType.OPERATOR),
-                tok("2", TokenType.NUMBER),
-                tok("extra", TokenType.IDENTIFIER)
-            )
+            val tokensWithExtra =
+                listOf(
+                    tok("1", TokenType.NUMBER),
+                    tok("+", TokenType.OPERATOR),
+                    tok("2", TokenType.NUMBER),
+                    tok("extra", TokenType.IDENTIFIER),
+                )
             val res = builder.build(tokensWithExtra)
             assertTrue(res is Failure<*>)
             assertTrue(res.msg.contains("Unexpected token 'extra'"))
@@ -262,10 +261,11 @@ class ParserCoverageTest {
         @Test
         fun `build atom failure branches`() {
             // Unclosed grouped expr
-            val unclosedGroup = listOf(
-                tok("(", TokenType.SYMBOL),
-                tok("1", TokenType.NUMBER)
-            ).asCursor()
+            val unclosedGroup =
+                listOf(
+                    tok("(", TokenType.SYMBOL),
+                    tok("1", TokenType.NUMBER),
+                ).asCursor()
             val groupRes = builder.parse(unclosedGroup)
             assertTrue(groupRes is Failure<*>)
             assertTrue(groupRes.msg.contains("Expected closing ')'"))
@@ -277,11 +277,12 @@ class ParserCoverageTest {
             assertTrue(noRecipeRes.msg.contains("No recipe matches token"))
 
             // Unclosed call expression
-            val unclosedCall = listOf(
-                tok("foo", TokenType.IDENTIFIER),
-                tok("(", TokenType.SYMBOL),
-                tok("1", TokenType.NUMBER)
-            ).asCursor()
+            val unclosedCall =
+                listOf(
+                    tok("foo", TokenType.IDENTIFIER),
+                    tok("(", TokenType.SYMBOL),
+                    tok("1", TokenType.NUMBER),
+                ).asCursor()
             val callRes = builder.parse(unclosedCall)
             assertTrue(callRes is Failure<*>)
             assertTrue(callRes.msg.contains("Expected closing ')'"))
@@ -290,13 +291,14 @@ class ParserCoverageTest {
         @Test
         fun `right associativity operator parsing`() {
             // 2 ** 3 ** 4 -> 2 ** (3 ** 4)
-            val tokens = listOf(
-                tok("2", TokenType.NUMBER),
-                tok("**", TokenType.OPERATOR),
-                tok("3", TokenType.NUMBER),
-                tok("**", TokenType.OPERATOR),
-                tok("4", TokenType.NUMBER)
-            ).asCursor()
+            val tokens =
+                listOf(
+                    tok("2", TokenType.NUMBER),
+                    tok("**", TokenType.OPERATOR),
+                    tok("3", TokenType.NUMBER),
+                    tok("**", TokenType.OPERATOR),
+                    tok("4", TokenType.NUMBER),
+                ).asCursor()
 
             val res = builder.parse(tokens)
             assertTrue(res is Success)
@@ -309,19 +311,19 @@ class ParserCoverageTest {
 
     @Nested
     inner class ParserEdgeCasesTests {
-
         private val letDef = SymbolTokenDef("let", "let")
         private val semiDef = SymbolTokenDef("semi", ";")
         private val openBrace = SymbolTokenDef("open", "{")
         private val closeBrace = SymbolTokenDef("close", "}")
 
-        private val dummyRule = StatementRule.builder<Statement>("dummy")
-            .canStart { it.peek()?.text == "dummy" }
-            .parse { cursor, _ ->
-                cursor.advance()
-                Success("ok", Call("dummy", emptyList()))
-            }
-            .build()
+        private val dummyRule =
+            StatementRule
+                .builder<Statement>("dummy")
+                .canStart { it.peek()?.text == "dummy" }
+                .parse { cursor, _ ->
+                    cursor.advance()
+                    Success("ok", Call("dummy", emptyList()))
+                }.build()
 
         private val exprParser = ExpressionBuilder()
 
@@ -370,11 +372,12 @@ class ParserCoverageTest {
         @Test
         fun `parser fail fast sequence on unexpected token`() {
             val p = Parser(listOf(dummyRule), exprParser)
-            val tokens = sequenceOf(
-                tok("dummy"),
-                tok("badToken"),
-                tok("dummy")
-            )
+            val tokens =
+                sequenceOf(
+                    tok("dummy"),
+                    tok("badToken"),
+                    tok("dummy"),
+                )
             val results = p.parse(tokens).toList()
             assertEquals(2, results.size)
             assertTrue(results[0] is Success)
@@ -384,7 +387,6 @@ class ParserCoverageTest {
 
     @Nested
     inner class StatementRuleBuilderTests {
-
         @Test
         fun `builder validates required fields`() {
             assertThrows(IllegalStateException::class.java) {
@@ -402,10 +404,12 @@ class ParserCoverageTest {
                     .build()
             }
 
-            val valid = StatementRule.builder<Statement>("testTag")
-                .starts { true }
-                .parse { _, _ -> Success("ok", Call("test", emptyList())) }
-                .build()
+            val valid =
+                StatementRule
+                    .builder<Statement>("testTag")
+                    .starts { true }
+                    .parse { _, _ -> Success("ok", Call("test", emptyList())) }
+                    .build()
 
             assertEquals("testTag", valid.tag)
             assertTrue(valid.canStart(emptyList<Token>().asCursor()))

@@ -16,5 +16,8 @@ import cnc.ast.Expression
  */
 fun interface ExpressionRule {
     /** Devuelve el render de [expr], o `null` si esta regla no le aplica. */
-    fun tryFormat(expr: Expression, context: FormatContext): String?
+    fun tryFormat(
+        expr: Expression,
+        context: FormatContext,
+    ): String?
 }

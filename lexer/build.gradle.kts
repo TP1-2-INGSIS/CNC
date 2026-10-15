@@ -1,8 +1,9 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
+    id("org.jetbrains.kotlin.jvm")
     // !Importante no pongo el application, por lo que gradle va a interpretar
     // este modulo como una lib
     id("jacoco-conventions")
+    id("code-quality-conventions")
 }
 
 repositories {
@@ -27,7 +28,7 @@ dependencies {
 
     implementation(project(":common"))
     implementation(project(":token"))
-    //implementation(project(":common"))
+    // implementation(project(":common"))
 }
 
 tasks.named<Test>("test") {

@@ -19,12 +19,12 @@ enum class Associativity { LEFT, RIGHT }
 data class OperatorDef(
     val definition: TokenDefinition,
     val precedence: Int,
-    val associativity: Associativity = Associativity.LEFT
+    val associativity: Associativity = Associativity.LEFT,
 )
 
 data class PrefixOperatorDef(
     val definition: TokenDefinition,
-    val precedence: Int
+    val precedence: Int,
 )
 
 interface ExpressionParser {
@@ -38,14 +38,17 @@ interface ExpressionParser {
 class ExpressionBuilder(
     val recipes: Map<TokenDefinition, (Token) -> Expression> = emptyMap(),
     val operators: List<OperatorDef> = emptyList(),
-    val prefixOperators: List<PrefixOperatorDef> = emptyList()
+    val prefixOperators: List<PrefixOperatorDef> = emptyList(),
 ) : ExpressionParser {
+    fun addRecipe(
+        tokenDef: TokenDefinition,
+        recipe: (Token) -> Expression,
+    ): ExpressionBuilder = copy(recipes = recipes + (tokenDef to recipe))
 
-    fun addRecipe(tokenDef: TokenDefinition, recipe: (Token) -> Expression): ExpressionBuilder =
-        copy(recipes = recipes + (tokenDef to recipe))
-
-    fun addRecipeFirst(tokenDef: TokenDefinition, recipe: (Token) -> Expression): ExpressionBuilder =
-        copy(recipes = mapOf(tokenDef to recipe) + recipes)
+    fun addRecipeFirst(
+        tokenDef: TokenDefinition,
+        recipe: (Token) -> Expression,
+    ): ExpressionBuilder = copy(recipes = mapOf(tokenDef to recipe) + recipes)
 
     fun addRecipes(newRecipes: Map<TokenDefinition, (Token) -> Expression>): ExpressionBuilder =
         copy(recipes = recipes + newRecipes)
@@ -53,11 +56,9 @@ class ExpressionBuilder(
     fun addRecipesFirst(newRecipes: Map<TokenDefinition, (Token) -> Expression>): ExpressionBuilder =
         copy(recipes = newRecipes + recipes)
 
-    fun addOperator(operator: OperatorDef): ExpressionBuilder =
-        copy(operators = operators + operator)
+    fun addOperator(operator: OperatorDef): ExpressionBuilder = copy(operators = operators + operator)
 
-    fun addOperators(newOperators: List<OperatorDef>): ExpressionBuilder =
-        copy(operators = operators + newOperators)
+    fun addOperators(newOperators: List<OperatorDef>): ExpressionBuilder = copy(operators = operators + newOperators)
 
     fun addPrefixOperator(operator: PrefixOperatorDef): ExpressionBuilder =
         copy(prefixOperators = prefixOperators + operator)
@@ -65,28 +66,32 @@ class ExpressionBuilder(
     fun copy(
         recipes: Map<TokenDefinition, (Token) -> Expression> = this.recipes,
         operators: List<OperatorDef> = this.operators,
-        prefixOperators: List<PrefixOperatorDef> = this.prefixOperators
-    ): ExpressionBuilder = ExpressionBuilder(
-        recipes = recipes,
-        operators = operators,
-        prefixOperators = prefixOperators
-    )
+        prefixOperators: List<PrefixOperatorDef> = this.prefixOperators,
+    ): ExpressionBuilder =
+        ExpressionBuilder(
+            recipes = recipes,
+            operators = operators,
+            prefixOperators = prefixOperators,
+        )
 
     fun build(token: Token): Result<Expression> {
-        val (_, builder) = recipes.entries.firstOrNull { (definition, _) ->
-            definition.match(token.text)
-        } ?: return Failure(
-            "No recipe matches token: '${token.text}' at row ${token.pos.row}, col ${token.pos.col}",
-            ErrorType.PARSER
-        )
+        val (_, builder) =
+            recipes.entries.firstOrNull { (definition, _) ->
+                definition.match(token.text)
+            } ?: return Failure(
+                "No recipe matches token: '${token.text}' at row ${token.pos.row}, col ${token.pos.col}",
+                ErrorType.PARSER,
+            )
         return Success("Parsed token", builder(token))
     }
 
     fun build(tokens: List<Token>): Result<Expression> {
-        if (tokens.isEmpty()) return Failure(
-            "Cannot build expression from empty token list",
-            ErrorType.PARSER
-        )
+        if (tokens.isEmpty()) {
+            return Failure(
+                "Cannot build expression from empty token list",
+                ErrorType.PARSER,
+            )
+        }
         if (operators.isEmpty() || tokens.size == 1) {
             return build(tokens.first())
         }
@@ -96,7 +101,7 @@ class ExpressionBuilder(
         if (cursor.hasMore()) {
             return Failure(
                 "Unexpected token '${cursor.peek()?.text}' after expression",
-                ErrorType.PARSER
+                ErrorType.PARSER,
             )
         }
         return result
@@ -104,7 +109,10 @@ class ExpressionBuilder(
 
     override fun parse(cursor: Cursor<Token>): Result<Expression> = parseExpression(cursor, 0)
 
-    private fun parseExpression(cursor: Cursor<Token>, minPrecedence: Int): Result<Expression> {
+    private fun parseExpression(
+        cursor: Cursor<Token>,
+        minPrecedence: Int,
+    ): Result<Expression> {
         val leftResult = parseAtom(cursor)
         if (leftResult is Failure) return leftResult
         var left = (leftResult as Success).data
@@ -125,11 +133,12 @@ class ExpressionBuilder(
 
             cursor.advance()
 
-            val nextMinPrecedence = if (operator.associativity == Associativity.LEFT) {
-                operator.precedence + 1
-            } else {
-                operator.precedence
-            }
+            val nextMinPrecedence =
+                if (operator.associativity == Associativity.LEFT) {
+                    operator.precedence + 1
+                } else {
+                    operator.precedence
+                }
 
             val rightRes = parseExpression(cursor, nextMinPrecedence)
             if (rightRes is Failure) return rightRes
@@ -145,7 +154,7 @@ class ExpressionBuilder(
         if (!cursor.hasMore()) {
             return Failure(
                 "Unexpected end of expression, expected a value",
-                ErrorType.PARSER
+                ErrorType.PARSER,
             )
         }
 
@@ -170,7 +179,7 @@ class ExpressionBuilder(
             if (closing == null || closing.text != ")") {
                 return Failure(
                     "Expected closing ')' after grouped expression",
-                    ErrorType.PARSER
+                    ErrorType.PARSER,
                 )
             }
             cursor.advance()
@@ -178,16 +187,20 @@ class ExpressionBuilder(
         }
 
         cursor.advance()
-        val (_, recipe) = recipes.entries.firstOrNull { (def, _) -> def.match(token.text) }
-            ?: return Failure(
-                "No recipe matches token: '${token.text}' at row ${token.pos.row}, col ${token.pos.col}",
-                ErrorType.PARSER
-            )
+        val (_, recipe) =
+            recipes.entries.firstOrNull { (def, _) -> def.match(token.text) }
+                ?: return Failure(
+                    "No recipe matches token: '${token.text}' at row ${token.pos.row}, col ${token.pos.col}",
+                    ErrorType.PARSER,
+                )
 
         return Success("Parsed atom", recipe(token))
     }
 
-    private fun parseCall(cursor: Cursor<Token>, target: Identifier): Result<Expression> {
+    private fun parseCall(
+        cursor: Cursor<Token>,
+        target: Identifier,
+    ): Result<Expression> {
         cursor.advance() // consume '('
         val args = mutableListOf<Expression>()
 
@@ -214,8 +227,7 @@ class ExpressionBuilder(
         return Success("Parsed call expression", CallExpression(target.name, args))
     }
 
-    private fun findOperator(token: Token): OperatorDef? =
-        operators.firstOrNull { it.definition.match(token.text) }
+    private fun findOperator(token: Token): OperatorDef? = operators.firstOrNull { it.definition.match(token.text) }
 
     private fun findPrefixOperator(token: Token): PrefixOperatorDef? =
         prefixOperators.firstOrNull { it.definition.match(token.text) }

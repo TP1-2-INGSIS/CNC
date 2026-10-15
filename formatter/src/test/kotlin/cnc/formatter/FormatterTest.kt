@@ -11,62 +11,70 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class FormatterTest {
-
     // --- Reglas fixture (simulan lo que vive en app/config/) -----------------
 
-    private val numberRule = ExpressionRule { expr, _ ->
-        (expr as? NumberLiteral)?.let {
-            if (it.value % 1.0 == 0.0) it.value.toLong().toString() else it.value.toString()
+    private val numberRule =
+        ExpressionRule { expr, _ ->
+            (expr as? NumberLiteral)?.let {
+                if (it.value % 1.0 == 0.0) it.value.toLong().toString() else it.value.toString()
+            }
         }
-    }
-    private val stringRule = ExpressionRule { expr, _ ->
-        (expr as? StringLiteral)?.let { "\"${it.value}\"" }
-    }
-    private val identifierRule = ExpressionRule { expr, _ ->
-        (expr as? Identifier)?.name
-    }
-    private val binaryRule = ExpressionRule { expr, ctx ->
-        (expr as? BinaryExpression)?.let { bin ->
-            val prec = precedences.getValue(bin.operator)
-            val left = ctx.formatOperand(bin.left, prec, OperandSide.LEFT)
-            val right = ctx.formatOperand(bin.right, prec, OperandSide.RIGHT)
-            "$left${ctx.formatSymbol(bin.operator)}$right"
+    private val stringRule =
+        ExpressionRule { expr, _ ->
+            (expr as? StringLiteral)?.let { "\"${it.value}\"" }
         }
-    }
+    private val identifierRule =
+        ExpressionRule { expr, _ ->
+            (expr as? Identifier)?.name
+        }
+    private val binaryRule =
+        ExpressionRule { expr, ctx ->
+            (expr as? BinaryExpression)?.let { bin ->
+                val prec = precedences.getValue(bin.operator)
+                val left = ctx.formatOperand(bin.left, prec, OperandSide.LEFT)
+                val right = ctx.formatOperand(bin.right, prec, OperandSide.RIGHT)
+                "$left${ctx.formatSymbol(bin.operator)}$right"
+            }
+        }
 
     private val expressionRules = listOf(numberRule, stringRule, identifierRule, binaryRule)
 
-    private val symbolRules: Map<String, FormatRule<String>> = mapOf(
-        "+" to FormatRule { s, _ -> " $s " },
-        "*" to FormatRule { s, _ -> " $s " },
-        "let" to FormatRule { s, _ -> s },
-        ":" to FormatRule { s, _ -> "$s " },
-        "=" to FormatRule { s, _ -> " $s " },
-        ";" to FormatRule { s, _ -> s }
-    )
+    private val symbolRules: Map<String, FormatRule<String>> =
+        mapOf(
+            "+" to FormatRule { s, _ -> " $s " },
+            "*" to FormatRule { s, _ -> " $s " },
+            "let" to FormatRule { s, _ -> s },
+            ":" to FormatRule { s, _ -> "$s " },
+            "=" to FormatRule { s, _ -> " $s " },
+            ";" to FormatRule { s, _ -> s },
+        )
 
     private val precedences = mapOf("+" to 1, "*" to 2)
 
     // Regla de statement: Declaration -> "let name: type = value;"
-    private val declRule = StatementRule { stmt, ctx ->
-        (stmt as? Declaration)?.let { decl ->
-            buildString {
-                append(ctx.formatSymbol("let")).append(" ")
-                append(decl.name)
-                append(ctx.formatSymbol(":")).append(decl.type)
-                append(ctx.formatSymbol("="))
-                append(ctx.formatExpression(decl.value!!))
-                append(ctx.formatSymbol(";"))
+    private val declRule =
+        StatementRule { stmt, ctx ->
+            (stmt as? Declaration)?.let { decl ->
+                buildString {
+                    append(ctx.formatSymbol("let")).append(" ")
+                    append(decl.name)
+                    append(ctx.formatSymbol(":")).append(decl.type)
+                    append(ctx.formatSymbol("="))
+                    append(ctx.formatExpression(decl.value!!))
+                    append(ctx.formatSymbol(";"))
+                }
             }
         }
-    }
 
     private val statementRules = listOf(declRule)
 
     private fun formatter() = Formatter(statementRules, symbolRules, expressionRules, precedences)
 
-    private fun decl(name: String, type: String, value: Expression) =
-        Declaration(name = name, type = type, value = value)
+    private fun decl(
+        name: String,
+        type: String,
+        value: Expression,
+    ) = Declaration(name = name, type = type, value = value)
 
     // --- Tests ---------------------------------------------------------------
 
@@ -103,10 +111,11 @@ class FormatterTest {
 
     @Test
     fun `formats multiple statements separated by newline`() {
-        val ast = listOf(
-            decl("a", "number", NumberLiteral(1.0)),
-            decl("b", "string", StringLiteral("hi"))
-        )
+        val ast =
+            listOf(
+                decl("a", "number", NumberLiteral(1.0)),
+                decl("b", "string", StringLiteral("hi")),
+            )
         assertEquals("let a: number = 1;\nlet b: string = \"hi\";", formatter().format(ast))
     }
 

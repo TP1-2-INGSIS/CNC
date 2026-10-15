@@ -21,27 +21,28 @@ private object TestGccCommand : Command {
         val isVerbose = params.hasFlag("verbose")
         val isCheck = params.hasFlag("check")
 
-        val details = buildString {
-            if (isVerbose) append(" (verbose)")
-            if (isCheck) append(" (check-only)")
-        }
+        val details =
+            buildString {
+                if (isVerbose) append(" (verbose)")
+                if (isCheck) append(" (check-only)")
+            }
 
         return Success("Compiling '$file'$details...", Unit)
     }
 }
 
 class CommandSystemTest {
-
     @Test
     fun `test command execution in CommandSystem`() {
         val testIO = TestIO()
         testIO.addInput("gcnc --file=main.cnc --verbose")
         testIO.addInput("exit")
 
-        val sys = CommandSystem(
-            mapOf("gcnc" to TestGccCommand),
-            testIO
-        )
+        val sys =
+            CommandSystem(
+                mapOf("gcnc" to TestGccCommand),
+                testIO,
+            )
         val result = sys.run()
 
         assertTrue(result is Success)
@@ -55,20 +56,23 @@ class CommandSystemTest {
         testIO.addInput("gcnc --help")
         testIO.addInput("exit")
 
-        val decorated = HelpAttribute(
-            wrapped = TestGccCommand,
-            description = "Compiles CNC files",
-            usage = "gcnc --file=<path> [--verbose]",
-            paramHelp = mapOf(
-                "--file=<path>" to "Source file",
-                "--verbose" to "Verbose mode"
+        val decorated =
+            HelpAttribute(
+                wrapped = TestGccCommand,
+                description = "Compiles CNC files",
+                usage = "gcnc --file=<path> [--verbose]",
+                paramHelp =
+                    mapOf(
+                        "--file=<path>" to "Source file",
+                        "--verbose" to "Verbose mode",
+                    ),
             )
-        )
 
-        val sys = CommandSystem(
-            mapOf("gcnc" to decorated),
-            testIO
-        )
+        val sys =
+            CommandSystem(
+                mapOf("gcnc" to decorated),
+                testIO,
+            )
         sys.run()
 
         val output = testIO.getOutput()
@@ -83,15 +87,17 @@ class CommandSystemTest {
         testIO.addInput("help")
         testIO.addInput("exit")
 
-        val decorated = HelpAttribute(
-            wrapped = TestGccCommand,
-            description = "Compiles CNC files"
-        )
+        val decorated =
+            HelpAttribute(
+                wrapped = TestGccCommand,
+                description = "Compiles CNC files",
+            )
 
-        val sys = CommandSystem(
-            mapOf("gcnc" to decorated),
-            testIO
-        )
+        val sys =
+            CommandSystem(
+                mapOf("gcnc" to decorated),
+                testIO,
+            )
         sys.run()
 
         val output = testIO.getOutput()
@@ -106,15 +112,17 @@ class CommandSystemTest {
         testIO.addInput("help gcnc")
         testIO.addInput("exit")
 
-        val decorated = HelpAttribute(
-            wrapped = TestGccCommand,
-            description = "Compiles CNC files"
-        )
+        val decorated =
+            HelpAttribute(
+                wrapped = TestGccCommand,
+                description = "Compiles CNC files",
+            )
 
-        val sys = CommandSystem(
-            mapOf("gcnc" to decorated),
-            testIO
-        )
+        val sys =
+            CommandSystem(
+                mapOf("gcnc" to decorated),
+                testIO,
+            )
         sys.run()
 
         val output = testIO.getOutput()
@@ -128,10 +136,11 @@ class CommandSystemTest {
         testIO.addInput("unknown_cmd")
         testIO.addInput("exit")
 
-        val sys = CommandSystem(
-            mapOf("gcnc" to TestGccCommand),
-            testIO
-        )
+        val sys =
+            CommandSystem(
+                mapOf("gcnc" to TestGccCommand),
+                testIO,
+            )
         sys.run()
 
         val output = testIO.getOutput()
@@ -144,16 +153,19 @@ class CommandSystemTest {
         testIO.addInput("fail_cmd")
         testIO.addInput("exit")
 
-        val failingCmd = object : Command {
-            override val tag = "fail_cmd"
-            override fun execute(params: cnc.cli.args.ArgsContainer) =
-                Failure<Unit>("Something went wrong", ErrorType.CLI)
-        }
+        val failingCmd =
+            object : Command {
+                override val tag = "fail_cmd"
 
-        val sys = CommandSystem(
-            mapOf("fail_cmd" to failingCmd),
-            testIO
-        )
+                override fun execute(params: cnc.cli.args.ArgsContainer) =
+                    Failure<Unit>("Something went wrong", ErrorType.CLI)
+            }
+
+        val sys =
+            CommandSystem(
+                mapOf("fail_cmd" to failingCmd),
+                testIO,
+            )
         sys.run()
 
         val output = testIO.getOutput()

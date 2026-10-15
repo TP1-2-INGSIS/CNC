@@ -32,7 +32,9 @@ interface Cursor<T> {
  * Implementation of [Cursor] backed by a Kotlin [Sequence]
  * and an O(1) buffer using [ArrayDeque] for lookahead.
  */
-class SequenceCursor<T>(elements: Sequence<T>) : Cursor<T> {
+class SequenceCursor<T>(
+    elements: Sequence<T>,
+) : Cursor<T> {
     private val iterator = elements.iterator()
     private val buffer = ArrayDeque<T>()
     private var _offset = 0
@@ -51,11 +53,12 @@ class SequenceCursor<T>(elements: Sequence<T>) : Cursor<T> {
     }
 
     override fun advance(): T? {
-        val item = when {
-            buffer.isNotEmpty() -> buffer.removeFirst()
-            iterator.hasNext() -> iterator.next()
-            else -> null
-        }
+        val item =
+            when {
+                buffer.isNotEmpty() -> buffer.removeFirst()
+                iterator.hasNext() -> iterator.next()
+                else -> null
+            }
         if (item != null) {
             _offset++
         }
@@ -78,7 +81,9 @@ interface CharCursor : Cursor<Char> {
  * Implementation of [CharCursor] backed by a Kotlin [Sequence] of characters
  * with lookahead and primitive line/column tracking without heap allocation on advance.
  */
-class TrackingCharCursor(elements: Sequence<Char>) : CharCursor {
+class TrackingCharCursor(
+    elements: Sequence<Char>,
+) : CharCursor {
     private val iterator = elements.iterator()
     private val buffer = ArrayDeque<Char>()
     private var _offset = 0
@@ -102,11 +107,12 @@ class TrackingCharCursor(elements: Sequence<Char>) : CharCursor {
     }
 
     override fun advance(): Char? {
-        val item = when {
-            buffer.isNotEmpty() -> buffer.removeFirst()
-            iterator.hasNext() -> iterator.next()
-            else -> return null
-        }
+        val item =
+            when {
+                buffer.isNotEmpty() -> buffer.removeFirst()
+                iterator.hasNext() -> iterator.next()
+                else -> return null
+            }
 
         _offset++
 
@@ -144,9 +150,9 @@ fun CharSequence.asCharCursor(): CharCursor = this.asSequence().asCharCursor()
 /**
  * Consumes [count] characters from the cursor and returns them as a [String].
  */
-fun Cursor<Char>.consume(count: Int): String = buildString(count) {
-    repeat(count) {
-        append(advance() ?: return@buildString)
+fun Cursor<Char>.consume(count: Int): String =
+    buildString(count) {
+        repeat(count) {
+            append(advance() ?: return@buildString)
+        }
     }
-}
-

@@ -4,10 +4,13 @@ import cnc.common.Cursor
 
 data class TrieNode<T>(
     val value: T? = null,
-    val children: Map<Char, TrieNode<T>> = emptyMap()
+    val children: Map<Char, TrieNode<T>> = emptyMap(),
 )
 
-fun <T> TrieNode<T>.matchLongest(cursor: Cursor<Char>, offset: Int = 0): Pair<T, Int>? {
+fun <T> TrieNode<T>.matchLongest(
+    cursor: Cursor<Char>,
+    offset: Int = 0,
+): Pair<T, Int>? {
     val char = cursor.peek(offset)
     if (char != null) {
         val deeperMatch = children[char]?.matchLongest(cursor, offset + 1)
@@ -18,7 +21,10 @@ fun <T> TrieNode<T>.matchLongest(cursor: Cursor<Char>, offset: Int = 0): Pair<T,
     return terminalValue to offset
 }
 
-fun <T> TrieNode<T>.matchExact(text: CharSequence, index: Int = 0): T? {
+fun <T> TrieNode<T>.matchExact(
+    text: CharSequence,
+    index: Int = 0,
+): T? {
     if (index == text.length) return value
     val child = children[text[index]] ?: return null
     return child.matchExact(text, index + 1)
@@ -34,7 +40,12 @@ fun <T> buildTrie(entries: Iterable<Pair<String, T>>): TrieNode<T> {
 
 fun <T> buildTrie(entries: Map<String, T>): TrieNode<T> = buildTrie(entries.toList())
 
-private fun <T> insert(node: TrieNode<T>, key: String, value: T, index: Int): TrieNode<T> {
+private fun <T> insert(
+    node: TrieNode<T>,
+    key: String,
+    value: T,
+    index: Int,
+): TrieNode<T> {
     if (index == key.length) {
         return node.copy(value = value)
     }

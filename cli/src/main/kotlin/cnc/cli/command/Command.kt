@@ -6,6 +6,7 @@ import cnc.common.Success
 
 interface Command {
     val tag: String
+
     fun execute(params: ArgsContainer): Result<Unit>
 }
 
@@ -18,9 +19,8 @@ class HelpAttribute(
     override val wrapped: Command,
     val description: String,
     val usage: String = wrapped.tag,
-    val paramHelp: Map<String, String> = emptyMap()
+    val paramHelp: Map<String, String> = emptyMap(),
 ) : WrappedCommand {
-
     override fun execute(params: ArgsContainer): Result<Unit> {
         if (params.hasFlag("help") || params.hasFlag("h")) {
             return Success(getHelpText(), Unit)

@@ -2,11 +2,10 @@ package cnc.printscript
 
 import cnc.ast.Declaration
 import cnc.ast.NumberLiteral
+import cnc.common.Failure
 import cnc.common.FileContent
 import cnc.common.InputStreamContent
 import cnc.common.StringContent
-import cnc.common.Failure
-import cnc.common.Success
 import cnc.printscript.profile.PrintScriptProfileRegistry
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -14,17 +13,14 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import java.io.File
 import kotlin.io.path.createTempFile
 
 class PrintScriptEngineFacadeTest {
-
     private val engine10: PrintScriptFacade = PsVersioner.version("1.0")
     private val engine11: PrintScriptFacade = PsVersioner.version("1.1")
 
     @Nested
     inner class VersionAndRegistryTests {
-
         @Test
         fun `resolves versions correctly and throws on invalid`() {
             assertEquals(LanguageVersion.V1_0, LanguageVersion.from("1.0"))
@@ -51,18 +47,18 @@ class PrintScriptEngineFacadeTest {
 
     @Nested
     inner class FacadeOverloadsTests {
-
         private val sampleCode = "let x: number = 42;\nprintln(x);"
 
         @Test
         fun `execute overloads with File, InputStream, ContentManager, and custom IO`() {
             val outputList = mutableListOf<String>()
-            val resStr = engine11.execute(
-                source = sampleCode,
-                input = { _: String -> "input" },
-                envProvider = { _: String -> null },
-                output = { str: String -> outputList.add(str) }
-            )
+            val resStr =
+                engine11.execute(
+                    source = sampleCode,
+                    input = { _: String -> "input" },
+                    envProvider = { _: String -> null },
+                    output = { str: String -> outputList.add(str) },
+                )
             assertTrue(resStr.isOk())
             assertEquals(listOf("42"), outputList)
 
@@ -124,12 +120,18 @@ class PrintScriptEngineFacadeTest {
             assertEquals(emptyList<String>(), engine11.lint(tempFile, "{}"))
             assertEquals(emptyList<String>(), engine11.lint(raw.byteInputStream(), "{}"))
             assertEquals(emptyList<String>(), engine11.lint(StringContent(raw), "{}"))
-            assertEquals(emptyList<String>(), engine11.lint(listOf(Declaration("x", "number", NumberLiteral(42.0))), "{}"))
+            assertEquals(
+                emptyList<String>(),
+                engine11.lint(listOf(Declaration("x", "number", NumberLiteral(42.0))), "{}"),
+            )
 
             assertEquals(emptyList<String>(), engine11.lint(raw, cfgFile))
             assertEquals(emptyList<String>(), engine11.lint(tempFile, cfgFile))
             assertEquals(emptyList<String>(), engine11.lint(raw.byteInputStream(), cfgFile))
-            assertEquals(emptyList<String>(), engine11.lint(listOf(Declaration("x", "number", NumberLiteral(42.0))), cfgFile))
+            assertEquals(
+                emptyList<String>(),
+                engine11.lint(listOf(Declaration("x", "number", NumberLiteral(42.0))), cfgFile),
+            )
         }
 
         @Test
@@ -169,7 +171,6 @@ class PrintScriptEngineFacadeTest {
 
     @Nested
     inner class StatementRulesCornerCasesTests {
-
         @Test
         fun `const declaration without initializer fails in parser rule`() {
             val invalidConstCode = "const x: number;"

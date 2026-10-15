@@ -1,6 +1,5 @@
 package cnc
 
-import java.io.File
 import cnc.cli.CommandSystem
 import cnc.cli.args.ArgsContainer
 import cnc.cli.command.Command
@@ -10,13 +9,15 @@ import cnc.common.Failure
 import cnc.common.Result
 import cnc.common.Success
 import cnc.printscript.PsVersioner
+import java.io.File
 
 object RunCommand : Command {
     override val tag = "run"
 
     override fun execute(params: ArgsContainer): Result<Unit> {
-        val file = params.getOption("file") ?: params.getPositional(0)
-            ?: return Failure("Missing required source file. Usage: run <file>", ErrorType.CLI)
+        val file =
+            params.getOption("file") ?: params.getPositional(0)
+                ?: return Failure("Missing required source file. Usage: run <file>", ErrorType.CLI)
 
         val version = params.getOption("version") ?: "1.1"
         val ps = PsVersioner.version(version)
@@ -31,21 +32,24 @@ object RunCommand : Command {
     }
 }
 
-val RunWithHelp = HelpAttribute(
-    wrapped = RunCommand,
-    description = "Executes a PrintScript source file",
-    usage = "run <file>",
-    paramHelp = mapOf(
-        "<file>" to "Source file path to run"
+val RunWithHelp =
+    HelpAttribute(
+        wrapped = RunCommand,
+        description = "Executes a PrintScript source file",
+        usage = "run <file>",
+        paramHelp =
+            mapOf(
+                "<file>" to "Source file path to run",
+            ),
     )
-)
 
 object ValidateCommand : Command {
     override val tag = "validate"
 
     override fun execute(params: ArgsContainer): Result<Unit> {
-        val file = params.getOption("file") ?: params.getPositional(0)
-            ?: return Failure("Missing required source file. Usage: validate <file>", ErrorType.CLI)
+        val file =
+            params.getOption("file") ?: params.getPositional(0)
+                ?: return Failure("Missing required source file. Usage: validate <file>", ErrorType.CLI)
 
         val version = params.getOption("version") ?: "1.1"
         val ps = PsVersioner.version(version)
@@ -63,21 +67,24 @@ object ValidateCommand : Command {
     }
 }
 
-val ValidateWithHelp = HelpAttribute(
-    wrapped = ValidateCommand,
-    description = "Validates syntax and types of a PrintScript source file",
-    usage = "validate <file>",
-    paramHelp = mapOf(
-        "<file>" to "Source file path to validate"
+val ValidateWithHelp =
+    HelpAttribute(
+        wrapped = ValidateCommand,
+        description = "Validates syntax and types of a PrintScript source file",
+        usage = "validate <file>",
+        paramHelp =
+            mapOf(
+                "<file>" to "Source file path to validate",
+            ),
     )
-)
 
 object FormatCommand : Command {
     override val tag = "format"
 
     override fun execute(params: ArgsContainer): Result<Unit> {
-        val file = params.getOption("file") ?: params.getPositional(0)
-            ?: return Failure("Missing required source file. Usage: format --file=<path>", ErrorType.CLI)
+        val file =
+            params.getOption("file") ?: params.getPositional(0)
+                ?: return Failure("Missing required source file. Usage: format --file=<path>", ErrorType.CLI)
 
         val configFile = params.getOption("config")
         val configJson = configFile?.let { File(it).readText() }
@@ -87,20 +94,22 @@ object FormatCommand : Command {
             ps.format(File(file), configJson)
         }.fold(
             onSuccess = { formatted -> Success(formatted, Unit) },
-            onFailure = { e -> Failure(e.message ?: "Formatting failed", ErrorType.CLI) }
+            onFailure = { e -> Failure(e.message ?: "Formatting failed", ErrorType.CLI) },
         )
     }
 }
 
-val FormatWithHelp = HelpAttribute(
-    wrapped = FormatCommand,
-    description = "Formats a PrintScript source file to canonical style",
-    usage = "format --file=<path> [--config=<path>]",
-    paramHelp = mapOf(
-        "--file=<path>" to "Source file path to format",
-        "--config=<path>" to "Formatting configuration JSON file"
+val FormatWithHelp =
+    HelpAttribute(
+        wrapped = FormatCommand,
+        description = "Formats a PrintScript source file to canonical style",
+        usage = "format --file=<path> [--config=<path>]",
+        paramHelp =
+            mapOf(
+                "--file=<path>" to "Source file path to format",
+                "--config=<path>" to "Formatting configuration JSON file",
+            ),
     )
-)
 
 object GccCommand : Command {
     override val tag = "gcnc"
@@ -114,29 +123,35 @@ object GccCommand : Command {
         val isVerbose = params.hasFlag("verbose")
         val isCheck = params.hasFlag("check")
 
-        val details = buildString {
-            if (isVerbose) append(" (verbose)")
-            if (isCheck) append(" (check-only)")
-        }
+        val details =
+            buildString {
+                if (isVerbose) append(" (verbose)")
+                if (isCheck) append(" (check-only)")
+            }
 
         return Success("Compiling '$file'$details...", Unit)
     }
 }
 
-val GCNCWithHelp = HelpAttribute(
-    wrapped = GccCommand,
-    description = "Compiles CNC source files",
-    usage = "gcnc --file=<path> [--verbose] [--check]",
-    paramHelp = mapOf(
-        "--file=<path>" to "Source file path to compile",
-        "--verbose" to "Display detailed compiler output",
-        "--check" to "Syntax and type checking only"
+val GCNCWithHelp =
+    HelpAttribute(
+        wrapped = GccCommand,
+        description = "Compiles CNC source files",
+        usage = "gcnc --file=<path> [--verbose] [--check]",
+        paramHelp =
+            mapOf(
+                "--file=<path>" to "Source file path to compile",
+                "--verbose" to "Display detailed compiler output",
+                "--check" to "Syntax and type checking only",
+            ),
     )
-)
 
-val CLISystem = CommandSystem(mapOf(
-    RunCommand.tag to RunWithHelp,
-    ValidateCommand.tag to ValidateWithHelp,
-    GccCommand.tag to GCNCWithHelp,
-    FormatCommand.tag to FormatWithHelp
-))
+val CLISystem =
+    CommandSystem(
+        mapOf(
+            RunCommand.tag to RunWithHelp,
+            ValidateCommand.tag to ValidateWithHelp,
+            GccCommand.tag to GCNCWithHelp,
+            FormatCommand.tag to FormatWithHelp,
+        ),
+    )

@@ -2,26 +2,34 @@ package cnc.ast
 
 interface Expression
 
-data class NumberLiteral(val value: Double) : Expression
+data class NumberLiteral(
+    val value: Double,
+) : Expression
 
-data class StringLiteral(val value: String) : Expression
+data class StringLiteral(
+    val value: String,
+) : Expression
 
 /**
  * Boolean literal for PrintScript 1.1 (`true`, `false`).
  */
-data class BooleanLiteral(val value: Boolean) : Expression
+data class BooleanLiteral(
+    val value: Boolean,
+) : Expression
 
-data class Identifier(val name: String) : Expression
+data class Identifier(
+    val name: String,
+) : Expression
 
 data class BinaryExpression(
     val left: Expression,
     val operator: String,
-    val right: Expression
+    val right: Expression,
 ) : Expression
 
 data class UnaryExpression(
     val operator: String,
-    val operand: Expression
+    val operand: Expression,
 ) : Expression
 
 /**
@@ -38,5 +46,5 @@ data class UnaryExpression(
  */
 data class CallExpression(
     val function: String,
-    val arguments: List<Expression>
+    val arguments: List<Expression>,
 ) : Expression

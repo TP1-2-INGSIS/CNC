@@ -15,32 +15,34 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class LexerTest {
+    private val testKeywords =
+        mapOf(
+            "let" to TokenType.KEYWORD,
+            "string" to TokenType.VARIABLE_TYPE,
+            "number" to TokenType.VARIABLE_TYPE,
+        )
 
-    private val testKeywords = mapOf(
-        "let" to TokenType.KEYWORD,
-        "string" to TokenType.VARIABLE_TYPE,
-        "number" to TokenType.VARIABLE_TYPE
-    )
+    private val testSymbols =
+        mapOf(
+            "==" to TokenType.OPERATOR,
+            "=" to TokenType.SYMBOL,
+            "+" to TokenType.OPERATOR,
+            "-" to TokenType.OPERATOR,
+            "*" to TokenType.OPERATOR,
+            "/" to TokenType.OPERATOR,
+            "**" to TokenType.OPERATOR,
+            ";" to TokenType.SYMBOL,
+            ":" to TokenType.SYMBOL,
+        )
 
-    private val testSymbols = mapOf(
-        "==" to TokenType.OPERATOR,
-        "=" to TokenType.SYMBOL,
-        "+" to TokenType.OPERATOR,
-        "-" to TokenType.OPERATOR,
-        "*" to TokenType.OPERATOR,
-        "/" to TokenType.OPERATOR,
-        "**" to TokenType.OPERATOR,
-        ";" to TokenType.SYMBOL,
-        ":" to TokenType.SYMBOL
-    )
-
-    private val testRules = listOf(
-        StandardRules.whitespace(),
-        StandardRules.doubleQuotedString(TokenType.STRING),
-        StandardRules.integerNumber(TokenType.NUMBER),
-        StandardRules.standardIdentifier(keywords = testKeywords),
-        TrieRule(testSymbols)
-    )
+    private val testRules =
+        listOf(
+            StandardRules.whitespace(),
+            StandardRules.doubleQuotedString(TokenType.STRING),
+            StandardRules.integerNumber(TokenType.NUMBER),
+            StandardRules.standardIdentifier(keywords = testKeywords),
+            TrieRule(testSymbols),
+        )
 
     private val lexer = Lexer(testRules)
 
@@ -55,17 +57,17 @@ class LexerTest {
 
     @Nested
     inner class TrieTests {
-
         @Test
         fun `matchLongest selects longest prefix`() {
-            val trie = buildTrie(
-                mapOf(
-                    "=" to TokenType.SYMBOL,
-                    "==" to TokenType.OPERATOR,
-                    "*" to TokenType.OPERATOR,
-                    "**" to TokenType.OPERATOR
+            val trie =
+                buildTrie(
+                    mapOf(
+                        "=" to TokenType.SYMBOL,
+                        "==" to TokenType.OPERATOR,
+                        "*" to TokenType.OPERATOR,
+                        "**" to TokenType.OPERATOR,
+                    ),
                 )
-            )
 
             val streamEquals = "==".asSequence().asCursor()
             val matchEquals = trie.matchLongest(streamEquals)
@@ -96,7 +98,6 @@ class LexerTest {
 
     @Nested
     inner class TokenizationTests {
-
         @Test
         fun `tokenize returns tokens directly with exact positions`() {
             val tokens = lexer.tokenize("let x = 10;").toList()
@@ -110,14 +111,12 @@ class LexerTest {
         }
     }
 
-
     // -------------------------------------------------------------------------
     // TokenType Tests
     // -------------------------------------------------------------------------
 
     @Nested
     inner class TokenTypes {
-
         @Test fun `let es KEYWORD`() {
             val tokens = lex("let")
             assertEquals(1, tokens.size)
@@ -195,7 +194,6 @@ class LexerTest {
 
     @Nested
     inner class TokenText {
-
         @Test fun `texto de keyword preservado`() {
             assertEquals("let", lex("let")[0].text)
         }
@@ -223,7 +221,6 @@ class LexerTest {
 
     @Nested
     inner class Positions {
-
         @Test fun `primer token empieza en columna 0`() {
             val tokens = lex("let")
             assertEquals(Position(0, 0), tokens[0].pos)
@@ -240,10 +237,10 @@ class LexerTest {
 
         @Test fun `columnas correctas en declaracion completa`() {
             val tokens = lex("let x : number =")
-            assertEquals(0,  tokens[0].pos.col) // let
-            assertEquals(4,  tokens[1].pos.col) // x
-            assertEquals(6,  tokens[2].pos.col) // :
-            assertEquals(8,  tokens[3].pos.col) // number
+            assertEquals(0, tokens[0].pos.col) // let
+            assertEquals(4, tokens[1].pos.col) // x
+            assertEquals(6, tokens[2].pos.col) // :
+            assertEquals(8, tokens[3].pos.col) // number
             assertEquals(15, tokens[4].pos.col) // =
         }
 
@@ -267,7 +264,6 @@ class LexerTest {
 
     @Nested
     inner class FullStatements {
-
         @Test fun `declaracion de numero produce 7 tokens`() {
             assertEquals(7, lex("let x: number = 42;").size)
         }
@@ -282,13 +278,13 @@ class LexerTest {
                 listOf(
                     TokenType.KEYWORD,
                     TokenType.IDENTIFIER,
-                    TokenType.SYMBOL,      // :
+                    TokenType.SYMBOL, // :
                     TokenType.VARIABLE_TYPE,
-                    TokenType.SYMBOL,      // =
+                    TokenType.SYMBOL, // =
                     TokenType.NUMBER,
-                    TokenType.SYMBOL       // ;
+                    TokenType.SYMBOL, // ;
                 ),
-                types
+                types,
             )
         }
 
@@ -298,13 +294,13 @@ class LexerTest {
                 listOf(
                     TokenType.KEYWORD,
                     TokenType.IDENTIFIER,
-                    TokenType.SYMBOL,      // :
+                    TokenType.SYMBOL, // :
                     TokenType.VARIABLE_TYPE,
-                    TokenType.SYMBOL,      // =
+                    TokenType.SYMBOL, // =
                     TokenType.STRING,
-                    TokenType.SYMBOL       // ;
+                    TokenType.SYMBOL, // ;
                 ),
-                types
+                types,
             )
         }
 
@@ -312,7 +308,7 @@ class LexerTest {
             val types = lex("a + b").map { it.type }
             assertEquals(
                 listOf(TokenType.IDENTIFIER, TokenType.OPERATOR, TokenType.IDENTIFIER),
-                types
+                types,
             )
         }
 
@@ -320,13 +316,17 @@ class LexerTest {
             val types = lex("a + b * c - d / e").map { it.type }
             assertEquals(
                 listOf(
-                    TokenType.IDENTIFIER, TokenType.OPERATOR,   // a +
-                    TokenType.IDENTIFIER, TokenType.OPERATOR,   // b *
-                    TokenType.IDENTIFIER, TokenType.OPERATOR,   // c -
-                    TokenType.IDENTIFIER, TokenType.OPERATOR,   // d /
-                    TokenType.IDENTIFIER                        // e
+                    TokenType.IDENTIFIER,
+                    TokenType.OPERATOR, // a +
+                    TokenType.IDENTIFIER,
+                    TokenType.OPERATOR, // b *
+                    TokenType.IDENTIFIER,
+                    TokenType.OPERATOR, // c -
+                    TokenType.IDENTIFIER,
+                    TokenType.OPERATOR, // d /
+                    TokenType.IDENTIFIER, // e
                 ),
-                types
+                types,
             )
         }
     }
@@ -337,7 +337,6 @@ class LexerTest {
 
     @Nested
     inner class EdgeCases {
-
         @Test fun `entrada vacia produce cero tokens`() {
             assertEquals(0, lex("").size)
         }
@@ -396,7 +395,7 @@ class LexerTest {
             val types = lex(": ; =").map { it.type }
             assertEquals(
                 listOf(TokenType.SYMBOL, TokenType.SYMBOL, TokenType.SYMBOL),
-                types
+                types,
             )
         }
 

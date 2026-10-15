@@ -1,49 +1,52 @@
 package cnc.common
 
 enum class ErrorType {
-  LEXER,
-  PARSER,
-  SEMANTIC,
-  CLI,
-  INTERPRETER,
-  RUNTIME
+    LEXER,
+    PARSER,
+    SEMANTIC,
+    CLI,
+    INTERPRETER,
+    RUNTIME,
 }
 
 sealed interface Result<out T> {
-  val msg: String
-  fun isOk(): Boolean
+    val msg: String
+
+    fun isOk(): Boolean
 }
 
 data class Success<out T>(
-  override val msg: String,
-  val data: T
+    override val msg: String,
+    val data: T,
 ) : Result<T> {
-  override fun isOk() : Boolean = true
+    override fun isOk(): Boolean = true
 }
 
 data class Failure<out T>(
-  override val msg: String,
-  val type: ErrorType
+    override val msg: String,
+    val type: ErrorType,
 ) : Result<T> {
-  override fun isOk() : Boolean = false
+    override fun isOk(): Boolean = false
 }
 
-fun <T, R> Result<T>.map(transform: (T) -> R): Result<R> = when (this) {
-  is Success -> Success(msg, transform(data))
-  is Failure -> Failure(msg, type)
-}
+fun <T, R> Result<T>.map(transform: (T) -> R): Result<R> =
+    when (this) {
+        is Success -> Success(msg, transform(data))
+        is Failure -> Failure(msg, type)
+    }
 
-fun <T, R> Result<T>.flatMap(transform: (T) -> Result<R>): Result<R> = when (this) {
-  is Success -> transform(data)
-  is Failure -> Failure(msg, type)
-}
+fun <T, R> Result<T>.flatMap(transform: (T) -> Result<R>): Result<R> =
+    when (this) {
+        is Success -> transform(data)
+        is Failure -> Failure(msg, type)
+    }
 
 fun <T> Result<T>.onSuccess(action: (Success<T>) -> Unit): Result<T> {
-  if (this is Success) action(this)
-  return this
+    if (this is Success) action(this)
+    return this
 }
 
 fun <T> Result<T>.onFailure(action: (Failure<T>) -> Unit): Result<T> {
-  if (this is Failure) action(this)
-  return this
+    if (this is Failure) action(this)
+    return this
 }

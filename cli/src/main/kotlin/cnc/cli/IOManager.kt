@@ -2,7 +2,9 @@ package cnc.cli
 
 interface IOManager {
     fun read(): String
+
     fun write(toWrite: String)
+
     fun writeLine(toWrite: String = "") {
         write(toWrite + "\n")
     }
@@ -10,13 +12,14 @@ interface IOManager {
 
 class StdIO : IOManager {
     override fun read(): String = readlnOrNull() ?: "exit"
+
     override fun write(toWrite: String) {
         print(toWrite)
     }
 }
 
 class TestIO(
-    private val inputs: MutableList<String> = mutableListOf()
+    private val inputs: MutableList<String> = mutableListOf(),
 ) : IOManager {
     private val outputs = StringBuilder()
 
