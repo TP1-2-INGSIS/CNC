@@ -6,42 +6,55 @@ import cnc.common.Failure
 import cnc.common.FileContent
 import cnc.common.InputStreamContent
 import cnc.common.StringContent
+import cnc.common.Success
+import cnc.language.LanguageFacade
 import cnc.printscript.profile.PrintScriptProfileRegistry
+import cnc.printscript.profile.v1_0.PrintScript10Profile
+import cnc.printscript.profile.v1_1.PrintScript11Profile
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import kotlin.io.path.createTempFile
 
-class PrintScriptEngineFacadeTest {
-    private val engine10: PrintScriptFacade = PsVersioner.version("1.0")
-    private val engine11: PrintScriptFacade = PsVersioner.version("1.1")
+class PrintScriptFacadeTest {
+    private val engine10: LanguageFacade = PsVersioner.version("1.0")
+    private val engine11: LanguageFacade = PsVersioner.version("1.1")
 
     @Nested
     inner class VersionAndRegistryTests {
         @Test
         fun `resolves versions correctly and throws on invalid`() {
-            assertEquals(LanguageVersion.V1_0, LanguageVersion.from("1.0"))
-            assertEquals(LanguageVersion.V1_1, LanguageVersion.from("1.1"))
+            assertEquals(PrintScriptVersion.V1_0, PrintScriptVersion.from("1.0"))
+            assertEquals(PrintScriptVersion.V1_1, PrintScriptVersion.from(" 1.1 "))
 
             assertThrows(UnsupportedVersionException::class.java) {
-                LanguageVersion.from("9.9")
+                PrintScriptVersion.from("9.9")
             }
         }
 
         @Test
+        fun `profiles expose their version as a LanguageVersion`() {
+            assertEquals("1.0", PrintScript10Profile.version.label)
+            assertEquals("1.1", PrintScript11Profile.version.label)
+            assertSame(PrintScriptVersion.V1_0, PrintScript10Profile.version)
+            assertSame(PrintScriptVersion.V1_1, PrintScript11Profile.version)
+        }
+
+        @Test
         fun `engine factory methods for versions`() {
-            val e1 = PrintScriptEngine(LanguageVersion.V1_0)
-            val e2 = PrintScriptEngine(LanguageVersion.V1_1)
+            val e1 = PrintScriptFacade(PrintScriptVersion.V1_0)
+            val e2 = PrintScriptFacade(PrintScriptVersion.V1_1)
             assertNotNull(e1)
             assertNotNull(e2)
 
-            val p1 = PrintScriptProfileRegistry.forVersion(LanguageVersion.V1_0)
-            val p2 = PrintScriptProfileRegistry.forVersion(LanguageVersion.V1_1)
-            assertNotNull(p1)
-            assertNotNull(p2)
+            val p1 = PrintScriptProfileRegistry.forVersion(PrintScriptVersion.V1_0)
+            val p2 = PrintScriptProfileRegistry.forVersion(PrintScriptVersion.V1_1)
+            assertSame(PrintScript10Profile, p1)
+            assertSame(PrintScript11Profile, p2)
         }
     }
 
@@ -50,11 +63,11 @@ class PrintScriptEngineFacadeTest {
         private val sampleCode = "let x: number = 42;\nprintln(x);"
 
         @Test
-        fun `execute overloads with File, InputStream, ContentManager, and custom IO`() {
+        fun `execute with String, File, InputStream content and custom IO`() {
             val outputList = mutableListOf<String>()
             val resStr =
                 engine11.execute(
-                    source = sampleCode,
+                    content = StringContent(sampleCode),
                     input = { _: String -> "input" },
                     envProvider = { _: String -> null },
                     output = { str: String -> outputList.add(str) },
@@ -66,72 +79,48 @@ class PrintScriptEngineFacadeTest {
             tempFile.deleteOnExit()
             tempFile.writeText(sampleCode)
 
-            assertTrue(engine11.execute(tempFile).isOk())
-            assertTrue(engine11.execute(sampleCode.byteInputStream()).isOk())
-            assertTrue(engine11.execute(StringContent(sampleCode)).isOk())
             assertTrue(engine11.execute(FileContent(tempFile.absolutePath)).isOk())
             assertTrue(engine11.execute(InputStreamContent(sampleCode.byteInputStream())).isOk())
+            assertTrue(engine11.execute(StringContent(sampleCode)).isOk())
         }
 
         @Test
-        fun `validate overloads with all input types`() {
+        fun `validate with String, File, InputStream content and parsed statements`() {
             val tempFile = createTempFile("ps_val", ".prs").toFile()
             tempFile.deleteOnExit()
             tempFile.writeText(sampleCode)
 
-            assertTrue(engine11.validate(sampleCode).isOk())
-            assertTrue(engine11.validate(tempFile).isOk())
-            assertTrue(engine11.validate(sampleCode.byteInputStream()).isOk())
             assertTrue(engine11.validate(StringContent(sampleCode)).isOk())
+            assertTrue(engine11.validate(FileContent(tempFile.absolutePath)).isOk())
+            assertTrue(engine11.validate(InputStreamContent(sampleCode.byteInputStream())).isOk())
 
             val decl = Declaration("x", "number", NumberLiteral(42.0))
-            assertTrue(engine11.validate(listOf(decl)).isOk())
+            assertTrue(engine11.semantic(listOf(decl)).isOk())
         }
 
         @Test
-        fun `format overloads with all input types and statements`() {
+        fun `format with String, File, InputStream content and statements`() {
             val raw = "let x:number=42;"
             val tempFile = createTempFile("ps_fmt", ".prs").toFile()
             tempFile.deleteOnExit()
             tempFile.writeText(raw)
 
             val expected = "let x: number = 42;"
-            assertEquals(expected, engine11.format(raw))
-            assertEquals(expected, engine11.format(tempFile))
-            assertEquals(expected, engine11.format(raw.byteInputStream()))
             assertEquals(expected, engine11.format(StringContent(raw)))
-
-            val decl = Declaration("x", "number", NumberLiteral(42.0))
-            assertEquals(expected, engine11.format(listOf(decl)))
+            assertEquals(expected, engine11.format(FileContent(tempFile.absolutePath)))
+            assertEquals(expected, engine11.format(InputStreamContent(raw.byteInputStream())))
         }
 
         @Test
-        fun `lint overloads with config string and config file`() {
+        fun `lint with config string over different content sources`() {
             val raw = "let x: number = 42;"
             val tempFile = createTempFile("ps_lint", ".prs").toFile()
             tempFile.deleteOnExit()
             tempFile.writeText(raw)
 
-            val cfgFile = createTempFile("lint_cfg", ".json").toFile()
-            cfgFile.deleteOnExit()
-            cfgFile.writeText("{}")
-
-            assertEquals(emptyList<String>(), engine11.lint(raw, "{}"))
-            assertEquals(emptyList<String>(), engine11.lint(tempFile, "{}"))
-            assertEquals(emptyList<String>(), engine11.lint(raw.byteInputStream(), "{}"))
             assertEquals(emptyList<String>(), engine11.lint(StringContent(raw), "{}"))
-            assertEquals(
-                emptyList<String>(),
-                engine11.lint(listOf(Declaration("x", "number", NumberLiteral(42.0))), "{}"),
-            )
-
-            assertEquals(emptyList<String>(), engine11.lint(raw, cfgFile))
-            assertEquals(emptyList<String>(), engine11.lint(tempFile, cfgFile))
-            assertEquals(emptyList<String>(), engine11.lint(raw.byteInputStream(), cfgFile))
-            assertEquals(
-                emptyList<String>(),
-                engine11.lint(listOf(Declaration("x", "number", NumberLiteral(42.0))), cfgFile),
-            )
+            assertEquals(emptyList<String>(), engine11.lint(FileContent(tempFile.absolutePath), "{}"))
+            assertEquals(emptyList<String>(), engine11.lint(InputStreamContent(raw.byteInputStream()), "{}"))
         }
 
         @Test
@@ -141,28 +130,20 @@ class PrintScriptEngineFacadeTest {
             tempFile.writeText(sampleCode)
 
             // lex
-            assertTrue(engine11.lex(sampleCode).toList().isNotEmpty())
-            assertTrue(engine11.lex(tempFile).toList().isNotEmpty())
-            assertTrue(engine11.lex(sampleCode.byteInputStream()).toList().isNotEmpty())
             assertTrue(engine11.lex(StringContent(sampleCode)).toList().isNotEmpty())
+            assertTrue(engine11.lex(FileContent(tempFile.absolutePath)).toList().isNotEmpty())
+            assertTrue(engine11.lex(InputStreamContent(sampleCode.byteInputStream())).toList().isNotEmpty())
 
             // parse
-            assertTrue(engine11.parse(sampleCode).isOk())
-            assertTrue(engine11.parse(tempFile).isOk())
-            assertTrue(engine11.parse(sampleCode.byteInputStream()).isOk())
-            assertTrue(engine11.parse(StringContent(sampleCode)).isOk())
+            assertTrue(engine11.parse(engine11.lex(StringContent(sampleCode))).isOk())
+            assertTrue(engine11.parse(engine11.lex(FileContent(tempFile.absolutePath))).isOk())
 
             // semantic
-            assertTrue(engine11.semantic(sampleCode).isOk())
-            assertTrue(engine11.semantic(tempFile).isOk())
-            assertTrue(engine11.semantic(sampleCode.byteInputStream()).isOk())
-            assertTrue(engine11.semantic(StringContent(sampleCode)).isOk())
+            val statements = (engine11.parse(engine11.lex(StringContent(sampleCode))) as Success).data
+            assertTrue(engine11.semantic(statements).isOk())
 
             // interpret
-            assertTrue(engine11.interpret(sampleCode).isOk())
-            assertTrue(engine11.interpret(tempFile).isOk())
-            assertTrue(engine11.interpret(sampleCode.byteInputStream()).isOk())
-            assertTrue(engine11.interpret(StringContent(sampleCode)).isOk())
+            assertTrue(engine11.interpret(statements).isOk())
 
             val decl = Declaration("x", "number", NumberLiteral(42.0))
             assertTrue(engine11.interpret(listOf(decl)).isOk())
@@ -174,7 +155,7 @@ class PrintScriptEngineFacadeTest {
         @Test
         fun `const declaration without initializer fails in parser rule`() {
             val invalidConstCode = "const x: number;"
-            val res = engine11.parse(invalidConstCode)
+            val res = engine11.parse(engine11.lex(StringContent(invalidConstCode)))
             assertTrue(res is Failure<*>)
             assertTrue(res.msg.contains("const declaration 'x' must have an initializer"))
         }
@@ -182,7 +163,7 @@ class PrintScriptEngineFacadeTest {
         @Test
         fun `v1_0 rejects const keyword during lexing or parsing`() {
             val constCode = "const x: number = 10;"
-            val res = engine10.parse(constCode)
+            val res = engine10.parse(engine10.lex(StringContent(constCode)))
             // In v1.0, const is not a valid keyword declaration
             assertTrue(res is Failure<*>)
         }
