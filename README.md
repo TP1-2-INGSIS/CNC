@@ -20,6 +20,8 @@ La documentación detallada del proyecto se encuentra organizada en el directori
 
 | Documento | Descripción |
 | :--- | :--- |
+| [Guía de Contribución](CONTRIBUTING.md) | Estándares de desarrollo, Conventional Commits y compuertas de calidad. |
+| [Arquitectura de CI/CD](docs/ci-cd.md) | Pipeline de CI/CD, Automated Semantic Release y publicación de artefactos. |
 | [Roadmap y Estado](docs/roadmap.md) | Seguimiento de avance con checklists para PrintScript v1.0, v1.1 y calidad. |
 | [Arquitectura del Sistema](docs/architecture.md) | Diagrama de flujo, responsabilidades por submódulo y decisiones de diseño. |
 | [Guía de Desarrollo](docs/development.md) | Prerrequisitos, compilación, ejecución de tests, cobertura con JaCoCo y CLI. |

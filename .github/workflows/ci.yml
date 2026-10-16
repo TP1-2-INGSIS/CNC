@@ -1,27 +1,53 @@
 name: CI
 
 # CI se ejecuta en dos escenarios:
-#  1. Pull requests hacia main -> valida los cambios ANTES de integrarlos.
-#  2. Push a main -> valida lo que quedó integrado tras el merge.
+#  1. Pull requests hacia main -> valida el título (Conventional Commits) y compuertas de calidad.
+#  2. Push a main -> valida la salud de la integración del mainline (La Regla del Rojo).
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
 
-# Cancela ejecuciones previas en curso para la misma rama/PR y ahorra minutos.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-
 jobs:
-  build:
-    name: Build, Test & Coverage
+  validate-pr-title:
+    name: Validate Conventional Commits PR Title
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: read
+    steps:
+      - name: Check PR Title
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          requireScope: false
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: "El asunto del PR debe comenzar en minúscula y seguir Conventional Commits (ej. feat: nuevo parser)."
 
+  build-and-test:
+    name: Build, Quality & Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,9 +64,25 @@ jobs:
       - name: Grant execute permission to gradlew
         run: chmod +x ./gradlew
 
-      # check = build + test + JacocoCoverageVerification (umbral 80%)
-      - name: Run checks (tests + coverage)
+      # check ejecuta: compilación + ktlintCheck + detekt + tests unitarios + jacocoTestCoverageVerification (mínimo 80%)
+      - name: Run checks (lint, static analysis, tests & coverage)
         run: ./gradlew check --no-daemon --stacktrace
+
+      - name: Publish Step Summary
+        if: always()
+        run: |
+          echo "## Resumen de Verificación de Calidad" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" = "success" ]; then
+            echo ":white_check_mark: **Todos los controles pasaron exitosamente:**" >> $GITHUB_STEP_SUMMARY
+            echo "- Compilación Kotlin y Java" >> $GITHUB_STEP_SUMMARY
+            echo "- Formato de código (ktlint)" >> $GITHUB_STEP_SUMMARY
+            echo "- Análisis estático (detekt)" >> $GITHUB_STEP_SUMMARY
+            echo "- Tests unitarios (JUnit 5)" >> $GITHUB_STEP_SUMMARY
+            echo "- Cobertura de código (JaCoCo $\ge$ 80%)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo ":x: **La verificación de calidad falló.** Revisar los logs del runner para identificar el fallo." >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Upload test reports
         if: always()
