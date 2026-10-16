@@ -1,31 +1,33 @@
 package cnc.printscript
 
 import cnc.common.Failure
+import cnc.common.FileContent
+import cnc.common.InputStreamContent
+import cnc.common.StringContent
 import cnc.common.Success
+import cnc.language.LanguageFacade
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.File
-import java.io.InputStream
 
 class PrintScriptTest {
-    private val printScript: PrintScriptFacade = PsVersioner.version("1.1")
+    private val printScript: LanguageFacade = PsVersioner.version("1.1")
 
     @Test
     fun `lex generates tokens from string, file, and inputStream`() {
         val code = "let x: number = 10;"
-        val tokensFromString = printScript.lex(code).toList()
+        val tokensFromString = printScript.lex(StringContent(code)).toList()
         assertTrue(tokensFromString.isNotEmpty())
 
         val tempFile = File.createTempFile("ps_lex_test", ".prs")
         tempFile.writeText(code)
         try {
-            val tokensFromFile = printScript.lex(tempFile).toList()
+            val tokensFromFile = printScript.lex(FileContent(tempFile.absolutePath)).toList()
             assertEquals(tokensFromString.size, tokensFromFile.size)
 
-            val stream: InputStream = code.byteInputStream()
-            val tokensFromStream = printScript.lex(stream).toList()
+            val tokensFromStream = printScript.lex(InputStreamContent(code.byteInputStream())).toList()
             assertEquals(tokensFromString.size, tokensFromStream.size)
         } finally {
             tempFile.delete()
@@ -35,13 +37,13 @@ class PrintScriptTest {
     @Test
     fun `parse creates statements and handles syntax errors`() {
         val validCode = "let a: string = \"hello\";\nprintln(a);"
-        val parseResult = printScript.parse(validCode)
+        val parseResult = printScript.parse(printScript.lex(StringContent(validCode)))
         assertTrue(parseResult.isOk())
         val statements = (parseResult as Success).data
         assertEquals(2, statements.size)
 
         val invalidCode = "let 123 = ;"
-        val errorResult = printScript.parse(invalidCode)
+        val errorResult = printScript.parse(printScript.lex(StringContent(invalidCode)))
         assertFalse(errorResult.isOk())
         assertTrue(errorResult is Failure)
     }
@@ -49,33 +51,31 @@ class PrintScriptTest {
     @Test
     fun `semantic analysis validates types and reports errors`() {
         val validCode = "let x: number = 5 + 3;\nconst y: boolean = true;"
-        val semanticResult = printScript.semantic(validCode)
+        val validStatements = (printScript.parse(printScript.lex(StringContent(validCode))) as Success).data
+        val semanticResult = printScript.semantic(validStatements)
         assertTrue(semanticResult.isOk())
 
         val invalidCode = "let x: number = \"not a number\";"
-        val invalidResult = printScript.semantic(invalidCode)
+        val invalidStatements = (printScript.parse(printScript.lex(StringContent(invalidCode))) as Success).data
+        val invalidResult = printScript.semantic(invalidStatements)
         assertFalse(invalidResult.isOk())
-
-        val analyzeResult = printScript.analyze(validCode)
-        assertTrue(analyzeResult.isOk())
     }
 
     @Test
     fun `validate checks syntax and semantics without execution`() {
         val validCode = "let x: number = 10;\nprintln(x);"
-        val validResult = printScript.validate(validCode)
+        val validResult = printScript.validate(StringContent(validCode))
         assertTrue(validResult.isOk())
 
         val invalidCode = "let x: number = \"fail\";"
-        val invalidResult = printScript.validate(invalidCode)
+        val invalidResult = printScript.validate(StringContent(invalidCode))
         assertFalse(invalidResult.isOk())
 
         val tempFile = File.createTempFile("ps_val_test", ".prs")
         tempFile.writeText(validCode)
         try {
-            assertTrue(printScript.validate(tempFile).isOk())
-            val stream = validCode.byteInputStream()
-            assertTrue(printScript.validate(stream).isOk())
+            assertTrue(printScript.validate(FileContent(tempFile.absolutePath)).isOk())
+            assertTrue(printScript.validate(InputStreamContent(validCode.byteInputStream())).isOk())
         } finally {
             tempFile.delete()
         }
@@ -98,7 +98,7 @@ class PrintScriptTest {
 
         val result =
             printScript.execute(
-                source = code,
+                content = StringContent(code),
                 input = { "Alice" },
                 envProvider = { if (it == "APP_MODE") "PROD" else null },
                 output = { output.add(it) },
@@ -121,7 +121,7 @@ class PrintScriptTest {
         try {
             val fileResult =
                 printScript.execute(
-                    file = tempFile,
+                    content = FileContent(tempFile.absolutePath),
                     output = { output.add(it) },
                 )
             assertTrue(fileResult.isOk())
@@ -130,7 +130,7 @@ class PrintScriptTest {
             output.clear()
             val streamResult =
                 printScript.execute(
-                    stream = code.byteInputStream(),
+                    content = InputStreamContent(code.byteInputStream()),
                     output = { output.add(it) },
                 )
             assertTrue(streamResult.isOk())
@@ -143,7 +143,7 @@ class PrintScriptTest {
     @Test
     fun `format produces canonical string`() {
         val code = "let   a :number=5; println( a );"
-        val formatted = printScript.format(code)
+        val formatted = printScript.format(StringContent(code))
         assertTrue(formatted.contains("let a: number = 5;"))
         assertTrue(formatted.contains("println(a);"))
     }
@@ -158,28 +158,19 @@ class PrintScriptTest {
             """.trimIndent()
 
         val invalidCode = "let bad_name: number = 10;"
-        val warnings = printScript.lint(invalidCode, configJson)
+        val warnings = printScript.lint(StringContent(invalidCode), configJson)
         assertTrue(warnings.isNotEmpty())
 
         val validCode = "let goodName: number = 10;"
-        val noWarnings = printScript.lint(validCode, configJson)
+        val noWarnings = printScript.lint(StringContent(validCode), configJson)
         assertTrue(noWarnings.isEmpty())
-
-        val configFile = File.createTempFile("ps_lint_config", ".json")
-        configFile.writeText(configJson)
-        try {
-            val fileWarnings = printScript.lint(invalidCode, configFile)
-            assertTrue(fileWarnings.isNotEmpty())
-        } finally {
-            configFile.delete()
-        }
     }
 
     @Test
     fun `interpret executes parsed statements`() {
         val output = mutableListOf<String>()
         val code = "let msg: string = \"interpreter test\";\nprintln(msg);"
-        val parseResult = printScript.parse(code)
+        val parseResult = printScript.parse(printScript.lex(StringContent(code)))
         assertTrue(parseResult.isOk())
         val statements = (parseResult as Success).data
 
@@ -204,7 +195,7 @@ class PrintScriptTest {
 
         val result =
             printScript.execute(
-                source = code,
+                content = StringContent(code),
                 output = { output.add(it) },
             )
 

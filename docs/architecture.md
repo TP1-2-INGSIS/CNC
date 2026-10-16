@@ -37,7 +37,9 @@ flowchart LR
 | [**`:parser`**](../parser/README.md) | Analizador sintáctico que procesa tokens y construye el AST respetando la gramática y precedencia de operadores. | `:token`, `:ast`, `:common` |
 | [**`:interpreter`**](../interpreter/README.md) | Motor de ejecución, manejo de memoria, tabla de símbolos y ámbitos (scopes). | `:ast`, `:token`, `:common` |
 | [**`:cli`**](../cli/README.md) | Interfaz por línea de comandos, parseo de flags/argumentos, abstracción de I/O (`IOManager`) y comandos registrados. | `:common` |
-| [**`:app`**](../app/README.md) | Punto de entrada (`main`) que orquesta la configuración del compilador/intérprete y ejecuta la aplicación. | `:lexer`, `:parser`, `:token`, `:ast`, `:common`, `:cli` |
+| [**`:language`**](../language/README.md) | Contratos agnósticos del lenguaje: fachadas (`LanguageCore`, `LanguageHighOperations`, `LanguageFacade`), `LanguageProfile`, `LanguageVersion` e `InterpreterIO`. | `:common`, `:token`, `:ast`, `:lexer`, `:parser`, `:semantic`, `:interpreter`, `:formatter`, `:linter` |
+| **`:printscript`** | Implementación de PrintScript: `PrintScriptEngine`, `PrintScriptVersion`, perfiles v1.0/v1.1 y su registry. | `:language` (y transitivamente sus dependencias) |
+| [**`:app`**](../app/README.md) | Punto de entrada (`main`) que expone los comandos de la CLI (`run`, `validate`, `format`) sobre la fachada de PrintScript. | `:printscript`, `:cli` |
 | [**`:formatter`**](../formatter/README.md) | Herramienta lateral: pretty-printing del AST con reglas de estilo inyectables y parentización por precedencia. | `:ast`, `:common` |
 | [**`:linter`**](../linter/README.md) | Herramienta lateral: análisis estático de estilo (convenciones de nombres, restricción de `println` complejo) configurable por JSON. | `:ast`, `:common` |
 

@@ -6,6 +6,7 @@ import cnc.cli.command.Command
 import cnc.cli.command.HelpAttribute
 import cnc.common.ErrorType
 import cnc.common.Failure
+import cnc.common.FileContent
 import cnc.common.Result
 import cnc.common.Success
 import cnc.printscript.PsVersioner
@@ -21,7 +22,7 @@ object RunCommand : Command {
 
         val version = params.getOption("version") ?: "1.1"
         val ps = PsVersioner.version(version)
-        val result = ps.execute(File(file))
+        val result = ps.execute(FileContent(File(file).absolutePath))
         return when (result) {
             is Failure -> {
                 println("ERROR: ${result.msg}")
@@ -53,7 +54,7 @@ object ValidateCommand : Command {
 
         val version = params.getOption("version") ?: "1.1"
         val ps = PsVersioner.version(version)
-        val result = ps.validate(File(file))
+        val result = ps.validate(FileContent(File(file).absolutePath))
         return when (result) {
             is Failure -> {
                 println("VALIDATION ERROR: ${result.msg}")
@@ -91,7 +92,7 @@ object FormatCommand : Command {
 
         return runCatching {
             val ps = PsVersioner.version("1.1")
-            ps.format(File(file), configJson)
+            ps.format(FileContent(File(file).absolutePath), configJson)
         }.fold(
             onSuccess = { formatted -> Success(formatted, Unit) },
             onFailure = { e -> Failure(e.message ?: "Formatting failed", ErrorType.CLI) },
