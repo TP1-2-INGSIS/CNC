@@ -7,14 +7,27 @@ allprojects {
     version = resolveVersion()
 }
 
-// The version at the commit's tag is resolved and used for the mavens package
+// The version is resolved for Maven packages and distributions:
+// 1. Gradle property -PreleaseVersion=X.Y.Z
+// 2. Environment variable RELEASE_VERSION=X.Y.Z or VERSION=X.Y.Z
+// 3. Git tag from GITHUB_REF_NAME (vX.Y.Z)
+// 4. Fallback: 0.0.0-SNAPSHOT
 fun resolveVersion(): String {
-    // GITHUB_REF_NAME lo setea GitHub Actions: es el tag (v2.0.0) o la rama (main)
+    val propVersion = findProperty("releaseVersion") as? String
+    if (!propVersion.isNullOrBlank()) {
+        return propVersion.removePrefix("v")
+    }
+
+    val envVersion = System.getenv("RELEASE_VERSION") ?: System.getenv("VERSION")
+    if (!envVersion.isNullOrBlank()) {
+        return envVersion.removePrefix("v")
+    }
+
     val ref = System.getenv("GITHUB_REF_NAME") ?: "local"
-    return if (ref.matches(Regex("v\\d+\\.\\d+\\.\\d+"))) {
-        ref.removePrefix("v") // v2.0.0 -> 2.0.0 (release)
+    return if (ref.matches(Regex("v\\d+\\.\\d+\\.\\d+.*"))) {
+        ref.removePrefix("v")
     } else {
-        "0.0.0-SNAPSHOT" // cualquier otra cosa -> snapshot
+        "0.0.0-SNAPSHOT"
     }
 }
 
