@@ -84,16 +84,23 @@ object FormatCommand : Command {
     override fun execute(params: ArgsContainer): Result<Unit> {
         val file =
             params.getOption("file") ?: params.getPositional(0)
-                ?: return Failure("Missing required source file. Usage: format --file=<path>", ErrorType.CLI)
+                ?: return Failure("Missing required source file. Usage: format <file> [--config=<path>]", ErrorType.CLI)
+
+        val targetFile = File(file)
+        if (!targetFile.exists()) {
+            return Failure("File not found: '$file'", ErrorType.CLI)
+        }
 
         val configFile = params.getOption("config")
         val configJson = configFile?.let { File(it).readText() }
 
         return runCatching {
             val ps = PsVersioner.version("1.1")
-            ps.format(File(file), configJson)
+            val formatted = ps.format(targetFile, configJson)
+            targetFile.writeText(formatted)
+            formatted
         }.fold(
-            onSuccess = { formatted -> Success(formatted, Unit) },
+            onSuccess = { Success("Formatted '$file' successfully", Unit) },
             onFailure = { e -> Failure(e.message ?: "Formatting failed", ErrorType.CLI) },
         )
     }
@@ -108,6 +115,47 @@ val FormatWithHelp =
             mapOf(
                 "--file=<path>" to "Source file path to format",
                 "--config=<path>" to "Formatting configuration JSON file",
+            ),
+    )
+
+object LintCommand : Command {
+    override val tag = "lint"
+
+    override fun execute(params: ArgsContainer): Result<Unit> {
+        val file =
+            params.getOption("file") ?: params.getPositional(0)
+                ?: return Failure("Missing required source file. Usage: lint <file> [--config=<path>]", ErrorType.CLI)
+
+        val version = params.getOption("version") ?: "1.1"
+        val configFile = params.getOption("config")
+        val configJson = configFile?.let { File(it).readText() } ?: "{}"
+
+        return runCatching {
+            val ps = PsVersioner.version(version)
+            ps.lint(File(file), configJson)
+        }.fold(
+            onSuccess = { warnings ->
+                if (warnings.isEmpty()) {
+                    Success("No lint warnings found.", Unit)
+                } else {
+                    Failure("Lint warnings:\n" + warnings.joinToString("\n"), ErrorType.CLI)
+                }
+            },
+            onFailure = { e -> Failure(e.message ?: "Linting failed", ErrorType.CLI) },
+        )
+    }
+}
+
+val LintWithHelp =
+    HelpAttribute(
+        wrapped = LintCommand,
+        description = "Lints a PrintScript source file for style and conventions",
+        usage = "lint <file> [--config=<path>] [--version=<version>]",
+        paramHelp =
+            mapOf(
+                "<file>" to "Source file path to lint",
+                "--config=<path>" to "Linting configuration JSON file",
+                "--version=<version>" to "PrintScript language version (default: 1.1)",
             ),
     )
 
@@ -153,5 +201,6 @@ val CLISystem =
             ValidateCommand.tag to ValidateWithHelp,
             GccCommand.tag to GCNCWithHelp,
             FormatCommand.tag to FormatWithHelp,
+            LintCommand.tag to LintWithHelp,
         ),
     )

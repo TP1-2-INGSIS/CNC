@@ -110,24 +110,25 @@ class AppTest {
         }
 
         @Test
-        fun `formats source file without custom config`() {
+        fun `formats source file without custom config and updates file in place`() {
             val tempFile = createTempFile("valid_fmt", ".prs").toFile()
             tempFile.deleteOnExit()
             tempFile.writeText("let x:number=1;")
 
             val res = FormatCommand.execute(args(options = mapOf("file" to tempFile.absolutePath)))
             assertTrue(res is Success)
+            assertTrue(tempFile.readText().contains("let x: number = 1;"))
         }
 
         @Test
-        fun `formats source file with custom config`() {
+        fun `formats source file with custom config and updates file in place`() {
             val tempFile = createTempFile("valid_fmt_cfg", ".prs").toFile()
             tempFile.deleteOnExit()
             tempFile.writeText("let x:number=1;")
 
             val cfgFile = createTempFile("config", ".json").toFile()
             cfgFile.deleteOnExit()
-            cfgFile.writeText("""{"space-before-colon": true}""")
+            cfgFile.writeText("""{"space-before-colon": true, "space-after-colon": true, "space-around-equals": true}""")
 
             val res =
                 FormatCommand.execute(
@@ -137,6 +138,56 @@ class AppTest {
                     ),
                 )
             assertTrue(res is Success)
+            assertTrue(tempFile.readText().contains("let x : number = 1;"))
+        }
+
+        @Test
+        fun `fails when file does not exist`() {
+            val res = FormatCommand.execute(args(positionals = listOf("non_existent_file.prs")))
+            assertTrue(res is Failure<*>)
+            assertTrue(res.msg.contains("File not found"))
+        }
+    }
+
+    @Nested
+    inner class LintCommandTests {
+        @Test
+        fun `fails when file parameter is missing`() {
+            val res = LintCommand.execute(args())
+            assertTrue(res is Failure<*>)
+            assertTrue(res.msg.contains("Missing required source file"))
+        }
+
+        @Test
+        fun `lints valid source file without warnings`() {
+            val tempFile = createTempFile("valid_lint", ".prs").toFile()
+            tempFile.deleteOnExit()
+            tempFile.writeText("let validName: number = 42;")
+
+            val res = LintCommand.execute(args(positionals = listOf(tempFile.absolutePath)))
+            assertTrue(res is Success)
+        }
+
+        @Test
+        fun `reports lint warnings when code violates naming convention`() {
+            val tempFile = createTempFile("warn_lint", ".prs").toFile()
+            tempFile.deleteOnExit()
+            tempFile.writeText("let bad_name: number = 42;")
+
+            val cfgFile = createTempFile("lint_cfg", ".json").toFile()
+            cfgFile.deleteOnExit()
+            cfgFile.writeText("""{"naming-convention": "camelCase"}""")
+
+            val res =
+                LintCommand.execute(
+                    args(
+                        positionals = listOf(tempFile.absolutePath),
+                        options = mapOf("config" to cfgFile.absolutePath),
+                    ),
+                )
+            assertTrue(res is Failure<*>)
+            assertTrue(res.msg.contains("Lint warnings"))
+            assertTrue(res.msg.contains("bad_name"))
         }
     }
 
@@ -170,6 +221,7 @@ class AppTest {
             assertNotNull(RunWithHelp.getHelpText())
             assertNotNull(ValidateWithHelp.getHelpText())
             assertNotNull(FormatWithHelp.getHelpText())
+            assertNotNull(LintWithHelp.getHelpText())
             assertNotNull(GCNCWithHelp.getHelpText())
         }
 
@@ -178,6 +230,7 @@ class AppTest {
             assertTrue(CLISystem.cmds.containsKey("run"))
             assertTrue(CLISystem.cmds.containsKey("validate"))
             assertTrue(CLISystem.cmds.containsKey("format"))
+            assertTrue(CLISystem.cmds.containsKey("lint"))
             assertTrue(CLISystem.cmds.containsKey("gcnc"))
         }
 
