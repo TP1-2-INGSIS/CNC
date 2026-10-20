@@ -22,6 +22,9 @@ import cnc.interpreter.InterpreterBuilder
 import cnc.interpreter.StandardBinaryOperations
 import cnc.interpreter.StandardUnaryOperations
 import cnc.interpreter.UnaryOperation
+import cnc.language.InterpreterIO
+import cnc.language.LanguageProfile
+import cnc.language.LanguageVersion
 import cnc.lexer.Lexer
 import cnc.lexer.rules.StandardRules
 import cnc.lexer.rules.TrieRule
@@ -33,10 +36,8 @@ import cnc.parser.Parser
 import cnc.parser.expression.Associativity
 import cnc.parser.expression.ExpressionBuilder
 import cnc.parser.expression.OperatorDef
-import cnc.printscript.LanguageVersion
+import cnc.printscript.PrintScriptVersion
 import cnc.printscript.parser.PrintScriptStatementRules
-import cnc.printscript.profile.InterpreterIO
-import cnc.printscript.profile.PrintScriptProfile
 import cnc.semantic.ExpressionRule
 import cnc.semantic.ExpressionTypeResolver
 import cnc.semantic.SemanticAnalyzer
@@ -51,8 +52,8 @@ import cnc.token.CncSymbols
 import cnc.token.TokenType
 import kotlin.reflect.KClass
 
-object PrintScript10Profile : PrintScriptProfile {
-    override val version: LanguageVersion = LanguageVersion.V1_0
+object PrintScript10Profile : LanguageProfile {
+    override val version: LanguageVersion = PrintScriptVersion.V1_0
 
     fun createLexer(keywords: Map<String, TokenType> = CncKeywords.v1_0): Lexer {
         val rules =

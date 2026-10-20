@@ -26,6 +26,7 @@ dependencies {
     api(project(":interpreter"))
     api(project(":formatter"))
     api(project(":linter"))
+    api(project(":language"))
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation(libs.junit.jupiter.engine)

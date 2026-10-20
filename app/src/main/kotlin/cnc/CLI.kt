@@ -8,7 +8,10 @@ import cnc.common.ErrorType
 import cnc.common.Failure
 import cnc.common.Result
 import cnc.common.Success
-import cnc.printscript.PsVersioner
+import cnc.language.execute
+import cnc.language.format
+import cnc.language.validate
+import cnc.printscript.PrintScriptEngine
 import java.io.File
 
 object RunCommand : Command {
@@ -20,7 +23,7 @@ object RunCommand : Command {
                 ?: return Failure("Missing required source file. Usage: run <file>", ErrorType.CLI)
 
         val version = params.getOption("version") ?: "1.1"
-        val ps = PsVersioner.version(version)
+        val ps = PrintScriptEngine.from(version)
         val result = ps.execute(File(file))
         return when (result) {
             is Failure -> {
@@ -52,7 +55,7 @@ object ValidateCommand : Command {
                 ?: return Failure("Missing required source file. Usage: validate <file>", ErrorType.CLI)
 
         val version = params.getOption("version") ?: "1.1"
-        val ps = PsVersioner.version(version)
+        val ps = PrintScriptEngine.from(version)
         val result = ps.validate(File(file))
         return when (result) {
             is Failure -> {
@@ -90,7 +93,7 @@ object FormatCommand : Command {
         val configJson = configFile?.let { File(it).readText() }
 
         return runCatching {
-            val ps = PsVersioner.version("1.1")
+            val ps = PrintScriptEngine.v1_1()
             ps.format(File(file), configJson)
         }.fold(
             onSuccess = { formatted -> Success(formatted, Unit) },

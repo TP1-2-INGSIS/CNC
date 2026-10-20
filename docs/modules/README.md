@@ -16,7 +16,8 @@ Documentación técnica y operativa completa de la arquitectura de compilación 
 | 6 | **`:semantic`** | Comprobación estática de tipos, tabla de símbolos y chequeo de ámbito | [semantic/README.md](../../semantic/README.md) |
 | 7 | **`:interpreter`** | Ejecución en memoria, `Environment` con scoping léxico, mutabilidad y builtins | [interpreter/README.md](../../interpreter/README.md) |
 | 8 | **`:cli`** | Infraestructura de comandos interactiva/no interactiva, flags y ayuda | [cli/README.md](../../cli/README.md) |
-| 9 | **`:app`** | Orquestador raíz (`Compiler`, `Config`), punto de entrada y configuraciones | [app/README.md](../../app/README.md) |
+| 9 | **`:language`** | Contratos agnósticos: `LanguageFacade`, `LanguageProfile`, `LanguageVersion`, `InterpreterIO` | [language/README.md](../../language/README.md) |
+| 10 | **`:app`** | Orquestador raíz (`Compiler`, `Config`), punto de entrada y configuraciones | [app/README.md](../../app/README.md) |
 
 ---
 
@@ -24,8 +25,8 @@ Documentación técnica y operativa completa de la arquitectura de compilación 
 
 | # | Módulo | Responsabilidad Principal | Informe Detallado |
 |---|---|---|---|
-| 10 | **`:formatter`** | Pretty-printing del AST con reglas de estilo y parentización por precedencia | [formatter/README.md](../../formatter/README.md) |
-| 11 | **`:linter`** | Análisis estático de estilo (convenciones de nombres, `println` simple) | [linter/README.md](../../linter/README.md) |
+| 11 | **`:formatter`** | Pretty-printing del AST con reglas de estilo y parentización por precedencia | [formatter/README.md](../../formatter/README.md) |
+| 12 | **`:linter`** | Análisis estático de estilo (convenciones de nombres, `println` simple) | [linter/README.md](../../linter/README.md) |
 
 ---
 

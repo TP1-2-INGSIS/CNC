@@ -14,14 +14,15 @@ import cnc.interpreter.BuiltinMethodFactory
 import cnc.interpreter.CallEvaluator
 import cnc.interpreter.IfEvaluator
 import cnc.interpreter.Interpreter
+import cnc.language.InterpreterIO
+import cnc.language.LanguageProfile
+import cnc.language.LanguageVersion
 import cnc.lexer.Lexer
 import cnc.linter.CNCLinter
 import cnc.parser.Parser
 import cnc.parser.expression.ExpressionBuilder
-import cnc.printscript.LanguageVersion
+import cnc.printscript.PrintScriptVersion
 import cnc.printscript.parser.PrintScriptStatementRules
-import cnc.printscript.profile.InterpreterIO
-import cnc.printscript.profile.PrintScriptProfile
 import cnc.printscript.profile.v1_0.PrintScript10Profile
 import cnc.semantic.ExpressionRule
 import cnc.semantic.SemanticAnalyzer
@@ -33,8 +34,8 @@ import cnc.token.CncKeywords
 import cnc.token.SymbolTokenDef
 import kotlin.reflect.KClass
 
-object PrintScript11Profile : PrintScriptProfile {
-    override val version: LanguageVersion = LanguageVersion.V1_1
+object PrintScript11Profile : LanguageProfile {
+    override val version: LanguageVersion = PrintScriptVersion.V1_1
 
     override fun createLexer(): Lexer = PrintScript10Profile.createLexer(CncKeywords.v1_1)
 

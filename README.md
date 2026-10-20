@@ -39,6 +39,8 @@ El proyecto está compuesto por los siguientes submódulos en Gradle:
 - **`:ast`**: Jerarquía de nodos del árbol de sintaxis abstracta.
 - **`:parser`**: Analizador sintáctico generador del AST basado en gramáticas modulares.
 - **`:interpreter`**: Motor de evaluación, scopes y ejecución del AST.
+- **`:language`**: Contratos agnósticos del lenguaje: fachadas (`LanguageFacade`), perfil (`LanguageProfile`) y versión (`LanguageVersion`).
+- **`:printscript`**: Implementación de PrintScript sobre `:language` (motor, versiones y perfiles v1.0/v1.1).
 - **`:cli`**: Interfaz de línea de comandos, comandos desacoplados y abstracción de I/O (`IOManager`).
 - **`:app`**: Punto de entrada principal y orquestador del compilador.
 
