@@ -128,7 +128,15 @@ class AppTest {
 
             val cfgFile = createTempFile("config", ".json").toFile()
             cfgFile.deleteOnExit()
-            cfgFile.writeText("""{"space-before-colon": true, "space-after-colon": true, "space-around-equals": true}""")
+            cfgFile.writeText(
+                """
+                {
+                    "space-before-colon": true,
+                    "space-after-colon": true,
+                    "space-around-equals": true
+                }
+                """.trimIndent(),
+            )
 
             val res =
                 FormatCommand.execute(
