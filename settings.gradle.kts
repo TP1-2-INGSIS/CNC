@@ -23,5 +23,6 @@ include(
     "formatter",
     "semantic",
     "linter",
+    "language",
     "printscript",
 )
