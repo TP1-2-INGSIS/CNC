@@ -1,28 +1,47 @@
 name: CD
 
-# CD se ejecuta al integrar cambios en main (merge / push a main).
-# Construye el distribuible del módulo :app y lo publica como artefacto
-# y como GitHub Release cuando se crea un tag de versión (vX.Y.Z).
+# CD: Automated Semantic Release & Distribution
+# Se ejecuta tras cada merge/push a main o manualmente via workflow_dispatch.
+# 1. Analiza el historial de commits desde el último tag según Conventional Commits.
+# 2. Calcula automáticamente el bump SemVer (patch, minor o major).
+# 3. Valida la calidad completa con ./gradlew check (La Regla del Rojo).
+# 4. Compila el distribuible de la CLI (:app:distZip, :app:distTar).
+# 5. Publica los paquetes Maven de los submódulos en GitHub Packages.
+# 6. Crea el Git Tag y el GitHub Release formal con los binarios adjuntos.
 on:
   push:
     branches: [main]
-    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Tipo de incremento de versión (auto para cálculo por Conventional Commits)'
+        required: true
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - patch
+          - minor
+          - major
 
 concurrency:
-  group: cd-${{ github.ref }}
+  group: cd-release-main
   cancel-in-progress: false
 
 permissions:
-  contents: write  # necesario para crear releases
+  contents: write   # Necesario para crear Git Tags y GitHub Releases
+  packages: write   # Necesario para publicar artefactos Maven en GitHub Packages
 
 jobs:
-  package:
-    name: Build distribution
+  release:
+    name: Automated Semantic Release & Publish
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository with full history
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -36,21 +55,107 @@ jobs:
       - name: Grant execute permission to gradlew
         run: chmod +x ./gradlew
 
-      # Genera el .zip/.tar distribuible del módulo app (application plugin).
-      - name: Build distribution
-        run: ./gradlew :app:distZip :app:distTar --no-daemon --stacktrace
+      - name: Calculate next semantic version
+        id: semver
+        run: |
+          # 1. Obtener el último tag de versión
+          LATEST_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*" 2>/dev/null || echo "v1.0.0")
+          echo "Último tag encontrado: $LATEST_TAG"
 
-      - name: Upload distribution artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: cnc-distribution
-          path: app/build/distributions/*
-          if-no-files-found: error
+          VERSION_NUM="${LATEST_TAG#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_NUM"
+          MAJOR=${MAJOR:-1}
+          MINOR=${MINOR:-0}
+          PATCH=${PATCH:-0}
 
-      # Solo publica un Release cuando el push es de un tag vX.Y.Z.
+          # 2. Determinar tipo de bump
+          MANUAL_BUMP="${{ github.event.inputs.bump }}"
+          if [ -n "$MANUAL_BUMP" ] && [ "$MANUAL_BUMP" != "auto" ]; then
+            BUMP="$MANUAL_BUMP"
+            echo "Incremento forzado manualmente por workflow_dispatch: $BUMP"
+          else
+            COMMITS=$(git log "${LATEST_TAG}..HEAD" --pretty=format:"%s%n%b")
+            if echo "$COMMITS" | grep -qE "(BREAKING CHANGE:|^[a-z]+(\([a-z0-9_-]+\))?!:)"; then
+              BUMP="major"
+            elif echo "$COMMITS" | grep -qE "^feat(\([a-z0-9_-]+\))?:"; then
+              BUMP="minor"
+            elif echo "$COMMITS" | grep -qE "^fix(\([a-z0-9_-]+\))?:"; then
+              BUMP="patch"
+            else
+              BUMP="none"
+            fi
+            echo "Incremento inferido automáticamente por Conventional Commits: $BUMP"
+          fi
+
+          # 3. Calcular la nueva versión
+          if [ "$BUMP" = "none" ]; then
+            echo "No se encontraron commits con feat, fix o BREAKING CHANGE desde $LATEST_TAG."
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            if [ "$BUMP" = "major" ]; then
+              NEW_MAJOR=$((MAJOR + 1))
+              NEW_MINOR=0
+              NEW_PATCH=0
+            elif [ "$BUMP" = "minor" ]; then
+              NEW_MAJOR=$MAJOR
+              NEW_MINOR=$((MINOR + 1))
+              NEW_PATCH=0
+            elif [ "$BUMP" = "patch" ]; then
+              NEW_MAJOR=$MAJOR
+              NEW_MINOR=$MINOR
+              NEW_PATCH=$((PATCH + 1))
+            fi
+
+            NEW_VERSION="${NEW_MAJOR}.${NEW_MINOR}.${NEW_PATCH}"
+            NEW_TAG="v${NEW_VERSION}"
+
+            echo "Nueva versión calculada: $NEW_VERSION ($NEW_TAG) [Bump: $BUMP]"
+            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+            echo "bump_type=$BUMP" >> $GITHUB_OUTPUT
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Verify build and quality gates before release
+        if: steps.semver.outputs.should_release == 'true'
+        run: ./gradlew check --no-daemon --stacktrace
+
+      - name: Build CLI distributions and publish Maven packages
+        if: steps.semver.outputs.should_release == 'true'
+        run: ./gradlew :app:distZip :app:distTar publish "-PreleaseVersion=${{ steps.semver.outputs.new_version }}" --no-daemon --stacktrace
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_REF_NAME: ${{ steps.semver.outputs.new_tag }}
+
+      - name: Create and push Git tag
+        if: steps.semver.outputs.should_release == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.semver.outputs.new_tag }}" -m "Release ${{ steps.semver.outputs.new_tag }}"
+          git push origin "${{ steps.semver.outputs.new_tag }}"
+
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.semver.outputs.should_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.semver.outputs.new_tag }}
+          name: Release ${{ steps.semver.outputs.new_tag }}
           files: app/build/distributions/*
           generate_release_notes: true
+
+      - name: Publish Release Summary
+        if: always()
+        run: |
+          echo "## Resumen de Continuous Delivery & Release" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.semver.outputs.should_release }}" = "true" ]; then
+            echo ":rocket: **Release formal ${{ steps.semver.outputs.new_tag }} publicado exitosamente:**" >> $GITHUB_STEP_SUMMARY
+            echo "- **Versión SemVer:** \`${{ steps.semver.outputs.new_version }}\` (Incremento: \`${{ steps.semver.outputs.bump_type }}\`)" >> $GITHUB_STEP_SUMMARY
+            echo "- **Librerías Maven:** Publicadas en GitHub Packages para integración con TP2." >> $GITHUB_STEP_SUMMARY
+            echo "- **Distribución CLI:** Binarios zip y tar adjuntos al GitHub Release." >> $GITHUB_STEP_SUMMARY
+            echo "- **Trazabilidad:** Git tag \`${{ steps.semver.outputs.new_tag }}\` creado en el mainline." >> $GITHUB_STEP_SUMMARY
+          else
+            echo ":information_source: **No se requirió nuevo release:** Los commits integrados no introdujeron cambios en la API pública (feat/fix/breaking change)." >> $GITHUB_STEP_SUMMARY
+          fi

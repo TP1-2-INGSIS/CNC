@@ -87,8 +87,11 @@ Cada módulo sigue la convención estándar de Gradle / Kotlin:
 
 ---
 
-## Convenciones de Contribución
+## Convenciones de Contribución y CI/CD
 
-- **Ramas**: Crear ramas descriptivas para cada funcionalidad o corrección (`feature/<nombre>`, `fix/<nombre>`).
-- **Commits**: Seguir el estándar de Conventional Commits (`feat: ...`, `fix: ...`, `refactor: ...`, `test: ...`).
-- **Cobertura**: Asegurar que los nuevos módulos y funcionalidades incluyan tests unitarios para mantener la cobertura por encima del 80%.
+El proyecto sigue estándares rigurosos de ingeniería de software automatizados mediante pipelines de CI/CD:
+
+- **Guía de Contribución**: Consultar [CONTRIBUTING.md](../CONTRIBUTING.md) para detalles sobre convenciones de ramas, formato estricto de **Conventional Commits** y principios de diseño arquitectónico.
+- **Arquitectura de CI/CD y Semantic Release**: Consultar [docs/ci-cd.md](ci-cd.md) para entender el flujo de verificación continua en PRs, el cálculo automático de versiones SemVer y la publicación de artefactos en GitHub Packages y GitHub Releases.
+- **Compuertas de Calidad**: Todo PR debe superar `./gradlew check` (compilación + ktlint + detekt + JUnit 5 + JaCoCo $\ge$ 80%).
+
