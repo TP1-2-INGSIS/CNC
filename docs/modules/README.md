@@ -1,6 +1,6 @@
 # Índice de Módulos de PrintScript (CNC)
 
-Documentación técnica y operativa completa de la arquitectura de compilación de **PrintScript (CNC)**. Cada informe sigue un template estandarizado con responsabilidades, diagramas Mermaid, manejo de errores, ejemplos de código 100% autónomos y decisiones de diseño.
+-Documentación técnica y operativa completa de la arquitectura de compilación de **PrintScript (CNC)**. Cada informe sigue un template estandarizado con responsabilidades, diagramas Mermaid, manejo de errores, ejemplos de código 100% autónomos y decisiones de diseño.
 
 ---
 
