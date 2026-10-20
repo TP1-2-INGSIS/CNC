@@ -10,6 +10,7 @@ import cnc.common.Result
 import cnc.common.Success
 import cnc.language.execute
 import cnc.language.format
+import cnc.language.lint
 import cnc.language.validate
 import cnc.printscript.PrintScriptEngine
 import java.io.File
@@ -99,7 +100,9 @@ object FormatCommand : Command {
 
         return runCatching {
             val ps = PrintScriptEngine.v1_1()
-            ps.format(File(file), configJson)
+            val formatted = ps.format(targetFile, configJson)
+            targetFile.writeText(formatted)
+            formatted
         }.fold(
             onSuccess = { Success("Formatted '$file' successfully", Unit) },
             onFailure = { e -> Failure(e.message ?: "Formatting failed", ErrorType.CLI) },
@@ -127,13 +130,18 @@ object LintCommand : Command {
             params.getOption("file") ?: params.getPositional(0)
                 ?: return Failure("Missing required source file. Usage: lint <file> [--config=<path>]", ErrorType.CLI)
 
+        val targetFile = File(file)
+        if (!targetFile.exists()) {
+            return Failure("File not found: '$file'", ErrorType.CLI)
+        }
+
         val version = params.getOption("version") ?: "1.1"
         val configFile = params.getOption("config")
         val configJson = configFile?.let { File(it).readText() } ?: "{}"
 
         return runCatching {
-            val ps = PsVersioner.version(version)
-            ps.lint(File(file), configJson)
+            val ps = PrintScriptEngine.from(version)
+            ps.lint(targetFile, configJson)
         }.fold(
             onSuccess = { warnings ->
                 if (warnings.isEmpty()) {
