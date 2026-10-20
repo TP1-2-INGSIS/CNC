@@ -56,11 +56,9 @@ internal class PrintScriptFacade(
 
     override fun interpret(
         statements: List<Statement>,
-        output: (String) -> Unit,
-        input: (String) -> String,
-        envProvider: (String) -> String?,
+        io: InterpreterIO,
     ): Result<Unit> {
-        val interpreter = profile.createInterpreter(InterpreterIO(input, envProvider, output))
+        val interpreter = profile.createInterpreter(io)
         val environment = Environment()
         return interpreter.interpret(statements, environment)
     }
@@ -71,13 +69,11 @@ internal class PrintScriptFacade(
 
     override fun execute(
         content: ContentManager,
-        input: (String) -> String,
-        envProvider: (String) -> String?,
-        output: (String) -> Unit,
+        io: InterpreterIO,
     ): Result<Unit> {
         val tokens = lex(content)
         val semanticAnalyzer = profile.createSemanticAnalyzer()
-        val interpreter = profile.createInterpreter(InterpreterIO(input, envProvider, output))
+        val interpreter = profile.createInterpreter(io)
         val environment = Environment()
 
         for (parseResult in parser.parse(tokens)) {

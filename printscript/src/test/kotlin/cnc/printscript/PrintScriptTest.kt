@@ -5,6 +5,7 @@ import cnc.common.FileContent
 import cnc.common.InputStreamContent
 import cnc.common.StringContent
 import cnc.common.Success
+import cnc.language.InterpreterIO
 import cnc.language.LanguageFacade
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -13,7 +14,7 @@ import org.junit.jupiter.api.Test
 import java.io.File
 
 class PrintScriptTest {
-    private val printScript: LanguageFacade = PsVersioner.version("1.1")
+    private val printScript: LanguageFacade = PrintScriptEngine.v1_1()
 
     @Test
     fun `lex generates tokens from string, file, and inputStream`() {
@@ -99,9 +100,12 @@ class PrintScriptTest {
         val result =
             printScript.execute(
                 content = StringContent(code),
-                input = { "Alice" },
-                envProvider = { if (it == "APP_MODE") "PROD" else null },
-                output = { output.add(it) },
+                io =
+                    InterpreterIO(
+                        input = { "Alice" },
+                        envProvider = { if (it == "APP_MODE") "PROD" else null },
+                        output = { output.add(it) },
+                    ),
             )
 
         assertTrue(result.isOk())
@@ -122,7 +126,7 @@ class PrintScriptTest {
             val fileResult =
                 printScript.execute(
                     content = FileContent(tempFile.absolutePath),
-                    output = { output.add(it) },
+                    io = InterpreterIO(output = { output.add(it) }),
                 )
             assertTrue(fileResult.isOk())
             assertEquals(listOf("3"), output)
@@ -131,7 +135,7 @@ class PrintScriptTest {
             val streamResult =
                 printScript.execute(
                     content = InputStreamContent(code.byteInputStream()),
-                    output = { output.add(it) },
+                    io = InterpreterIO(output = { output.add(it) }),
                 )
             assertTrue(streamResult.isOk())
             assertEquals(listOf("3"), output)
@@ -177,7 +181,7 @@ class PrintScriptTest {
         val result =
             printScript.interpret(
                 statements = statements,
-                output = { output.add(it) },
+                io = InterpreterIO(output = { output.add(it) }),
             )
         assertTrue(result.isOk())
         assertEquals(listOf("interpreter test"), output)
@@ -196,7 +200,7 @@ class PrintScriptTest {
         val result =
             printScript.execute(
                 content = StringContent(code),
-                output = { output.add(it) },
+                io = InterpreterIO(output = { output.add(it) }),
             )
 
         assertFalse(result.isOk())

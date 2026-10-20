@@ -7,7 +7,12 @@ import cnc.common.FileContent
 import cnc.common.InputStreamContent
 import cnc.common.StringContent
 import cnc.common.Success
+import cnc.language.InterpreterIO
 import cnc.language.LanguageFacade
+import cnc.language.execute
+import cnc.language.format
+import cnc.language.lint
+import cnc.language.validate
 import cnc.printscript.profile.PrintScriptProfileRegistry
 import cnc.printscript.profile.v1_0.PrintScript10Profile
 import cnc.printscript.profile.v1_1.PrintScript11Profile
@@ -21,8 +26,8 @@ import org.junit.jupiter.api.Test
 import kotlin.io.path.createTempFile
 
 class PrintScriptFacadeTest {
-    private val engine10: LanguageFacade = PsVersioner.version("1.0")
-    private val engine11: LanguageFacade = PsVersioner.version("1.1")
+    private val engine10: LanguageFacade = PrintScriptEngine.v1_0()
+    private val engine11: LanguageFacade = PrintScriptEngine.v1_1()
 
     @Nested
     inner class VersionAndRegistryTests {
@@ -56,6 +61,23 @@ class PrintScriptFacadeTest {
             assertSame(PrintScript10Profile, p1)
             assertSame(PrintScript11Profile, p2)
         }
+
+        @Test
+        fun `PrintScriptEngine exposes type-safe presets and dynamic fallback`() {
+            assertNotNull(PrintScriptEngine.v1_0())
+            assertNotNull(PrintScriptEngine.v1_1())
+            assertNotNull(PrintScriptEngine.from(PrintScriptVersion.V1_0))
+            assertNotNull(PrintScriptEngine.from(PrintScriptVersion.V1_1))
+            assertNotNull(PrintScriptEngine.from("1.0"))
+            assertNotNull(PrintScriptEngine.from("1.1"))
+
+            assertThrows(UnsupportedVersionException::class.java) {
+                PrintScriptEngine.from("9.9")
+            }
+
+            @Suppress("DEPRECATION")
+            assertNotNull(PsVersioner.version("1.1"))
+        }
     }
 
     @Nested
@@ -68,9 +90,12 @@ class PrintScriptFacadeTest {
             val resStr =
                 engine11.execute(
                     content = StringContent(sampleCode),
-                    input = { _: String -> "input" },
-                    envProvider = { _: String -> null },
-                    output = { str: String -> outputList.add(str) },
+                    io =
+                        InterpreterIO(
+                            input = { _: String -> "input" },
+                            envProvider = { _: String -> null },
+                            output = { str: String -> outputList.add(str) },
+                        ),
                 )
             assertTrue(resStr.isOk())
             assertEquals(listOf("42"), outputList)
@@ -147,6 +172,40 @@ class PrintScriptFacadeTest {
 
             val decl = Declaration("x", "number", NumberLiteral(42.0))
             assertTrue(engine11.interpret(listOf(decl)).isOk())
+        }
+    }
+
+    @Nested
+    inner class ConvenienceExtensionsTests {
+        private val sampleCode = "let x: number = 42;\nprintln(x);"
+
+        @Test
+        fun `raw String and File extensions hide ContentManager`() {
+            val output = mutableListOf<String>()
+            val res =
+                engine11.execute(
+                    sampleCode,
+                    InterpreterIO(output = { output.add(it) }),
+                )
+            assertTrue(res.isOk())
+            assertEquals(listOf("42"), output)
+
+            assertTrue(engine11.validate(sampleCode).isOk())
+            assertEquals("let x: number = 42;", engine11.format("let x:number=42;"))
+            assertEquals(emptyList<String>(), engine11.lint(sampleCode, "{}"))
+
+            val tempFile = createTempFile("ps_ext", ".prs").toFile()
+            tempFile.deleteOnExit()
+            tempFile.writeText(sampleCode)
+
+            assertTrue(engine11.execute(tempFile).isOk())
+            assertTrue(engine11.validate(tempFile).isOk())
+            assertEquals(emptyList<String>(), engine11.lint(tempFile, "{}"))
+
+            val fmtFile = createTempFile("ps_ext_fmt", ".prs").toFile()
+            fmtFile.deleteOnExit()
+            fmtFile.writeText("let x:number=42;")
+            assertEquals("let x: number = 42;", engine11.format(fmtFile))
         }
     }
 

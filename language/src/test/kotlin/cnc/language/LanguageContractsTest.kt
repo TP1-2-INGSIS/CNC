@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.io.path.createTempFile
 
 class LanguageContractsTest {
     private enum class FakeVersion(
@@ -40,21 +41,17 @@ class LanguageContractsTest {
 
         override fun interpret(
             statements: List<Statement>,
-            output: (String) -> Unit,
-            input: (String) -> String,
-            envProvider: (String) -> String?,
+            io: InterpreterIO,
         ): Result<Unit> {
-            interpretOutput = output
+            interpretOutput = io.output
             return Success("ok", Unit)
         }
 
         override fun execute(
             content: ContentManager,
-            input: (String) -> String,
-            envProvider: (String) -> String?,
-            output: (String) -> Unit,
+            io: InterpreterIO,
         ): Result<Unit> {
-            executeInput = input
+            executeInput = io.input
             return Success("ok", Unit)
         }
 
@@ -139,6 +136,39 @@ class LanguageContractsTest {
         assertTrue(profile.interpreterIO != null)
         assertNull(profile.formatterConfig)
         assertEquals("1", profile.version.label)
+    }
+
+    @Test
+    fun `convenience extensions delegate to ContentManager-based operations`() {
+        val facade = RecordingFacade()
+        val code = "let x: number = 1;"
+        val stream = code.byteInputStream()
+
+        val tempFile = createTempFile("lang_ext", ".prs").toFile()
+        tempFile.deleteOnExit()
+        tempFile.writeText(code)
+
+        // execute: String / File / InputStream
+        assertTrue(facade.execute(code).isOk())
+        assertTrue(facade.execute(tempFile).isOk())
+        assertTrue(facade.execute(stream).isOk())
+
+        // validate: String / File / InputStream
+        assertTrue(facade.validate(code).isOk())
+        assertTrue(facade.validate(tempFile).isOk())
+        assertTrue(facade.validate(code.byteInputStream()).isOk())
+
+        // format: String / File
+        assertEquals("", facade.format(code))
+        assertEquals("", facade.format(tempFile))
+
+        // lint: String / File
+        assertTrue(facade.lint(code, "{}").isEmpty())
+        assertTrue(facade.lint(tempFile, "{}").isEmpty())
+
+        // custom IO flows through the String execute overload
+        val out = mutableListOf<String>()
+        assertTrue(facade.execute(code, InterpreterIO(output = { out.add(it) })).isOk())
     }
 
     @Test

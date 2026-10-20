@@ -6,10 +6,12 @@ import cnc.cli.command.Command
 import cnc.cli.command.HelpAttribute
 import cnc.common.ErrorType
 import cnc.common.Failure
-import cnc.common.FileContent
 import cnc.common.Result
 import cnc.common.Success
-import cnc.printscript.PsVersioner
+import cnc.language.execute
+import cnc.language.format
+import cnc.language.validate
+import cnc.printscript.PrintScriptEngine
 import java.io.File
 
 object RunCommand : Command {
@@ -21,8 +23,8 @@ object RunCommand : Command {
                 ?: return Failure("Missing required source file. Usage: run <file>", ErrorType.CLI)
 
         val version = params.getOption("version") ?: "1.1"
-        val ps = PsVersioner.version(version)
-        val result = ps.execute(FileContent(File(file).absolutePath))
+        val ps = PrintScriptEngine.from(version)
+        val result = ps.execute(File(file))
         return when (result) {
             is Failure -> {
                 println("ERROR: ${result.msg}")
@@ -53,8 +55,8 @@ object ValidateCommand : Command {
                 ?: return Failure("Missing required source file. Usage: validate <file>", ErrorType.CLI)
 
         val version = params.getOption("version") ?: "1.1"
-        val ps = PsVersioner.version(version)
-        val result = ps.validate(FileContent(File(file).absolutePath))
+        val ps = PrintScriptEngine.from(version)
+        val result = ps.validate(File(file))
         return when (result) {
             is Failure -> {
                 println("VALIDATION ERROR: ${result.msg}")
@@ -91,8 +93,8 @@ object FormatCommand : Command {
         val configJson = configFile?.let { File(it).readText() }
 
         return runCatching {
-            val ps = PsVersioner.version("1.1")
-            ps.format(FileContent(File(file).absolutePath), configJson)
+            val ps = PrintScriptEngine.v1_1()
+            ps.format(File(file), configJson)
         }.fold(
             onSuccess = { formatted -> Success(formatted, Unit) },
             onFailure = { e -> Failure(e.message ?: "Formatting failed", ErrorType.CLI) },
