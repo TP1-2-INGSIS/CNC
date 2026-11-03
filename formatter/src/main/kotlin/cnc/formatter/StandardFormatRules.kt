@@ -2,13 +2,18 @@ package cnc.formatter
 
 import cnc.ast.Assignment
 import cnc.ast.BinaryExpression
+import cnc.ast.BlockStatement
+import cnc.ast.BooleanLiteral
 import cnc.ast.Call
+import cnc.ast.CallExpression
 import cnc.ast.Declaration
 import cnc.ast.Identifier
+import cnc.ast.IfStatement
 import cnc.ast.NumberLiteral
 import cnc.ast.StringLiteral
 import cnc.ast.UnaryExpression
 
+/** Catálogo canónico de reglas del formatter, definidas una sola vez y parametrizadas por [FormatConfig]. */
 object StandardFormatRules {
     val defaultPrecedences: Map<String, Int> =
         mapOf(
@@ -19,24 +24,7 @@ object StandardFormatRules {
             "**" to 3,
         )
 
-    private val spaceAround: FormatRule<String> = FormatRule { symbol, _ -> " $symbol " }
-    private val spaceAfter: FormatRule<String> = FormatRule { symbol, _ -> "$symbol " }
-    private val noSpace: FormatRule<String> = FormatRule { symbol, _ -> symbol }
-
-    val defaultSymbolRules: Map<String, FormatRule<String>> =
-        mapOf(
-            "+" to spaceAround,
-            "-" to spaceAround,
-            "*" to spaceAround,
-            "/" to spaceAround,
-            "**" to spaceAround,
-            "=" to spaceAround,
-            ":" to spaceAfter,
-            "let" to noSpace,
-            "const" to noSpace,
-            ";" to noSpace,
-        )
-
+    // Reglas de expresión, independientes de la config.
     private fun formatNumber(value: Double): String =
         if (value % 1.0 == 0.0) value.toLong().toString() else value.toString()
 
@@ -78,12 +66,12 @@ object StandardFormatRules {
 
     private val booleanRule =
         ExpressionRule { expr, _ ->
-            (expr as? cnc.ast.BooleanLiteral)?.let { it.value.toString() }
+            (expr as? BooleanLiteral)?.let { it.value.toString() }
         }
 
     private val callExpressionRule =
         ExpressionRule { expr, ctx ->
-            (expr as? cnc.ast.CallExpression)?.let { call ->
+            (expr as? CallExpression)?.let { call ->
                 val args = call.arguments.joinToString(", ") { ctx.formatExpression(it) }
                 "${call.function}($args)"
             }
@@ -100,84 +88,129 @@ object StandardFormatRules {
             callExpressionRule,
         )
 
-    private val variableDeclarationRule =
-        StatementRule { stmt, ctx ->
-            (stmt as? Declaration)?.let { decl ->
-                buildString {
-                    append(ctx.formatSymbol(if (decl.isMutable) "let" else "const")).append(" ")
-                    append(decl.name)
-                    append(ctx.formatSymbol(":"))
-                    append(decl.type)
-                    decl.value?.let {
-                        append(ctx.formatSymbol("="))
-                        append(ctx.formatExpression(it))
+    // Reglas de símbolo, dependen de la config.
+    private fun symbolRulesFor(config: FormatConfig): Map<String, FormatRule<String>> {
+        val around: FormatRule<String> = FormatRule { s, _ -> Spacing.AROUND.apply(s) }
+        val equalsRule: FormatRule<String> = FormatRule { s, _ -> config.equalsSpacing.apply(s) }
+        val colonRule: FormatRule<String> = FormatRule { s, _ -> config.colonSpacing.apply(s) }
+        val noSpace: FormatRule<String> = FormatRule { s, _ -> Spacing.NONE.apply(s) }
+        return mapOf(
+            "+" to around,
+            "-" to around,
+            "*" to around,
+            "/" to around,
+            "**" to around,
+            "=" to equalsRule,
+            ":" to colonRule,
+            "let" to noSpace,
+            "const" to noSpace,
+            ";" to noSpace,
+        )
+    }
+
+    // Reglas de statement, dependen de la config.
+    private fun statementRulesFor(config: FormatConfig): List<StatementRule> {
+        val variableDeclarationRule =
+            StatementRule { stmt, ctx ->
+                (stmt as? Declaration)?.let { decl ->
+                    buildString {
+                        append(ctx.formatSymbol(if (decl.isMutable) "let" else "const")).append(" ")
+                        append(decl.name)
+                        append(ctx.formatSymbol(":"))
+                        append(decl.type)
+                        decl.value?.let {
+                            append(ctx.formatSymbol("="))
+                            append(ctx.formatExpression(it))
+                        }
+                        append(ctx.formatSymbol(";"))
                     }
-                    append(ctx.formatSymbol(";"))
                 }
             }
-        }
 
-    private val variableAssignmentRule =
-        StatementRule { stmt, ctx ->
-            (stmt as? Assignment)?.let { assign ->
-                buildString {
-                    append(assign.target)
-                    append(ctx.formatSymbol("="))
-                    append(ctx.formatExpression(assign.value))
-                    append(ctx.formatSymbol(";"))
+        val variableAssignmentRule =
+            StatementRule { stmt, ctx ->
+                (stmt as? Assignment)?.let { assign ->
+                    buildString {
+                        append(assign.target)
+                        append(ctx.formatSymbol("="))
+                        append(ctx.formatExpression(assign.value))
+                        append(ctx.formatSymbol(";"))
+                    }
                 }
             }
-        }
 
-    private val callRule =
-        StatementRule { stmt, ctx ->
-            (stmt as? Call)?.let { call ->
-                val args = call.arguments.joinToString(", ") { ctx.formatExpression(it) }
-                "${call.function}($args)${ctx.formatSymbol(";")}"
-            }
-        }
-
-    private val blockStatementRule =
-        StatementRule { stmt, ctx ->
-            (stmt as? cnc.ast.BlockStatement)?.let { block ->
-                if (block.statements.isEmpty()) {
-                    "{}"
-                } else {
-                    val stmts = block.statements.map { inner -> ctx.formatStatement(inner) }
-                    "{\n" + stmts.joinToString("\n") { "    " + it.replace("\n", "\n    ") } + "\n}"
+        val callRule =
+            StatementRule { stmt, ctx ->
+                (stmt as? Call)?.let { call ->
+                    val args = call.arguments.joinToString(", ") { ctx.formatExpression(it) }
+                    val base =
+                        if (config.singleSpaceSeparation) {
+                            "${call.function} ( $args )${ctx.formatSymbol(";")}"
+                        } else {
+                            "${call.function}($args)${ctx.formatSymbol(";")}"
+                        }
+                    if (call.function == "println" && config.lineBreaksAfterPrintln > 0) {
+                        base + "\n".repeat(config.lineBreaksAfterPrintln)
+                    } else {
+                        base
+                    }
                 }
             }
-        }
 
-    private val ifStatementRule =
-        StatementRule { stmt, ctx ->
-            (stmt as? cnc.ast.IfStatement)?.let { ifStmt ->
-                val cond = ctx.formatExpression(ifStmt.condition)
-                val thenBlock = ctx.formatStatement(ifStmt.thenBlock)
-                val elseB = ifStmt.elseBlock
-                if (elseB != null) {
-                    val elseBlock = ctx.formatStatement(elseB)
-                    "if ($cond) $thenBlock else $elseBlock"
-                } else {
-                    "if ($cond) $thenBlock"
+        val blockStatementRule =
+            StatementRule { stmt, ctx ->
+                (stmt as? BlockStatement)?.let { block ->
+                    if (block.statements.isEmpty()) {
+                        "{}"
+                    } else {
+                        val indent = " ".repeat(config.indentInsideIf)
+                        val stmts = block.statements.map { inner -> ctx.formatStatement(inner) }
+                        "{\n" + stmts.joinToString("\n") { indent + it.replace("\n", "\n$indent") } + "\n}"
+                    }
                 }
             }
-        }
 
-    val defaultStatementRules: List<StatementRule> =
-        listOf(
+        val ifStatementRule =
+            StatementRule { stmt, ctx ->
+                (stmt as? IfStatement)?.let { ifStmt ->
+                    val cond = ctx.formatExpression(ifStmt.condition)
+                    val thenBlock = ctx.formatStatement(ifStmt.thenBlock)
+                    val sep = if (config.ifBraceBelowLine) "\n" else " "
+                    val elseB = ifStmt.elseBlock
+                    if (elseB != null) {
+                        val elseBlock = ctx.formatStatement(elseB)
+                        "if ($cond)$sep$thenBlock else $elseBlock"
+                    } else {
+                        "if ($cond)$sep$thenBlock"
+                    }
+                }
+            }
+
+        return listOf(
             variableDeclarationRule,
             variableAssignmentRule,
             callRule,
             blockStatementRule,
             ifStatementRule,
         )
+    }
 
-    fun defaultFormatter(): Formatter =
+    /** Reglas de símbolo por defecto (config [FormatConfig.DEFAULT]). */
+    val defaultSymbolRules: Map<String, FormatRule<String>>
+        get() = symbolRulesFor(FormatConfig.DEFAULT)
+
+    /** Reglas de statement por defecto (config [FormatConfig.DEFAULT]). */
+    val defaultStatementRules: List<StatementRule>
+        get() = statementRulesFor(FormatConfig.DEFAULT)
+
+    /** Construye un [Formatter] para la [config] dada. */
+    fun formatterFor(config: FormatConfig): Formatter =
         Formatter(
-            statementRules = defaultStatementRules,
-            symbolRules = defaultSymbolRules,
+            statementRules = statementRulesFor(config),
+            symbolRules = symbolRulesFor(config),
             expressionRules = defaultExpressionRules,
             precedences = defaultPrecedences,
         )
+
+    fun defaultFormatter(): Formatter = formatterFor(FormatConfig.DEFAULT)
 }

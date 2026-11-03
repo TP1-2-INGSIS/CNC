@@ -145,89 +145,32 @@ class FormatterFactoryTest {
     @Nested
     inner class FormatSourceTests {
         @Test
-        fun `formatSource returns raw source if config is null or invalid`() {
-            val src = "let x=10;"
-            assertEquals(src, FormatterFactory.formatSource(src, null))
-            assertEquals(src, FormatterFactory.formatSource(src, ""))
-            assertEquals(src, FormatterFactory.formatSource(src, "not json"))
+        fun `formats source via injected parse`() {
+            val statements = listOf(Declaration("x", "number", NumberLiteral(10.0), isMutable = true))
+            val result = FormatterFactory.formatSource("let x:number=10;", null) { statements }
+            assertEquals("let x: number = 10;", result)
         }
 
         @Test
-        fun `formatSource line break after statement`() {
-            val src = "let a: number = 1; let b: number = 2;"
-            val json = """{"mandatory-line-break-after-statement": true}"""
-            val res = FormatterFactory.formatSource(src, json)
-            assertTrue(res.contains("let a: number = 1;\nlet b: number = 2;"))
+        fun `applies config through formatSource`() {
+            val statements = listOf(Declaration("a", "number", NumberLiteral(1.0), isMutable = true))
+            val json = """{"single-space-separation": true}"""
+            val result = FormatterFactory.formatSource("let a:number=1;", json) { statements }
+            assertEquals("let a : number = 1;", result)
         }
 
         @Test
-        fun `formatSource space around equals`() {
-            val src = "let a=1;"
-            val withSpaces = FormatterFactory.formatSource(src, """{"enforce-spacing-around-equals": true}""")
-            assertEquals("let a = 1;", withSpaces)
-
-            val noSpaces = FormatterFactory.formatSource("let a = 1;", """{"enforce-no-spacing-around-equals": true}""")
-            assertEquals("let a=1;", noSpaces)
+        fun `returns raw source when parse yields null`() {
+            val src = "let x = ;"
+            val result = FormatterFactory.formatSource(src, null) { null }
+            assertEquals(src, result)
         }
 
         @Test
-        fun `formatSource colon spacing in declaration`() {
-            val src = "let x:number=1;"
-            val spaceBefore =
-                FormatterFactory.formatSource(
-                    src,
-                    """{"enforce-spacing-before-colon-in-declaration": true}""",
-                )
-            assertTrue(spaceBefore.contains("let x :"))
-
-            val spaceAfter =
-                FormatterFactory.formatSource(
-                    src,
-                    """{"enforce-spacing-after-colon-in-declaration": true}""",
-                )
-            assertTrue(spaceAfter.contains(": number"))
-        }
-
-        @Test
-        fun `formatSource space surrounding operations`() {
-            val src = "let res: number = a+b*c-d/e;"
-            val json = """{"mandatory-space-surrounding-operations": true}"""
-            val formatted = FormatterFactory.formatSource(src, json)
-            assertEquals("let res: number = a + b * c - d / e;", formatted)
-        }
-
-        @Test
-        fun `formatSource single space separation`() {
-            val src = "let x:number=10;\nprintln(x);"
-            val json = """{"mandatory-single-space-separation": true}"""
-            val formatted = FormatterFactory.formatSource(src, json)
-            assertTrue(formatted.contains("let x : number = 10;"))
-            assertTrue(formatted.contains("println ( x );"))
-        }
-
-        @Test
-        fun `formatSource if brace position and indentation`() {
-            val src = "if (true) {\nlet a = 1;\n}"
-            val below = FormatterFactory.formatSource(src, """{"if-brace-below-line": true}""")
-            assertTrue(below.contains("if (true)\n{"))
-
-            val same = FormatterFactory.formatSource("if (true)\n{\nlet a = 1;\n}", """{"if-brace-same-line": true}""")
-            assertTrue(same.contains("if (true) {"))
-
-            val indented = FormatterFactory.formatSource("if (true) {\nlet a = 1;\n}", """{"indent-inside-if": 4}""")
-            assertTrue(indented.contains("    let a = 1;"))
-        }
-
-        @Test
-        fun `formatSource println line breaks`() {
-            val src = "println(\"1\");\nprintln(\"2\");"
-            val json = """{"line-breaks-after-println": 2}"""
-            val formatted = FormatterFactory.formatSource(src, json)
-            assertTrue(formatted.contains("println(\"1\");\n\n\nprintln(\"2\");"))
-
-            val singleStmt = "println(\"end\");"
-            val fmtSingle = FormatterFactory.formatSource(singleStmt, json)
-            assertEquals("println(\"end\");", fmtSingle)
+        fun `returns raw source when parse throws`() {
+            val src = "@@ invalid @@"
+            val result = FormatterFactory.formatSource(src, null) { error("boom") }
+            assertEquals(src, result)
         }
     }
 
