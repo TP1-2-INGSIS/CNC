@@ -29,9 +29,7 @@ import cnc.lexer.Lexer
 import cnc.lexer.rules.StandardRules
 import cnc.lexer.rules.TrieRule
 import cnc.linter.CNCLinter
-import cnc.linter.CamelCaseValidator
-import cnc.linter.LinterFactory
-import cnc.linter.SnakeCaseValidator
+import cnc.linter.LinterBuilder
 import cnc.parser.Parser
 import cnc.parser.expression.Associativity
 import cnc.parser.expression.ExpressionBuilder
@@ -173,15 +171,9 @@ object PrintScript10Profile : LanguageProfile {
 
     override fun createFormatter(configJson: String?): Formatter = FormatterFactory.create(configJson)
 
-    override fun createLinter(configJson: String): CNCLinter {
-        val validators =
-            mapOf(
-                "camelCase" to CamelCaseValidator(),
-                "snake_case" to SnakeCaseValidator(),
-            )
-        return when (val res = LinterFactory.build(configJson, validators)) {
+    override fun createLinter(configJson: String): CNCLinter =
+        when (val res = LinterBuilder.default().build(configJson)) {
             is cnc.common.Success -> res.data
             is cnc.common.Failure -> CNCLinter(emptyList())
         }
-    }
 }

@@ -8,18 +8,15 @@ import cnc.ast.NumberLiteral
 import cnc.ast.Statement
 import cnc.ast.StringLiteral
 import cnc.common.Failure
+import cnc.common.NamingValidator
 import cnc.common.Success
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class LinterTest {
-    private val validators =
-        mapOf(
-            "camelCase" to CamelCaseValidator(),
-            "snake_case" to SnakeCaseValidator(),
-        )
-
     @Test
     fun `detects non camelCase variable declarations`() {
         val rule = NamingConventionRule("camelCase", CamelCaseValidator())
@@ -69,7 +66,7 @@ class LinterTest {
     }
 
     @Test
-    fun `builds linter from json configuration with injected validators`() {
+    fun `builds linter from json configuration with default validators`() {
         val json =
             """
             {
@@ -78,7 +75,7 @@ class LinterTest {
             }
             """.trimIndent()
 
-        val linter = (LinterFactory.build(json, validators) as Success).data
+        val linter = (LinterBuilder.default().build(json) as Success).data
 
         val statements =
             sequenceOf<Statement>(
@@ -91,18 +88,11 @@ class LinterTest {
     }
 
     @Test
-    fun `supports custom injected naming validator`() {
+    fun `supports custom injected naming validator via addValidator`() {
         val customValidator = NamingValidator { it.startsWith("m_") }
-        val customValidators = mapOf("hungarian" to customValidator)
+        val json = """{ "naming-convention": "hungarian" }"""
 
-        val json =
-            """
-            {
-                "naming-convention": "hungarian"
-            }
-            """.trimIndent()
-
-        val linter = (LinterFactory.build(json, customValidators) as Success).data
+        val linter = (LinterBuilder.empty().addValidator("hungarian", customValidator).build(json) as Success).data
 
         val statements =
             sequenceOf<Statement>(
@@ -118,7 +108,7 @@ class LinterTest {
     @Test
     fun `supports TCK identifier_format with spaces like camel case and snake case`() {
         val camelJson = """{ "identifier_format": "camel case" }"""
-        val camelLinter = (LinterFactory.build(camelJson, validators) as Success).data
+        val camelLinter = (LinterBuilder.default().build(camelJson) as Success).data
         val camelWarnings =
             camelLinter.lint(
                 sequenceOf(
@@ -130,7 +120,7 @@ class LinterTest {
         assertTrue(camelWarnings[0].contains("invalid_var"))
 
         val snakeJson = """{ "identifier_format": "snake case" }"""
-        val snakeLinter = (LinterFactory.build(snakeJson, validators) as Success).data
+        val snakeLinter = (LinterBuilder.default().build(snakeJson) as Success).data
         val snakeWarnings =
             snakeLinter.lint(
                 sequenceOf(
@@ -145,7 +135,7 @@ class LinterTest {
     @Test
     fun `supports TCK mandatory-variable-or-literal-in-println with non-binary complex expressions`() {
         val json = """{ "mandatory-variable-or-literal-in-println": true }"""
-        val linter = (LinterFactory.build(json, validators) as Success).data
+        val linter = (LinterBuilder.default().build(json) as Success).data
 
         val statements =
             sequenceOf<Statement>(
@@ -162,7 +152,7 @@ class LinterTest {
     @Test
     fun `supports TCK mandatory-variable-or-literal-in-readInput`() {
         val json = """{ "mandatory-variable-or-literal-in-readInput": true }"""
-        val linter = (LinterFactory.build(json, validators) as Success).data
+        val linter = (LinterBuilder.default().build(json) as Success).data
 
         val statements =
             sequenceOf<Statement>(
@@ -196,8 +186,32 @@ class LinterTest {
     @Test
     fun `returns Failure when naming convention validator is not found`() {
         val json = """{ "identifier_format": "unknownFormat" }"""
-        val result = LinterFactory.build(json, validators)
+        val result = LinterBuilder.default().build(json)
         assertTrue(result is Failure)
         assertTrue(result.msg.contains("unknownFormat"))
+    }
+
+    @Test
+    fun `ValidatorsContainer normalizes camel and snake aliases and resolves custom keys`() {
+        val container = ValidatorsContainer.default()
+        assertNotNull(container.resolve("camel case"))
+        assertNotNull(container.resolve("SNAKE"))
+        assertNull(container.resolve("unknown"))
+
+        val custom = ValidatorsContainer.empty().withValidator("hungarian", NamingValidator { it.startsWith("m_") })
+        assertNotNull(custom.resolve("hungarian"))
+    }
+
+    @Test
+    fun `deprecated LinterFactory still builds via injected validators map`() {
+        @Suppress("DEPRECATION")
+        val result =
+            LinterFactory.build(
+                """{ "naming-convention": "camelCase" }""",
+                mapOf("camelCase" to CamelCaseValidator()),
+            )
+        val linter = (result as Success).data
+        val warnings = linter.lint(sequenceOf(Declaration("bad_name", "number", NumberLiteral(1.0))))
+        assertEquals(1, warnings.size)
     }
 }
