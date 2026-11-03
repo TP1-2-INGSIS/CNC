@@ -2,17 +2,14 @@ package cnc.linter
 
 import cnc.ast.Declaration
 import cnc.ast.Statement
-
-fun interface NamingValidator {
-    fun isValid(name: String): Boolean
-}
+import cnc.common.NamingValidator
 
 class CamelCaseValidator : NamingValidator {
-    override fun isValid(name: String) = name.matches(Regex("^[a-z][a-z0-9]*([A-Z0-9][a-z0-9]*)*$"))
+    override fun isValid(value: String) = value.matches(Regex("^[a-z][a-z0-9]*([A-Z0-9][a-z0-9]*)*$"))
 }
 
 class SnakeCaseValidator : NamingValidator {
-    override fun isValid(name: String) = name.matches(Regex("^[a-z][a-z0-9]*(_[a-z0-9]+)*$"))
+    override fun isValid(value: String) = value.matches(Regex("^[a-z][a-z0-9]*(_[a-z0-9]+)*$"))
 }
 
 class NamingConventionRule(
