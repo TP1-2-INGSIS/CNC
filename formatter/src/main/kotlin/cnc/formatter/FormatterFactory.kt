@@ -1,5 +1,6 @@
 package cnc.formatter
 
+import cnc.ast.Statement
 import cnc.common.ErrorType
 import cnc.common.Failure
 import cnc.common.Result
@@ -29,5 +30,13 @@ object FormatterFactory {
             is Failure -> StandardFormatRules.defaultFormatter()
         }
 
-    // TODO(reponer): variante AST tolerante de formateo de texto sin parsear + sus tests `FormatSourceTests`.
+    /** Formatea el fuente vía AST; si [parse] no produce statements, devuelve el texto crudo (A2 tolerante). */
+    fun formatSource(
+        rawSource: String,
+        configJson: String?,
+        parse: (String) -> List<Statement>?,
+    ): String {
+        val statements = runCatching { parse(rawSource) }.getOrNull() ?: return rawSource
+        return create(configJson).format(statements)
+    }
 }

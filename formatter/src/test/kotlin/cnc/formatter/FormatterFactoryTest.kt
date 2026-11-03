@@ -141,7 +141,38 @@ class FormatterFactoryTest {
             assertEquals("if (false)\n{} else {}", belowLineFmt.format(listOf(ifStmtWithElse)))
         }
     }
-    // NOTA(reponer): `FormatSourceTests` se eliminó con `formatSource`; reponer como tests de formateo AST.
+
+    @Nested
+    inner class FormatSourceTests {
+        @Test
+        fun `formats source via injected parse`() {
+            val statements = listOf(Declaration("x", "number", NumberLiteral(10.0), isMutable = true))
+            val result = FormatterFactory.formatSource("let x:number=10;", null) { statements }
+            assertEquals("let x: number = 10;", result)
+        }
+
+        @Test
+        fun `applies config through formatSource`() {
+            val statements = listOf(Declaration("a", "number", NumberLiteral(1.0), isMutable = true))
+            val json = """{"single-space-separation": true}"""
+            val result = FormatterFactory.formatSource("let a:number=1;", json) { statements }
+            assertEquals("let a : number = 1;", result)
+        }
+
+        @Test
+        fun `returns raw source when parse yields null`() {
+            val src = "let x = ;"
+            val result = FormatterFactory.formatSource(src, null) { null }
+            assertEquals(src, result)
+        }
+
+        @Test
+        fun `returns raw source when parse throws`() {
+            val src = "@@ invalid @@"
+            val result = FormatterFactory.formatSource(src, null) { error("boom") }
+            assertEquals(src, result)
+        }
+    }
 
     @Nested
     inner class StandardFormatRulesExtraTests {

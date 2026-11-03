@@ -6,6 +6,7 @@ import cnc.common.Failure
 import cnc.common.Result
 import cnc.common.Success
 import cnc.common.openStream
+import cnc.formatter.FormatterFactory
 import cnc.interpreter.Environment
 import cnc.language.InterpreterIO
 import cnc.language.LanguageFacade
@@ -119,12 +120,15 @@ internal class PrintScriptFacade(
     override fun format(
         content: ContentManager,
         configJson: String?,
-    ): String =
-        // A2: si el fuente no parsea, devolvemos el texto crudo sin formatear para no perder contenido.
-        when (val parseResult = parse(lex(content))) {
-            is Success -> profile.createFormatter(configJson).format(parseResult.data)
-            is Failure -> content.getReader().use { it.readText() }
+    ): String {
+        val source = content.getReader().use { it.readText() }
+        return FormatterFactory.formatSource(source, configJson) { src ->
+            when (val parseResult = parse(lex(ContentManager.of(src)))) {
+                is Success -> parseResult.data
+                is Failure -> null
+            }
         }
+    }
 
     override fun lint(
         content: ContentManager,
