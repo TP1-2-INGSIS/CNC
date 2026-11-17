@@ -12,7 +12,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class PrintScriptConfigTest {
-    private val formatter = StandardFormatRules.defaultFormatter()
+    private val formatter = TestFormatterFactory.defaultFormatter()
 
     private fun decl(
         name: String,

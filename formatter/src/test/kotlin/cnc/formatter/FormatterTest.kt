@@ -114,7 +114,7 @@ class FormatterTest {
 
     @Test
     fun `builder copy isolates mutations from the original builder`() {
-        val base = StandardFormatRules.v1_0Builder()
+        val base = TestFormatterFactory.baseBuilder()
         val custom =
             base
                 .copy()
@@ -158,8 +158,8 @@ class FormatterTest {
         }
 
         val customBuilder =
-            StandardFormatRules
-                .v1_0Builder()
+            TestFormatterFactory
+                .baseBuilder()
                 .registerStatements(mapOf(Call::class to CustomCallRule()))
                 .registerExpressions(mapOf(NumberLiteral::class to CustomNumberRule()))
 
@@ -171,33 +171,31 @@ class FormatterTest {
             )
         assertEquals("let x: number = 10.0;\n/* call */ println(x);", configured.format(ast))
 
-        // Without config keys, custom rules keep defaults and standard non-overridden rules use default configure.
         val defaults = customBuilder.create("{}")
         assertEquals("let x: number = 10;\nprintln(x);", defaults.format(ast))
     }
 
     @Test
-    fun `v1_0Builder rejects v1_1 nodes and does not leak CallExpression under single-space config`() {
-        val builder10 = StandardFormatRules.v1_0Builder()
-        val fmt10 = builder10.create("""{"single-space-separation": true}""")
+    fun `baseBuilder rejects unregistered nodes and does not leak CallExpression under single-space config`() {
+        val baseFmt = TestFormatterFactory.baseBuilder().create("""{"single-space-separation": true}""")
 
         assertFailsWith<IllegalStateException> {
-            fmt10.format(listOf(BlockStatement(emptyList())))
+            baseFmt.format(listOf(BlockStatement(emptyList())))
         }
         assertFailsWith<IllegalStateException> {
-            fmt10.format(listOf(IfStatement(BooleanLiteral(true), BlockStatement(emptyList()))))
+            baseFmt.format(listOf(IfStatement(BooleanLiteral(true), BlockStatement(emptyList()))))
         }
         assertFailsWith<IllegalStateException> {
-            fmt10.format(listOf(decl("flag", "boolean", BooleanLiteral(true))))
+            baseFmt.format(listOf(decl("flag", "boolean", BooleanLiteral(true))))
         }
         assertFailsWith<IllegalStateException> {
-            fmt10.format(listOf(decl("name", "string", CallExpression("readInput", listOf(StringLiteral("?"))))))
+            baseFmt.format(listOf(decl("name", "string", CallExpression("readInput", listOf(StringLiteral("?"))))))
         }
     }
 
     @Test
     fun `build parses ConfigReader and all JSON primitive variants safely`() {
-        val builder = StandardFormatRules.v1_1Builder()
+        val builder = TestFormatterFactory.fullBuilder()
         val fromReader = builder.build(ConfigReader.fromMap(mapOf("indent-inside-if" to 3)))
         val block = BlockStatement(listOf(Call("println", listOf(NumberLiteral(1.0)))))
         assertEquals("{\n   println(1);\n}", fromReader.format(listOf(block)))

@@ -22,7 +22,11 @@ import cnc.language.InterpreterIO
 import cnc.language.LanguageProfile
 import cnc.language.LanguageVersion
 import cnc.lexer.Lexer
+import cnc.linter.BlockStatementLintRule
 import cnc.linter.CNCLinter
+import cnc.linter.CallExpressionLintRule
+import cnc.linter.IfStatementLintRule
+import cnc.linter.LinterBuilder
 import cnc.parser.Parser
 import cnc.parser.expression.ExpressionBuilder
 import cnc.printscript.PrintScriptVersion
@@ -117,5 +121,13 @@ object PrintScript11Profile : LanguageProfile {
 
     override fun createFormatter(configJson: String?): Formatter = createFormatterBuilder().create(configJson)
 
-    override fun createLinter(configJson: String): CNCLinter = PrintScript10Profile.createLinter(configJson)
+    fun createLinterBuilder(): LinterBuilder =
+        PrintScript10Profile
+            .createLinterBuilder()
+            .copy()
+            .registerStatement(BlockStatement::class, BlockStatementLintRule)
+            .registerStatement(IfStatement::class, IfStatementLintRule)
+            .registerExpression(CallExpression::class, CallExpressionLintRule())
+
+    override fun createLinter(configJson: String): CNCLinter = createLinterBuilder().create(configJson)
 }

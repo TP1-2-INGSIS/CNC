@@ -6,7 +6,6 @@ import cnc.common.Result
 import cnc.common.StringContent
 import cnc.common.Success
 import cnc.formatter.Formatter
-import cnc.formatter.FormatterFactory
 import cnc.interpreter.Interpreter
 import cnc.lexer.Lexer
 import cnc.linter.CNCLinter
@@ -91,10 +90,10 @@ class LanguageContractsTest {
 
         override fun createFormatter(configJson: String?): Formatter {
             formatterConfig = configJson
-            return FormatterFactory.create(configJson)
+            return Formatter.builder().create(configJson)
         }
 
-        override fun createLinter(configJson: String): CNCLinter = CNCLinter(emptyList())
+        override fun createLinter(configJson: String): CNCLinter = CNCLinter.builder().create(configJson)
     }
 
     @Test

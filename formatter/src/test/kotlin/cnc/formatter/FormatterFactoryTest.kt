@@ -25,28 +25,28 @@ class FormatterFactoryTest {
     inner class BuildAndCreateTests {
         @Test
         fun `build with null, empty, or whitespace returns default formatter`() {
-            val res1 = FormatterFactory.build(null)
+            val res1 = TestFormatterFactory.build(null)
             assertTrue(res1 is Success)
 
-            val res2 = FormatterFactory.build("")
+            val res2 = TestFormatterFactory.build("")
             assertTrue(res2 is Success)
 
-            val res3 = FormatterFactory.build("   ")
+            val res3 = TestFormatterFactory.build("   ")
             assertTrue(res3 is Success)
         }
 
         @Test
         fun `build with invalid json returns Failure`() {
-            val res = FormatterFactory.build("not valid json")
+            val res = TestFormatterFactory.build("not valid json")
             assertTrue(res is Failure)
         }
 
         @Test
         fun `create returns formatter on success and fallback on failure`() {
-            val fmtValid = FormatterFactory.create("{}")
+            val fmtValid = TestFormatterFactory.create("{}")
             assertNotNull(fmtValid)
 
-            val fmtInvalid = FormatterFactory.create("not json")
+            val fmtInvalid = TestFormatterFactory.create("not json")
             assertNotNull(fmtInvalid)
         }
     }
@@ -56,7 +56,7 @@ class FormatterFactoryTest {
         @Test
         fun `formats variable declarations mutable and const with and without init value`() {
             val json = """{"space-before-colon": false, "space-after-colon": true}"""
-            val formatter = FormatterFactory.create(json)
+            val formatter = TestFormatterFactory.create(json)
 
             val letDecl = Declaration("x", "number", NumberLiteral(10.0), isMutable = true)
             assertEquals("let x: number = 10;", formatter.format(listOf(letDecl)))
@@ -71,7 +71,7 @@ class FormatterFactoryTest {
         @Test
         fun `formats assignment and function call with println line breaks`() {
             val json = """{"line-breaks-after-println": 2}"""
-            val formatter = FormatterFactory.create(json)
+            val formatter = TestFormatterFactory.create(json)
 
             val assign = Assignment("x", NumberLiteral(20.0))
             assertEquals("x = 20;", formatter.format(listOf(assign)))
@@ -86,7 +86,7 @@ class FormatterFactoryTest {
         @Test
         fun `formats single space separation mode for call, call expression, and colons`() {
             val json = """{"single-space-separation": true}"""
-            val formatter = FormatterFactory.create(json)
+            val formatter = TestFormatterFactory.create(json)
 
             val call = Call("println", listOf(StringLiteral("hi")))
             assertEquals("println ( \"hi\" );", formatter.format(listOf(call)))
@@ -103,20 +103,20 @@ class FormatterFactoryTest {
 
         @Test
         fun `formats colon, equals, and operator spacing variations`() {
-            val bothSpacing = FormatterFactory.create("""{"space-before-colon": true, "space-after-colon": true}""")
+            val bothSpacing = TestFormatterFactory.create("""{"space-before-colon": true, "space-after-colon": true}""")
             val decl = Declaration("a", "number", null)
             assertEquals("let a : number;", bothSpacing.format(listOf(decl)))
 
-            val beforeOnly = FormatterFactory.create("""{"space-before-colon": true, "space-after-colon": false}""")
+            val beforeOnly = TestFormatterFactory.create("""{"space-before-colon": true, "space-after-colon": false}""")
             assertEquals("let a :number;", beforeOnly.format(listOf(decl)))
 
-            val noSpaceAroundEq = FormatterFactory.create("""{"no-space-around-equals": true}""")
+            val noSpaceAroundEq = TestFormatterFactory.create("""{"no-space-around-equals": true}""")
             val declEq = Declaration("a", "number", NumberLiteral(5.0))
             assertEquals("let a: number=5;", noSpaceAroundEq.format(listOf(declEq)))
             assertEquals("a=5;", noSpaceAroundEq.format(listOf(Assignment("a", NumberLiteral(5.0)))))
 
             val composed =
-                FormatterFactory.create(
+                TestFormatterFactory.create(
                     """
                     {
                       "space-before-colon": true,
@@ -130,15 +130,15 @@ class FormatterFactoryTest {
             assertEquals("let a :number=1 + 2;", composed.format(listOf(Declaration("a", "number", expr))))
 
             val forceEqualsSpace =
-                StandardFormatRules
-                    .v1_0Builder()
+                TestFormatterFactory
+                    .baseBuilder()
                     .registerStatement<Assignment>(AssignmentRule(assignSpacing = Spacing.NONE))
                     .create("""{"space-around-equals": true}""")
             assertEquals("x = 1;", forceEqualsSpace.format(listOf(Assignment("x", NumberLiteral(1.0)))))
 
             val forceOpSpace =
-                StandardFormatRules
-                    .v1_0Builder()
+                TestFormatterFactory
+                    .baseBuilder()
                     .registerExpression<BinaryExpression>(BinaryExpressionRule(operatorSpacing = Spacing.NONE))
                     .create("""{"mandatory-space-surrounding-operations": true}""")
             assertEquals("let a: number = 1 + 2;", forceOpSpace.format(listOf(Declaration("a", "number", expr))))
@@ -146,7 +146,7 @@ class FormatterFactoryTest {
 
         @Test
         fun `formats empty block and nested block statement`() {
-            val formatter = FormatterFactory.create("""{"indent-inside-if": 4}""")
+            val formatter = TestFormatterFactory.create("""{"indent-inside-if": 4}""")
 
             val emptyBlock = BlockStatement(emptyList())
             assertEquals("{}", formatter.format(listOf(emptyBlock)))
@@ -155,13 +155,13 @@ class FormatterFactoryTest {
             val block = BlockStatement(listOf(innerDecl))
             assertEquals("{\n    let x: number = 1;\n}", formatter.format(listOf(block)))
 
-            val zeroIndent = FormatterFactory.create("""{"indent-inside-if": 0}""")
+            val zeroIndent = TestFormatterFactory.create("""{"indent-inside-if": 0}""")
             assertEquals("{\nlet x: number = 1;\n}", zeroIndent.format(listOf(block)))
         }
 
         @Test
         fun `formats if statement with and without else and brace position options`() {
-            val sameLineFmt = FormatterFactory.create("""{"if-brace-below-line": false}""")
+            val sameLineFmt = TestFormatterFactory.create("""{"if-brace-below-line": false}""")
             val ifStmtNoElse =
                 IfStatement(
                     condition = BooleanLiteral(true),
@@ -170,7 +170,7 @@ class FormatterFactoryTest {
             val expectedSameLine = "if (true) {\n  println(\"yes\");\n}"
             assertEquals(expectedSameLine, sameLineFmt.format(listOf(ifStmtNoElse)))
 
-            val belowLineFmt = FormatterFactory.create("""{"if-brace-below-line": true}""")
+            val belowLineFmt = TestFormatterFactory.create("""{"if-brace-below-line": true}""")
             val ifStmtWithElse =
                 IfStatement(
                     condition = BooleanLiteral(false),
@@ -180,8 +180,8 @@ class FormatterFactoryTest {
             assertEquals("if (false)\n{} else {}", belowLineFmt.format(listOf(ifStmtWithElse)))
 
             val explicitSameLine =
-                StandardFormatRules
-                    .v1_1Builder()
+                TestFormatterFactory
+                    .fullBuilder()
                     .registerStatement<IfStatement>(IfStatementRule(braceBelowLine = true))
                     .create("""{"if-brace-same-line": true}""")
             assertEquals("if (false) {} else {}", explicitSameLine.format(listOf(ifStmtWithElse)))
@@ -190,7 +190,7 @@ class FormatterFactoryTest {
         @Test
         fun `composes single-space-separation with line-breaks-after-println`() {
             val fmt =
-                FormatterFactory.create(
+                TestFormatterFactory.create(
                     """{"single-space-separation": true, "line-breaks-after-println": 1}""",
                 )
             val ast =
@@ -203,40 +203,8 @@ class FormatterFactoryTest {
     }
 
     @Nested
-    inner class FormatSourceTests {
-        @Test
-        fun `formats source via injected parse`() {
-            val statements = listOf(Declaration("x", "number", NumberLiteral(10.0), isMutable = true))
-            val result = FormatterFactory.formatSource("let x:number=10;", null) { statements }
-            assertEquals("let x: number = 10;", result)
-        }
-
-        @Test
-        fun `applies config through formatSource`() {
-            val statements = listOf(Declaration("a", "number", NumberLiteral(1.0), isMutable = true))
-            val json = """{"single-space-separation": true}"""
-            val result = FormatterFactory.formatSource("let a:number=1;", json) { statements }
-            assertEquals("let a : number = 1;", result)
-        }
-
-        @Test
-        fun `returns raw source when parse yields null`() {
-            val src = "let x = ;"
-            val result = FormatterFactory.formatSource(src, null) { null }
-            assertEquals(src, result)
-        }
-
-        @Test
-        fun `returns raw source when parse throws`() {
-            val src = "@@ invalid @@"
-            val result = FormatterFactory.formatSource(src, null) { error("boom") }
-            assertEquals(src, result)
-        }
-    }
-
-    @Nested
     inner class StandardFormatRulesExtraTests {
-        private val formatter = StandardFormatRules.defaultFormatter()
+        private val formatter = TestFormatterFactory.defaultFormatter()
 
         @Test
         fun `formats unary and boolean expressions and function calls`() {

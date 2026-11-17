@@ -10,9 +10,16 @@ import cnc.ast.NumberLiteral
 import cnc.ast.Statement
 import cnc.ast.StringLiteral
 import cnc.ast.UnaryExpression
+import cnc.formatter.AssignmentRule
+import cnc.formatter.BinaryExpressionRule
+import cnc.formatter.CallStatementRule
+import cnc.formatter.DeclarationRule
 import cnc.formatter.Formatter
 import cnc.formatter.FormatterBuilder
-import cnc.formatter.StandardFormatRules
+import cnc.formatter.IdentifierRule
+import cnc.formatter.NumberLiteralRule
+import cnc.formatter.StringLiteralRule
+import cnc.formatter.UnaryExpressionRule
 import cnc.interpreter.AssignmentEvaluator
 import cnc.interpreter.BinaryOperation
 import cnc.interpreter.BuiltinMethodFactory
@@ -29,8 +36,13 @@ import cnc.language.LanguageVersion
 import cnc.lexer.Lexer
 import cnc.lexer.rules.StandardRules
 import cnc.lexer.rules.TrieRule
+import cnc.linter.AssignmentLintRule
+import cnc.linter.BinaryExpressionLintRule
 import cnc.linter.CNCLinter
+import cnc.linter.CallStatementLintRule
+import cnc.linter.DeclarationLintRule
 import cnc.linter.LinterBuilder
+import cnc.linter.UnaryExpressionLintRule
 import cnc.parser.Parser
 import cnc.parser.expression.Associativity
 import cnc.parser.expression.ExpressionBuilder
@@ -170,13 +182,28 @@ object PrintScript10Profile : LanguageProfile {
 
     override fun createInterpreter(io: InterpreterIO): Interpreter = createInterpreterBuilder(io).build()
 
-    fun createFormatterBuilder(): FormatterBuilder = StandardFormatRules.v1_0Builder()
+    fun createFormatterBuilder(): FormatterBuilder =
+        Formatter
+            .builder()
+            .registerStatement(Declaration::class, DeclarationRule())
+            .registerStatement(Assignment::class, AssignmentRule())
+            .registerStatement(Call::class, CallStatementRule())
+            .registerExpression(NumberLiteral::class, NumberLiteralRule)
+            .registerExpression(StringLiteral::class, StringLiteralRule)
+            .registerExpression(Identifier::class, IdentifierRule)
+            .registerExpression(BinaryExpression::class, BinaryExpressionRule())
+            .registerExpression(UnaryExpression::class, UnaryExpressionRule())
 
     override fun createFormatter(configJson: String?): Formatter = createFormatterBuilder().create(configJson)
 
-    override fun createLinter(configJson: String): CNCLinter =
-        when (val res = LinterBuilder.default().build(configJson)) {
-            is cnc.common.Success -> res.data
-            is cnc.common.Failure -> CNCLinter(emptyList())
-        }
+    fun createLinterBuilder(): LinterBuilder =
+        CNCLinter
+            .builder()
+            .registerStatement(Declaration::class, DeclarationLintRule())
+            .registerStatement(Assignment::class, AssignmentLintRule)
+            .registerStatement(Call::class, CallStatementLintRule())
+            .registerExpression(BinaryExpression::class, BinaryExpressionLintRule)
+            .registerExpression(UnaryExpression::class, UnaryExpressionLintRule)
+
+    override fun createLinter(configJson: String): CNCLinter = createLinterBuilder().create(configJson)
 }

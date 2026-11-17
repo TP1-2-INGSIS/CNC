@@ -1,71 +1,89 @@
 package cnc.linter
 
+import cnc.ast.Expression
+import cnc.ast.Statement
 import cnc.common.ConfigReader
-import cnc.common.ErrorType
 import cnc.common.Failure
-import cnc.common.NamingValidator
 import cnc.common.Result
 import cnc.common.Success
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
+import kotlin.reflect.KClass
 
-/** Builder fluido del linter: `LinterBuilder.default().addValidator(...).build(json)`. */
-class LinterBuilder private constructor(
-    private val validators: ValidatorsContainer,
+/** Builder fluido del linter: registra reglas por nodo AST y las auto-configura desde JSON. */
+class LinterBuilder(
+    initialStatements: Map<KClass<out Statement>, StatementLintRule<*>> = emptyMap(),
+    initialExpressions: Map<KClass<out Expression>, ExpressionLintRule<*>> = emptyMap(),
 ) {
-    /** Devuelve una copia con [validator] registrado bajo [key]. */
-    fun addValidator(
-        key: String,
-        validator: NamingValidator,
-    ): LinterBuilder = LinterBuilder(validators.withValidator(key, validator))
+    private val statementRules = initialStatements.toMutableMap()
+    private val expressionRules = initialExpressions.toMutableMap()
 
-    /** Arma el [CNCLinter] según el JSON de configuración. */
-    fun build(jsonString: String): Result<CNCLinter> {
-        val root =
-            runCatching {
-                Gson().fromJson(jsonString, JsonObject::class.java)
-            }.getOrNull() ?: JsonObject()
-        val reader = ConfigReader.fromMap(root.toValueMap())
-
-        val rules = mutableListOf<LinterRule>()
-
-        val format = reader.readString(namingConventionKeys)
-        if (format != null) {
-            val validator =
-                validators.resolve(format)
-                    ?: return Failure("Convention validator for '$format' not found", ErrorType.CLI)
-            rules.add(NamingConventionRule(format, validator))
+    fun <T : Statement> registerStatement(
+        kClass: KClass<T>,
+        rule: StatementLintRule<T>,
+    ): LinterBuilder =
+        apply {
+            statementRules[kClass] = rule
         }
 
-        if (reader.isEnabled(printlnRuleKeys)) {
-            rules.add(SimpleFunctionCallRule("println"))
+    inline fun <reified T : Statement> registerStatement(rule: StatementLintRule<T>): LinterBuilder =
+        registerStatement(T::class, rule)
+
+    fun <T : Expression> registerExpression(
+        kClass: KClass<T>,
+        rule: ExpressionLintRule<T>,
+    ): LinterBuilder =
+        apply {
+            expressionRules[kClass] = rule
         }
 
-        if (reader.isEnabled(readInputRuleKeys)) {
-            rules.add(SimpleFunctionCallRule("readInput"))
+    inline fun <reified T : Expression> registerExpression(rule: ExpressionLintRule<T>): LinterBuilder =
+        registerExpression(T::class, rule)
+
+    fun copy(): LinterBuilder = LinterBuilder(statementRules, expressionRules)
+
+    fun build(): CNCLinter = CNCLinter(statementRules.toMap(), expressionRules.toMap())
+
+    fun build(reader: ConfigReader): Result<CNCLinter> {
+        val configuredStatements = mutableMapOf<KClass<out Statement>, StatementLintRule<*>>()
+        for ((kClass, rule) in statementRules) {
+            when (val res = rule.configure(reader)) {
+                is Failure -> return Failure(res.msg, res.type)
+                is Success -> configuredStatements[kClass] = res.data
+            }
         }
 
-        return Success("ok", CNCLinter(rules))
+        val configuredExpressions = mutableMapOf<KClass<out Expression>, ExpressionLintRule<*>>()
+        for ((kClass, rule) in expressionRules) {
+            when (val res = rule.configure(reader)) {
+                is Failure -> return Failure(res.msg, res.type)
+                is Success -> configuredExpressions[kClass] = res.data
+            }
+        }
+
+        return Success("ok", CNCLinter(configuredStatements, configuredExpressions))
     }
 
+    fun build(jsonString: String?): Result<CNCLinter> {
+        val root =
+            if (jsonString.isNullOrBlank()) {
+                JsonObject()
+            } else {
+                runCatching {
+                    Gson().fromJson(jsonString, JsonObject::class.java)
+                }.getOrNull() ?: JsonObject()
+            }
+        return build(ConfigReader.fromMap(root.toValueMap()))
+    }
+
+    fun create(jsonString: String? = null): CNCLinter =
+        when (val result = build(jsonString)) {
+            is Success -> result.data
+            is Failure -> CNCLinter()
+        }
+
     companion object {
-        private val namingConventionKeys = listOf("identifier_format", "identifier-format", "naming-convention")
-        private val printlnRuleKeys = listOf("mandatory-variable-or-literal-in-println", "simple-println")
-        private val readInputRuleKeys =
-            listOf(
-                "mandatory-variable-or-literal-in-readInput",
-                "mandatory-variable-or-literal-in-read-input",
-                "simple-read-input",
-            )
-
-        /** Builder vacío (sin validadores registrados). */
-        fun empty(): LinterBuilder = LinterBuilder(ValidatorsContainer.empty())
-
-        /** Builder con los validadores estándar (camelCase, snake_case). */
-        fun default(): LinterBuilder = LinterBuilder(ValidatorsContainer.default())
-
-        /** Puente gson -> mapa plano de nivel superior para [ConfigReader]. */
         private fun JsonObject.toValueMap(): Map<String, Any?> =
             entrySet().associate { (key, element) ->
                 val value: Any? =

@@ -1,44 +1,37 @@
 package cnc.linter
 
-import cnc.ast.BlockStatement
-import cnc.ast.IfStatement
+import cnc.ast.Expression
 import cnc.ast.Statement
+import kotlin.reflect.KClass
 
+/**
+ * Motor genérico e inmutable del linter.
+ * Despacha sentencias y expresiones en O(1) según su clase concreta del AST,
+ * sin acoplarse a ningún subtipo concreto de [Statement] o [Expression].
+ */
 class CNCLinter(
-    private val rules: List<LinterRule>,
+    private val statementRules: Map<KClass<out Statement>, StatementLintRule<*>> = emptyMap(),
+    private val expressionRules: Map<KClass<out Expression>, ExpressionLintRule<*>> = emptyMap(),
 ) {
-    fun lint(statements: Sequence<Statement>): List<String> {
-        val allWarnings = mutableListOf<String>()
-
-        for (statement in statements) {
-            allWarnings.addAll(checkRecursively(statement))
-        }
-
-        return allWarnings
+    @Suppress("UNCHECKED_CAST")
+    fun lint(statement: Statement): List<String> {
+        val rule =
+            statementRules[statement::class] as? StatementLintRule<Statement>
+                ?: return emptyList()
+        return rule.lint(statement, this)
     }
 
-    private fun checkRecursively(statement: Statement): List<String> {
-        val warnings = mutableListOf<String>()
+    @Suppress("UNCHECKED_CAST")
+    fun lint(expression: Expression): List<String> {
+        val rule =
+            expressionRules[expression::class] as? ExpressionLintRule<Expression>
+                ?: return emptyList()
+        return rule.lint(expression, this)
+    }
 
-        for (rule in rules) {
-            warnings.addAll(rule.check(statement))
-        }
+    fun lint(statements: Sequence<Statement>): List<String> = statements.flatMap { lint(it).asSequence() }.toList()
 
-        when (statement) {
-            is BlockStatement -> {
-                for (stmt in statement.statements) {
-                    warnings.addAll(checkRecursively(stmt))
-                }
-            }
-            is IfStatement -> {
-                warnings.addAll(checkRecursively(statement.thenBlock))
-                statement.elseBlock?.let {
-                    warnings.addAll(checkRecursively(it))
-                }
-            }
-            else -> {}
-        }
-
-        return warnings
+    companion object {
+        fun builder(): LinterBuilder = LinterBuilder()
     }
 }

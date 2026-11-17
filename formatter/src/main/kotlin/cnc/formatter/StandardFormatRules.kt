@@ -297,10 +297,7 @@ data class IfStatementRule(
     }
 }
 
-/**
- * Catálogo canónico de reglas de formato auto-configurables.
- * Cada versión de PrintScript compone su [FormatterBuilder] desde su perfil correspondiente.
- */
+/** Catálogo de reglas de formato estándar reutilizables y auto-configurables. */
 object StandardFormatRules {
     const val DEFAULT_INDENT = 4
     const val JSON_FALLBACK_INDENT = 2
@@ -313,30 +310,4 @@ object StandardFormatRules {
             "/" to 2,
             "**" to 3,
         )
-
-    @Suppress("FunctionNaming", "ktlint:standard:function-naming")
-    fun v1_0Builder(): FormatterBuilder =
-        Formatter
-            .builder()
-            .registerStatement(Declaration::class, DeclarationRule())
-            .registerStatement(Assignment::class, AssignmentRule())
-            .registerStatement(Call::class, CallStatementRule())
-            .registerExpression(NumberLiteral::class, NumberLiteralRule)
-            .registerExpression(StringLiteral::class, StringLiteralRule)
-            .registerExpression(Identifier::class, IdentifierRule)
-            .registerExpression(BinaryExpression::class, BinaryExpressionRule())
-            .registerExpression(UnaryExpression::class, UnaryExpressionRule())
-
-    @Suppress("FunctionNaming", "ktlint:standard:function-naming")
-    fun v1_1Builder(): FormatterBuilder =
-        v1_0Builder()
-            .copy()
-            .registerStatement(BlockStatement::class, BlockStatementRule())
-            .registerStatement(IfStatement::class, IfStatementRule())
-            .registerExpression(BooleanLiteral::class, BooleanLiteralRule)
-            .registerExpression(CallExpression::class, CallExpressionRule())
-
-    fun defaultBuilder(): FormatterBuilder = v1_1Builder()
-
-    fun defaultFormatter(): Formatter = defaultBuilder().build()
 }
