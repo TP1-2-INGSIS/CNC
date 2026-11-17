@@ -7,8 +7,12 @@ import cnc.ast.CallExpression
 import cnc.ast.Expression
 import cnc.ast.IfStatement
 import cnc.ast.Statement
+import cnc.formatter.BlockStatementRule
+import cnc.formatter.BooleanLiteralRule
+import cnc.formatter.CallExpressionRule
 import cnc.formatter.Formatter
-import cnc.formatter.FormatterFactory
+import cnc.formatter.FormatterBuilder
+import cnc.formatter.IfStatementRule
 import cnc.interpreter.BlockEvaluator
 import cnc.interpreter.BuiltinMethodFactory
 import cnc.interpreter.CallEvaluator
@@ -102,7 +106,16 @@ object PrintScript11Profile : LanguageProfile {
             .build()
     }
 
-    override fun createFormatter(configJson: String?): Formatter = FormatterFactory.create(configJson)
+    fun createFormatterBuilder(): FormatterBuilder =
+        PrintScript10Profile
+            .createFormatterBuilder()
+            .copy()
+            .registerStatement(BlockStatement::class, BlockStatementRule())
+            .registerStatement(IfStatement::class, IfStatementRule())
+            .registerExpression(BooleanLiteral::class, BooleanLiteralRule)
+            .registerExpression(CallExpression::class, CallExpressionRule())
+
+    override fun createFormatter(configJson: String?): Formatter = createFormatterBuilder().create(configJson)
 
     override fun createLinter(configJson: String): CNCLinter = PrintScript10Profile.createLinter(configJson)
 }

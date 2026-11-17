@@ -11,7 +11,8 @@ import cnc.ast.Statement
 import cnc.ast.StringLiteral
 import cnc.ast.UnaryExpression
 import cnc.formatter.Formatter
-import cnc.formatter.FormatterFactory
+import cnc.formatter.FormatterBuilder
+import cnc.formatter.StandardFormatRules
 import cnc.interpreter.AssignmentEvaluator
 import cnc.interpreter.BinaryOperation
 import cnc.interpreter.BuiltinMethodFactory
@@ -169,7 +170,9 @@ object PrintScript10Profile : LanguageProfile {
 
     override fun createInterpreter(io: InterpreterIO): Interpreter = createInterpreterBuilder(io).build()
 
-    override fun createFormatter(configJson: String?): Formatter = FormatterFactory.create(configJson)
+    fun createFormatterBuilder(): FormatterBuilder = StandardFormatRules.v1_0Builder()
+
+    override fun createFormatter(configJson: String?): Formatter = createFormatterBuilder().create(configJson)
 
     override fun createLinter(configJson: String): CNCLinter =
         when (val res = LinterBuilder.default().build(configJson)) {

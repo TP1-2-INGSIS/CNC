@@ -1,6 +1,7 @@
 package cnc.formatter
 
 import cnc.ast.Assignment
+import cnc.ast.BinaryExpression
 import cnc.ast.BlockStatement
 import cnc.ast.BooleanLiteral
 import cnc.ast.Call
@@ -83,19 +84,25 @@ class FormatterFactoryTest {
         }
 
         @Test
-        fun `formats single space separation mode for call and colons`() {
+        fun `formats single space separation mode for call, call expression, and colons`() {
             val json = """{"single-space-separation": true}"""
             val formatter = FormatterFactory.create(json)
 
             val call = Call("println", listOf(StringLiteral("hi")))
             assertEquals("println ( \"hi\" );", formatter.format(listOf(call)))
 
+            val emptyCall = Call("flush", emptyList())
+            assertEquals("flush();", formatter.format(listOf(emptyCall)))
+
             val decl = Declaration("a", "number", NumberLiteral(1.0))
             assertEquals("let a : number = 1;", formatter.format(listOf(decl)))
+
+            val declCallExpr = Declaration("name", "string", CallExpression("readInput", listOf(StringLiteral("?"))))
+            assertEquals("let name : string = readInput ( \"?\" );", formatter.format(listOf(declCallExpr)))
         }
 
         @Test
-        fun `formats colon spacing variations`() {
+        fun `formats colon, equals, and operator spacing variations`() {
             val bothSpacing = FormatterFactory.create("""{"space-before-colon": true, "space-after-colon": true}""")
             val decl = Declaration("a", "number", null)
             assertEquals("let a : number;", bothSpacing.format(listOf(decl)))
@@ -106,6 +113,35 @@ class FormatterFactoryTest {
             val noSpaceAroundEq = FormatterFactory.create("""{"no-space-around-equals": true}""")
             val declEq = Declaration("a", "number", NumberLiteral(5.0))
             assertEquals("let a: number=5;", noSpaceAroundEq.format(listOf(declEq)))
+            assertEquals("a=5;", noSpaceAroundEq.format(listOf(Assignment("a", NumberLiteral(5.0)))))
+
+            val composed =
+                FormatterFactory.create(
+                    """
+                    {
+                      "space-before-colon": true,
+                      "space-after-colon": false,
+                      "no-space-around-equals": true,
+                      "mandatory-space-surrounding-operations": true
+                    }
+                    """.trimIndent(),
+                )
+            val expr = BinaryExpression(NumberLiteral(1.0), "+", NumberLiteral(2.0))
+            assertEquals("let a :number=1 + 2;", composed.format(listOf(Declaration("a", "number", expr))))
+
+            val forceEqualsSpace =
+                StandardFormatRules
+                    .v1_0Builder()
+                    .registerStatement<Assignment>(AssignmentRule(assignSpacing = Spacing.NONE))
+                    .create("""{"space-around-equals": true}""")
+            assertEquals("x = 1;", forceEqualsSpace.format(listOf(Assignment("x", NumberLiteral(1.0)))))
+
+            val forceOpSpace =
+                StandardFormatRules
+                    .v1_0Builder()
+                    .registerExpression<BinaryExpression>(BinaryExpressionRule(operatorSpacing = Spacing.NONE))
+                    .create("""{"mandatory-space-surrounding-operations": true}""")
+            assertEquals("let a: number = 1 + 2;", forceOpSpace.format(listOf(Declaration("a", "number", expr))))
         }
 
         @Test
@@ -118,10 +154,13 @@ class FormatterFactoryTest {
             val innerDecl = Declaration("x", "number", NumberLiteral(1.0))
             val block = BlockStatement(listOf(innerDecl))
             assertEquals("{\n    let x: number = 1;\n}", formatter.format(listOf(block)))
+
+            val zeroIndent = FormatterFactory.create("""{"indent-inside-if": 0}""")
+            assertEquals("{\nlet x: number = 1;\n}", zeroIndent.format(listOf(block)))
         }
 
         @Test
-        fun `formats if statement with and without else and brace below line`() {
+        fun `formats if statement with and without else and brace position options`() {
             val sameLineFmt = FormatterFactory.create("""{"if-brace-below-line": false}""")
             val ifStmtNoElse =
                 IfStatement(
@@ -139,6 +178,27 @@ class FormatterFactoryTest {
                     elseBlock = BlockStatement(emptyList()),
                 )
             assertEquals("if (false)\n{} else {}", belowLineFmt.format(listOf(ifStmtWithElse)))
+
+            val explicitSameLine =
+                StandardFormatRules
+                    .v1_1Builder()
+                    .registerStatement<IfStatement>(IfStatementRule(braceBelowLine = true))
+                    .create("""{"if-brace-same-line": true}""")
+            assertEquals("if (false) {} else {}", explicitSameLine.format(listOf(ifStmtWithElse)))
+        }
+
+        @Test
+        fun `composes single-space-separation with line-breaks-after-println`() {
+            val fmt =
+                FormatterFactory.create(
+                    """{"single-space-separation": true, "line-breaks-after-println": 1}""",
+                )
+            val ast =
+                listOf(
+                    Call("println", listOf(StringLiteral("a"))),
+                    Call("println", listOf(StringLiteral("b"))),
+                )
+            assertEquals("println ( \"a\" );\n\nprintln ( \"b\" );\n", fmt.format(ast))
         }
     }
 
@@ -182,6 +242,14 @@ class FormatterFactoryTest {
         fun `formats unary and boolean expressions and function calls`() {
             val unary = Declaration("neg", "number", UnaryExpression("-", NumberLiteral(5.0)))
             assertEquals("let neg: number = -5;", formatter.format(listOf(unary)))
+
+            val notExpr =
+                Declaration(
+                    "flag",
+                    "boolean",
+                    UnaryExpression("!", BinaryExpression(Identifier("a"), "+", Identifier("b"))),
+                )
+            assertEquals("let flag: boolean = !(a + b);", formatter.format(listOf(notExpr)))
 
             val boolVal = Declaration("flag", "boolean", BooleanLiteral(true))
             assertEquals("let flag: boolean = true;", formatter.format(listOf(boolVal)))

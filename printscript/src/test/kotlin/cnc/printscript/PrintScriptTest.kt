@@ -153,6 +153,32 @@ class PrintScriptTest {
     }
 
     @Test
+    fun `format applies json config across v1_0 and v1_1 and falls back on syntax error`() {
+        val v10 = PrintScriptEngine.v1_0()
+        val source10 = "let   x :number=5+3*2;\nprintln(x);"
+        val formatted10 =
+            v10.format(
+                StringContent(source10),
+                """{"space-before-colon": true, "space-after-colon": true, "no-space-around-equals": true}""",
+            )
+        assertEquals("let x : number=5 + 3 * 2;\nprintln(x);", formatted10)
+
+        val source11 = "const flag: boolean = true;\nif (flag) {\nprintln(\"ok\");\n}"
+        val formatted11 =
+            printScript.format(
+                StringContent(source11),
+                """{"if-brace-below-line": true, "indent-inside-if": 4}""",
+            )
+        assertEquals("const flag: boolean = true;\nif (flag)\n{\n    println(\"ok\");\n}", formatted11)
+
+        val invalidSource = "let x = ;"
+        assertEquals(
+            invalidSource,
+            printScript.format(StringContent(invalidSource), """{"space-around-equals": true}"""),
+        )
+    }
+
+    @Test
     fun `lint detects naming convention violations`() {
         val configJson =
             """
