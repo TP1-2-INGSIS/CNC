@@ -164,6 +164,8 @@ class PrintScriptTest {
 
     @Test
     fun `format applies json config across v1_0 and v1_1 and falls back on syntax error`() {
+        // Con config se usa el formateo preservador (modelo del TCK):
+        // solo cambian los gaps afectados por reglas activas, el resto queda como en el original.
         val v10 = PrintScriptEngine.v1_0()
         val source10 = "let   x :number=5+3*2;\nprintln(x);"
         val formatted10 =
@@ -171,15 +173,22 @@ class PrintScriptTest {
                 StringContent(source10),
                 """{"space-before-colon": true, "space-after-colon": true, "no-space-around-equals": true}""",
             )
-        assertEquals("let x : number=5 + 3 * 2;\nprintln(x);", formatted10)
+        assertEquals("let   x : number=5+3*2;\nprintln(x);", formatted10)
 
         val source11 = "const flag: boolean = true;\nif (flag) {\nprintln(\"ok\");\n}"
-        val formatted11 =
+        val braceBelow =
             printScript.format(
                 StringContent(source11),
-                """{"if-brace-below-line": true, "indent-inside-if": 4}""",
+                """{"if-brace-below-line": true}""",
             )
-        assertEquals("const flag: boolean = true;\nif (flag)\n{\n    println(\"ok\");\n}", formatted11)
+        assertEquals("const flag: boolean = true;\nif (flag)\n{\nprintln(\"ok\");\n}", braceBelow)
+
+        val indented =
+            printScript.format(
+                StringContent(source11),
+                """{"indent-inside-if": 4}""",
+            )
+        assertEquals("const flag: boolean = true;\nif (flag) {\n    println(\"ok\");\n}", indented)
 
         val invalidSource = "let x = ;"
         assertEquals(

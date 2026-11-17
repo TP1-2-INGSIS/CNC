@@ -10,6 +10,7 @@ import cnc.interpreter.Environment
 import cnc.language.InterpreterIO
 import cnc.language.LanguageFacade
 import cnc.language.LanguageProfile
+import cnc.printscript.format.SourceFormatter
 import cnc.printscript.profile.PrintScriptProfileRegistry
 import cnc.token.Token
 
@@ -121,6 +122,10 @@ internal class PrintScriptFacade(
         configJson: String?,
     ): String {
         val source = content.getReader().use { it.readText() }
+        // Con config: formateo preservador (modelo del TCK). Sin config: render canónico por AST.
+        if (!configJson.isNullOrBlank()) {
+            return SourceFormatter.format(source, configJson)
+        }
         return when (val parseResult = parse(lex(ContentManager.of(source)))) {
             is Success -> profile.createFormatter(configJson).format(parseResult.data)
             is Failure -> source
