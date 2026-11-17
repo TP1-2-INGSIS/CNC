@@ -1,14 +1,48 @@
 package cnc.formatter
 
+import cnc.ast.Expression
+import cnc.ast.Statement
+import cnc.common.ConfigReader
+
+/** Espaciado a aplicar alrededor de un símbolo (`=`, `:`, operadores). */
+enum class Spacing {
+    AROUND,
+    BEFORE,
+    AFTER,
+    NONE,
+    ;
+
+    fun apply(symbol: String): String =
+        when (this) {
+            AROUND -> " $symbol "
+            BEFORE -> " $symbol"
+            AFTER -> "$symbol "
+            NONE -> symbol
+        }
+}
+
 /**
- * Abstracción unificada de una regla de formato (Decisión 7): toma un nodo (una
- * [cnc.ast.Expression] concreta) o un símbolo (`String`) y produce texto.
- * Los statements se formatean vía [StatementRule] (self-dispatch). Las reglas
- * concretas se inyectan desde `app/config/` (Decisión 8).
+ * Contrato para formatear una sentencia de tipo [T].
  */
-fun interface FormatRule<T> {
+interface StatementFormatRule<T : Statement> {
     fun format(
-        node: T,
-        context: FormatContext,
+        statement: T,
+        formatter: Formatter,
     ): String
+
+    /** Devuelve una instancia de la regla ajustada según las opciones activas en [reader]. */
+    fun configure(reader: ConfigReader): StatementFormatRule<T> = this
+}
+
+/**
+ * Contrato para formatear una expresión de tipo [T].
+ */
+interface ExpressionFormatRule<T : Expression> {
+    fun format(
+        expression: T,
+        formatter: Formatter,
+    ): String
+
+    /** Devuelve una instancia de la regla ajustada según las opciones activas en [reader]. */
+    fun configure(reader: ConfigReader): ExpressionFormatRule<T> = this
 }

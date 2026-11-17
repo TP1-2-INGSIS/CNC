@@ -1,5 +1,12 @@
 package cnc.printscript
 
+import cnc.ast.BinaryExpression
+import cnc.ast.BlockStatement
+import cnc.ast.BooleanLiteral
+import cnc.ast.CallExpression
+import cnc.ast.Declaration
+import cnc.ast.IfStatement
+import cnc.ast.StringLiteral
 import cnc.common.Failure
 import cnc.common.FileContent
 import cnc.common.InputStreamContent
@@ -7,8 +14,11 @@ import cnc.common.StringContent
 import cnc.common.Success
 import cnc.language.InterpreterIO
 import cnc.language.LanguageFacade
+import cnc.printscript.profile.v1_0.PrintScript10Profile
+import cnc.printscript.profile.v1_1.PrintScript11Profile
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -153,6 +163,41 @@ class PrintScriptTest {
     }
 
     @Test
+    fun `format applies json config across v1_0 and v1_1 and falls back on syntax error`() {
+        // Con config se usa el formateo preservador (modelo del TCK):
+        // solo cambian los gaps afectados por reglas activas, el resto queda como en el original.
+        val v10 = PrintScriptEngine.v1_0()
+        val source10 = "let   x :number=5+3*2;\nprintln(x);"
+        val formatted10 =
+            v10.format(
+                StringContent(source10),
+                """{"space-before-colon": true, "space-after-colon": true, "no-space-around-equals": true}""",
+            )
+        assertEquals("let   x : number=5+3*2;\nprintln(x);", formatted10)
+
+        val source11 = "const flag: boolean = true;\nif (flag) {\nprintln(\"ok\");\n}"
+        val braceBelow =
+            printScript.format(
+                StringContent(source11),
+                """{"if-brace-below-line": true}""",
+            )
+        assertEquals("const flag: boolean = true;\nif (flag)\n{\nprintln(\"ok\");\n}", braceBelow)
+
+        val indented =
+            printScript.format(
+                StringContent(source11),
+                """{"indent-inside-if": 4}""",
+            )
+        assertEquals("const flag: boolean = true;\nif (flag) {\n    println(\"ok\");\n}", indented)
+
+        val invalidSource = "let x = ;"
+        assertEquals(
+            invalidSource,
+            printScript.format(StringContent(invalidSource), """{"space-around-equals": true}"""),
+        )
+    }
+
+    @Test
     fun `lint detects naming convention violations`() {
         val configJson =
             """
@@ -168,6 +213,37 @@ class PrintScriptTest {
         val validCode = "let goodName: number = 10;"
         val noWarnings = printScript.lint(StringContent(validCode), configJson)
         assertTrue(noWarnings.isEmpty())
+
+        val v10 = PrintScriptEngine.v1_0()
+        val v10Warnings = v10.lint(StringContent(invalidCode), configJson)
+        assertTrue(v10Warnings.isNotEmpty())
+
+        val readInputCode = "let x: string = readInput(\"a\" + \"b\");"
+        val readInputConfig = """{"mandatory-variable-or-literal-in-readInput": true}"""
+        assertEquals(1, printScript.lint(StringContent(readInputCode), readInputConfig).size)
+    }
+
+    @Test
+    fun `profiles separate v1_0 and v1_1 formatter and linter capabilities`() {
+        val formatter10 = PrintScript10Profile.createFormatter()
+        val formatter11 = PrintScript11Profile.createFormatter()
+        val v11IfStmt = IfStatement(BooleanLiteral(true), BlockStatement(emptyList()))
+        assertThrows(IllegalStateException::class.java) {
+            formatter10.format(listOf(v11IfStmt))
+        }
+        assertEquals("if (true) {}", formatter11.format(listOf(v11IfStmt)))
+
+        val readInputAst =
+            sequenceOf(
+                Declaration(
+                    "name",
+                    "string",
+                    CallExpression("readInput", listOf(BinaryExpression(StringLiteral("a"), "+", StringLiteral("b")))),
+                ),
+            )
+        val linterCfg = """{"mandatory-variable-or-literal-in-readInput": true}"""
+        assertTrue(PrintScript10Profile.createLinter(linterCfg).lint(readInputAst).isEmpty())
+        assertEquals(1, PrintScript11Profile.createLinter(linterCfg).lint(readInputAst).size)
     }
 
     @Test

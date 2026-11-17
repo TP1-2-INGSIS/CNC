@@ -127,7 +127,7 @@ internal class PrintScriptFacade(
             return SourceFormatter.format(source, configJson)
         }
         return when (val parseResult = parse(lex(ContentManager.of(source)))) {
-            is Success -> profile.createFormatter(null).format(parseResult.data)
+            is Success -> profile.createFormatter(configJson).format(parseResult.data)
             is Failure -> source
         }
     }

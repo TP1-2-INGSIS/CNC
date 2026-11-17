@@ -12,7 +12,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class PrintScriptConfigTest {
-    private val formatter = StandardFormatRules.defaultFormatter()
+    private val formatter = TestFormatterFactory.defaultFormatter()
 
     private fun decl(
         name: String,
@@ -40,7 +40,6 @@ class PrintScriptConfigTest {
 
     @Test
     fun `declaration with binary and precedence parentheses`() {
-        // (a + b) * 2
         val inner = BinaryExpression(Identifier("a"), "+", Identifier("b"))
         val expr = BinaryExpression(inner, "*", NumberLiteral(2.0))
         assertEquals(
@@ -59,5 +58,13 @@ class PrintScriptConfigTest {
     fun `call with arguments`() {
         val call = Call(function = "println", arguments = listOf(Identifier("x")))
         assertEquals("println(x);", formatter.format(listOf(call)))
+    }
+
+    @Test
+    fun `spacing enum applies around, before, after, and none`() {
+        assertEquals(" = ", Spacing.AROUND.apply("="))
+        assertEquals(" =", Spacing.BEFORE.apply("="))
+        assertEquals("= ", Spacing.AFTER.apply("="))
+        assertEquals("=", Spacing.NONE.apply("="))
     }
 }
